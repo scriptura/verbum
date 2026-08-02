@@ -1,0 +1,14 @@
+[package]
+name = "verbum"
+version = "0.1.0"
+edition = "2021"
+authors = ["Olivier Chavarin"]
+description = "A strict ECS and Data-Oriented 2D game engine built for absolute determinism, zero-allocation hot paths, and Ahead-Of-Time compilation."
+repository = "https://github.com/scriptura/verbum"
+readme = "README.md"
+license = "MIT OR Apache-2.0"                                                                                                                           # Double licence standard de l'écosystème Rust
+keywords = ["ecs", "game-engine", "dod", "aot", "deterministic"]
+categories = ["game-engines", "data-structures"]
+
+# Aucune dépendance pour ce manifeste architectural.
+[dependencies]

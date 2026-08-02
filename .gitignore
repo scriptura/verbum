@@ -1,0 +1,61 @@
+# ==============================================================================
+# Verbum — .gitignore
+# Stack : Rust (Cargo) · Moteur ECS/DOD/AOT
+# ==============================================================================
+
+# ── Rust / Cargo ──────────────────────────────────────────────────────────────
+/target/
+**/*.rs.bk
+*.pdb
+.cargo/config.toml
+
+# ── Verbum : Forge & Artéfacts de build AOT ───────────────────────────────────
+/dist/
+/build/
+/artifacts/
+# (Optionnel) Ignorer les blobs binaires générés par la Forge si le brut est versionné
+# /assets_compiled/ 
+
+# ── Variables d'environnement & Secrets ───────────────────────────────────────
+.env
+.env.*
+!.env.example
+secrets/
+*.key
+*.pem
+*.cert
+
+# ── Éditeurs & IDEs ───────────────────────────────────────────────────────────
+# VS Code
+.vscode/
+!.vscode/extensions.json
+
+# JetBrains (CLion, IntelliJ, RustRover)
+.idea/
+*.iml
+
+# Vim / Neovim
+*.swp
+*.swo
+*~
+.netrwhist
+
+# Emacs
+\#*\#
+.\#*
+
+# ── Système ───────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.bak
+*.tmp
+
+# Fichiers de miniatures (Linux)
+.Trash-*/
+.directory
+
+# ── Logs & Caches ─────────────────────────────────────────────────────────────
+*.log
+logs/
+.cache/
