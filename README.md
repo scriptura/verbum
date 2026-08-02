@@ -31,10 +31,7 @@ L'architecture de Verbum est intégralement documentée et justifiée par un cor
 
 Si vous souhaitez comprendre les modèles de conception du moteur, l'ordre d'évaluation des composants, ou les contrats d'interface stricts entre le Shell et le World, commencez par le Master Index de l'architecture :
 
-👉 **[Lire la documentation d'architecture (`docs/architecture/README.md`)](docs/architecture/README.md)**
-
----
-*Verbum est conçu avec l'ambition d'exposer les données à l'état pur.*
+👉 **Lire la documentation d'architecture : [(`docs/architecture/README.md`)](docs/architecture/README.md)**
 
 ---
 
