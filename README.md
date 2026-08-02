@@ -1,37 +1,79 @@
 # Verbum
 
-**Verbum** est un moteur de jeu (orienté 2D top-down) conçu autour de trois paradigmes non négociables : **ECS** (Entity-Component-System), **DOD** (Data-Oriented Design) et **AOT** (Ahead-Of-Time).
+**Verbum** est un moteur de jeu 2D top-down, écrit en Rust, construit selon les principes **ECS** (*Entity–Component–System*), **DOD** (*Data-Oriented Design*) et **Ahead-Of-Time** (AOT).
 
-Son nom reflète sa philosophie architecturale : une rigueur sémantique absolue où le code fait exactement et uniquement ce qu'il désigne. Aucune abstraction fuyante, aucune allocation dynamique sur les chemins critiques (hot paths), aucune indirection inutile.
+Plus qu'un moteur, Verbum est une recherche sur la manière de construire un runtime dont le comportement découle d'un petit nombre d'invariants architecturaux, plutôt que d'une accumulation de mécanismes particuliers.
 
-## Principes Fondamentaux
+Son nom — *Verbum*, « le mot » en latin — reflète cette intention : chaque terme du vocabulaire architectural possède une définition unique, chaque responsabilité est nommée une seule fois, et chaque nouveau domaine est d'abord confronté aux concepts existants avant que de nouveaux ne soient introduits.
 
-L'architecture de Verbum rejette les modèles traditionnels basés sur l'héritage, les graphes de scènes orientés objets et les environnements d'exécution dynamiques (VM). Le moteur garantit ses performances et son déterminisme via des invariants structurels stricts :
+---
 
-* **Data-Oriented Design (DOD) & ECS Strict :** La disposition en mémoire (data layout) dicte l'architecture. L'état est intégralement contenu dans des Composants plats et des Ressources globales. Les Systèmes sont des pipelines de transformation purs, sans état propre, définis par une interface déclarative stricte.
-* **Architecture AOT & "La Forge" :** Le runtime ne fait aucun parsing. Les assets, les configurations, et la logique scriptée (quêtes, dialogues) sont transformés en représentations binaires plates à la compilation par un outil dédié : *La Forge*. Le runtime se contente de consommer ces données.
-* **Séparation Shell / World :** 
-  * Le **World** contient l'état et la logique. Il est pur, déterministe, et ignore l'existence de l'OS, du réseau ou de l'écran.
-  * Le **Shell** est la couche d'acquisition matérielle. Il capte les inputs, gère l'OS, et pilote l'exécution.
-  * *Corollaire :* Le moteur ne possède aucune boucle `while true` interne. L'acquisition pilote la logique.
-* **Déterminisme Absolu (Scripts & Réseau) :** Aucun système, ni aucun script, ne maintient d'état d'exécution suspendu hors du `World` (pas de coroutines, pas de `yield` natif). Toute attente ou reprise est modélisée par un compteur ordinal (program counter) stocké dans un composant, traité de manière prédictible à chaque frame logicielle.
+## Principes
 
-## Structure du Dépôt
+L'architecture de Verbum repose sur quelques invariants simples.
 
-Le projet est divisé entre les outils de préparation des données (AOT) et le runtime (exécution).
+### Les données sont premières
 
-* `/forge` : Le pipeline de compilation AOT (ingestion des DSLs, assets, et génération des formats binaires contigus).
-* `/engine` : Le cœur du runtime, comprenant le modèle d'exécution ECS.
-* `/shell` : Les implémentations d'acquisition matérielle et de projection graphique (Renderer).
-* `/docs/architecture` : Le corpus décisionnel du projet.
+Le runtime est organisé autour des données.
 
-## Documentation et ADRs
+L'état de la simulation est exclusivement porté par des **Composants** et des **Ressources**. Les **Systèmes** ne possèdent aucun état propre : ils transforment des données selon un contrat déclaratif connu à l'avance.
 
-L'architecture de Verbum est intégralement documentée et justifiée par un corpus d'**Architecture Decision Records (ADR)**. 
+La disposition mémoire, les parcours séquentiels et la prévisibilité de l'exécution priment sur les abstractions orientées objets.
 
-Si vous souhaitez comprendre les modèles de conception du moteur, l'ordre d'évaluation des composants, ou les contrats d'interface stricts entre le Shell et le World, commencez par le Master Index de l'architecture :
+### La complexité appartient à la Forge
 
-👉 **Lire la documentation d'architecture : [(`docs/architecture/README.md`)](docs/architecture/README.md)**
+Le runtime n'interprète pas des formats humains.
+
+Les assets, scripts, dialogues, cartes et autres descriptions sont transformés, avant leur consommation, en artefacts adaptés à l'exécution par un outil AOT appelé **la Forge**.
+
+Le runtime ne découvre pas les données : il les exécute.
+
+### Le World ignore la plateforme
+
+Le **World** contient exclusivement l'état logique de la simulation.
+
+Le **Shell** possède le temps réel, les périphériques, l'OS, le rendu, l'audio et les infrastructures.
+
+Cette séparation garantit que la simulation reste indépendante de toute plateforme d'exécution.
+
+### Le modèle d'exécution est unique
+
+Les systèmes ne décident jamais quand ils s'exécutent.
+
+Les scripts ne constituent pas un second modèle d'exécution.
+
+Le réseau n'en introduit pas davantage.
+
+Toutes les transformations de la simulation s'inscrivent dans un unique modèle d'exécution déterministe, construit une fois à partir des contrats déclarés.
+
+---
+
+## Organisation du dépôt
+
+Le dépôt est organisé autour de deux responsabilités complémentaires.
+
+* **Forge** : préparation Ahead-Of-Time des données et génération des artefacts consommés par le runtime.
+* **Runtime** : simulation, exécution ECS et infrastructures de plateforme.
+
+La structure exacte des répertoires peut évoluer au fil du projet, mais cette séparation architecturale demeure.
+
+---
+
+## Documentation
+
+L'ensemble des décisions architecturales est documenté sous forme d'Architecture Decision Records (ADR).
+
+La documentation n'est pas un commentaire du code : elle constitue la spécification normative de l'architecture.
+
+Pour découvrir le projet, commencer par :
+
+→ **[`docs/architecture/README.md`](docs/architecture/README.md)**
+
+Ce document présente le parcours de lecture, les concepts fondamentaux et l'ensemble des décisions qui structurent Verbum.
+
+---
+
+> *« Chercher le plus petit langage architectural capable d'absorber un domaine entier sans devoir s'étendre. »*
 
 ---
 
