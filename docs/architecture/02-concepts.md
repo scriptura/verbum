@@ -115,15 +115,23 @@ Composition concrète, fixée à la compilation ou au démarrage, d'une séquenc
 → Défini en `01-runtime-ecs.md`, section 5.
 
 ## Modèle d'exécution
-L'ensemble des règles normatives régissant l'ordre des phases, la visibilité des données, et les garanties de déterminisme. Distinct du **Scheduler**, qui est le mécanisme d'implémentation concret exécutant ce modèle (construction du graphe de dépendances, répartition sur les threads).
-→ `01-runtime-ecs.md`, section 5.
+L'ensemble des règles normatives régissant l'ordre des phases, la visibilité des données, et les garanties de déterminisme. Distinct du **Scheduler**, qui est le mécanisme d'implémentation concret exécutant ce modèle (construction du graphe de dépendances, répartition sur les threads). Une fois construit (ADR-004), ce modèle devient une donnée immuable, parfois désignée « programme d'exécution » — il ne s'agit pas d'une seconde catégorie, mais de la forme instanciée du même modèle.
+→ `01-runtime-ecs.md`, section 5 ; ADR-004.
+
+## Composition
+Politique de consommation d'une donnée transitoire à producteurs multiples qui agrège l'ensemble des contributions produites, sans en écarter aucune ni arbitrer entre elles — par opposition à une résolution, qui arbitre des contributions concurrentes pour produire un résultat unique. Instanciation du principe « produire est libre » (cf. Propriétaire unique), appliquée à l'agrégation plutôt qu'à l'arbitrage.
+→ Introduit en ADR-R01, point 4 ; réemployé en ADR-SV01 (extraction/composition de l'état logique) et ADR-N01.
+
+## Infrastructure
+Composant de la strate Plateforme (ou le `World` en tant qu'exécutant) qui applique une donnée déjà entièrement produite par le modèle architectural, sans jamais décider de son contenu ni l'interpréter au sens métier — symétrie déjà posée entre le `World` appliquant le Command Buffer et le Backend appliquant la représentation de frame. Assemblée exclusivement par le Shell, seul point de composition de la strate.
+→ ADR-R03, point 2 ; ADR-S01, point 7.
 
 ## Commande (`Command`)
 Émission différée d'une intention de mutation structurelle (`Spawn`, `Destroy`, `AddComponent`, `RemoveComponent`). Émise par un système, jamais exécutée directement par lui ; appliquée par le `World` au point de validation de la phase.
 → `01-runtime-ecs.md`, section 2.
 
 ## Donnée persistante
-Donnée (composant ou ressource) dont la durée de vie est liée à celle de l'entité qui la porte (ou, pour une ressource, à la durée de vie du moteur). Possède, au sein d'une phase, un unique propriétaire en écriture.
+Donnée (composant ou ressource) dont la durée de vie est liée à celle de l'entité qui la porte (ou, pour une ressource, à la durée de vie du `World` — non bornée à une phase, jusqu'à libération explicite le cas échéant ; cf. le déchargement d'un asset, ADR-A01, point 5). Possède, au sein d'une phase, un unique propriétaire en écriture.
 → `01-runtime-ecs.md`, section 4.
 
 ## Donnée transitoire

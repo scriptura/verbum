@@ -37,7 +37,7 @@ Toute transformation de donnée appartient exclusivement aux systèmes. La Query
 
 ## Invariant central
 
-> Une Query est une vue déterministe et temporaire, spécialisée statiquement, construite à partir d'une ou plusieurs sources d'itération indépendantes — sans stockage interne durable, sans couplage avec le `World`, sans identité propre, distinguant explicitement dans son type les données lues des données écrites, et sans jamais produire ni transformer de donnée.
+> Une Query est une vue déterministe et temporaire, spécialisée statiquement, construite à partir d'une source d'itération déterministe — sans stockage interne durable, sans couplage avec le `World`, sans identité propre, distinguant explicitement dans son type les données lues des données écrites, et sans jamais produire ni transformer de donnée.
 
 ## Ce qui n'est pas tranché ici
 La syntaxe concrète de déclaration d'une Query en Rust (générique sur tuple, trait dédié, macro...) est une décision d'implémentation, à documenter séparément lors de l'écriture du code.

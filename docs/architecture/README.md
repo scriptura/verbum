@@ -26,6 +26,8 @@ Cette table rend visible que le corpus n'a pas été écrit d'un bloc : il a ét
 | Audio (ADR-AU01) | Quatrième preuve de fermeture. |
 | Scripts (ADR-Sc01) | Cinquième preuve de fermeture. |
 
+*Note — audit de fermeture élargi (contradictoire).* Au-delà des cinq domaines ci-dessus, un audit a testé, selon la méthode « Comment évaluer une nouvelle idée » plus bas, une douzaine de domaines non encore couverts par ADR (Animation, Caméra, Physique, Particules, UI, IA, Undo/Replay, Éditeur intégré, Hot Reload, Multiplayer déterministe, Rollback netcode, Streaming de monde). Aucun n'a fait émerger de primitive nouvelle — chacun se réduit aux invariants déjà posés. Détail conservé dans l'historique Git, pas dans ce document.
+
 ## Parcours de lecture conseillé
 1. `00-principes.md` — philosophie, règle méta-architecturale, frontières de connaissance, grammaire des ADR.
 2. `01-runtime-ecs.md` — modèle d'exécution normatif (identité, cycle de vie, relations, flux de données, phases).
