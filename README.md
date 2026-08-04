@@ -1,4 +1,4 @@
-<img src="./.github/assets/banner.png" alt="Verbum Engine Banner" style="width: 100%">
+<img src="./.github/assets/banner.png" alt="Verbum Engine Banner" width="1440" height="720" style="width: 100%">
 
 # Verbum
 
