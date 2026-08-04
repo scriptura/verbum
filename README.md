@@ -1,12 +1,26 @@
+<img src="./.github/media/banner.png" alt="Verbum Engine Banner" style="width: 100%">
+
 # Verbum
+
+<!-- Invariants Architecture & Paradigmes -->
+[![Architecture](https://img.shields.io/badge/Architecture-ECS-E85D04?style=for-the-badge)]()
+[![Design](https://img.shields.io/badge/Design-Data--Oriented-2D6A4F?style=for-the-badge)]()
+[![Pipeline](https://img.shields.io/badge/Pipeline-AOT%20Forge-D90429?style=for-the-badge)]()
+[![Boundary](https://img.shields.io/badge/Boundary-World%20%7C%20Shell-5C6BC0?style=for-the-badge)]()
+[![Entities](https://img.shields.io/badge/Entities-Opaque%20Handles-89023E?style=for-the-badge)]()
+[![Systems](https://img.shields.io/badge/Systems-Stateless-455A64?style=for-the-badge)]()
+<!-- Pipeline Mecanique & CPU/Memoire -->
+[![Hot Path](https://img.shields.io/badge/Hot%20Path-Zero%20Allocation-F77F00?style=for-the-badge)]()
+[![Memory](https://img.shields.io/badge/Memory-Sequential%20Traversal-FCBF49?style=for-the-badge)]()
+[![Execution](https://img.shields.io/badge/Execution-Deterministic%20%7C%20Fixed%20Ticks-D62828?style=for-the-badge)]()
+[![Storage](https://img.shields.io/badge/Storage-Sparse%20Set-023E8A?style=for-the-badge)]()
+[![Mutations](https://img.shields.io/badge/Mutations-Command%20Buffer-0077B6?style=for-the-badge)]()
 
 **Verbum** est un moteur de jeu 2D top-down, écrit en Rust, construit selon les principes **ECS** (*Entity–Component–System*), **DOD** (*Data-Oriented Design*) et **Ahead-Of-Time** (AOT).
 
 Plus qu'un moteur, Verbum est une recherche sur la manière de construire un runtime dont le comportement découle d'un petit nombre d'invariants architecturaux, plutôt que d'une accumulation de mécanismes particuliers.
 
 Son nom — *Verbum*, « le mot » en latin — reflète cette intention : chaque terme du vocabulaire architectural possède une définition unique, chaque responsabilité est nommée une seule fois, et chaque nouveau domaine est d'abord confronté aux concepts existants avant que de nouveaux ne soient introduits.
-
----
 
 ## Principes
 
@@ -46,8 +60,6 @@ Le réseau n'en introduit pas davantage.
 
 Toutes les transformations de la simulation s'inscrivent dans un unique modèle d'exécution déterministe, construit une fois à partir des contrats déclarés.
 
----
-
 ## Organisation du dépôt
 
 Le dépôt est organisé autour de deux responsabilités complémentaires.
@@ -56,8 +68,6 @@ Le dépôt est organisé autour de deux responsabilités complémentaires.
 * **Runtime** : simulation, exécution ECS et infrastructures de plateforme.
 
 La structure exacte des répertoires peut évoluer au fil du projet, mais cette séparation architecturale demeure.
-
----
 
 ## Documentation
 
