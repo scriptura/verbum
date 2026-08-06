@@ -8,7 +8,9 @@ Document de planification interne, non normatif, révisable sans ADR. Détaille 
 
 Corollaire direct de la règle méta-architecturale de `00-principes.md` (« une ADR ne doit figer que des invariants structurels »), étendu du document au code. Sont donc explicitement exclus tant qu'aucun invariant ne les réclame : `EntityBuilder`, `Bundle`, `Archetype`, `Scene`, `Prefab`, `Registry`, `Plugin`, `Service`, `Factory` — aucun n'apparaît nommément dans le corpus.
 
-Méthode par phase : **invariant cité → test qui l'exprime → API minimale qui fait passer ce test → commit unique**. Le test précède l'écriture de l'API, jamais l'inverse.
+Méthode par phase : **invariant cité → test qui l'exprime → API minimale qui fait passer ce test → un commit par invariant démontré**. Le test précède l'écriture de l'API, jamais l'inverse. Si une phase révèle deux invariants indépendants, deux commits sont légitimes ; le découpage des commits suit la logique du corpus, pas la numérotation de ce document.
+
+**Signal d'alarme** : si une pensée du type « tant que j'y suis » ou « ça servira plus tard » apparaît pendant l'écriture, c'est le signe qu'on code hors du périmètre de la phase en cours — la réponse correcte est de s'arrêter, pas de continuer.
 
 **Règle de processus** (invariant du développement, pas du moteur) : chaque commit doit laisser le dépôt dans un état publiable (`cargo test` vert), même si la phase globale n'est pas terminée — dans le même esprit de réversibilité que le reste de la démarche, sans être lui-même un invariant architectural.
 
@@ -44,18 +46,28 @@ La dernière ligne est la frontière la plus importante du module : c'est elle q
 **API minimale** : `SparseSet::<T>::new()`, `insert(EntityId, T)`, `remove(EntityId)`, `get(EntityId) -> Option<&T>`, `contains(EntityId) -> bool`.
 **Commit** : `storage: SparseSet<T> générique, sans notion de composant`.
 
-### Phase 3 — World minimal (identité + stockages exposés)
-**Invariant** : seul le `World` crée/détruit des entités (`01-runtime-ecs.md`, section 2) ; le `World` expose des stockages sans connaître les requêtes (ADR-001, point 3).
+### Phase 3 — World minimal (identité seule)
+**Invariant** : seul le `World` crée/détruit des entités (`01-runtime-ecs.md`, section 2).
+**Réduction volontaire** : le test de cette phase ne porte que sur `spawn`/`despawn`/validité de handle — aucun composant n'y est impliqué. Le `World` n'a donc, à ce stade, aucun stockage de composant : seulement l'identité et son cycle de vie (`generations`, `freelist` ou équivalent). Le premier `SparseSet<T>` n'apparaîtra dans `World` qu'en Phase 4, au moment exact où `add_component` l'exigera.
 **Précision de séquencement** (au-delà de ce que l'audit avait relevé) : à cette phase, `spawn`/`despawn` sont des primitives directes du `World`, appelées par le test lui-même — pas encore par un Command Buffer. Ce n'est pas une violation : l'invariant *« les systèmes ne créent jamais d'identifiants eux-mêmes »* vise les systèmes, pas un test unitaire du `World` en l'absence de tout système. Le Command Buffer (phase 4) viendra s'ajouter en façade de ces primitives, pas les remplacer.
 **Test** : `world.spawn()` produit un `EntityId` valide ; `world.despawn()` invalide l'ancien handle même après réutilisation de l'index (répétition du test de la phase 1, au niveau du `World` cette fois).
-**API minimale** : `World::spawn()`, `World::despawn()`, avec des champs directs par type (`positions: SparseSet<Position>`, `velocities: SparseSet<Velocity>`) — aucun registre, aucun `TypeId`, aucune `HashMap` de dispatch. Chaque nouveau type de composant s'ajoute délibérément comme un champ, jusqu'à ce qu'un besoin réel force une automatisation (décision d'implémentation différée, jamais anticipée).
-**Commit** : `world: identité et cycle de vie minimal, sans Command Buffer`.
+**API minimale** : `World::spawn()`, `World::despawn()`, uniquement les structures d'identité (pas de champ de composant).
+**Commit** : `world: identité et cycle de vie minimal, aucun stockage de composant`.
 
 ### Phase 4 — Command Buffer
-**Invariant** : accumulation libre en écriture, résolution unique par le `World` au point de validation (ADR-006).
-**Test** : plusieurs producteurs accumulent des commandes distinctes dans le même buffer ; un seul flush les applique de façon atomique ; le buffer est vide après flush.
-**API minimale** : `CommandBuffer::spawn(...)`, `::despawn(...)`, `::add_component(...)`, `World::apply(CommandBuffer)`.
-**Commit** : `command: Command Buffer, flush atomique via World`.
+**Invariant** : accumulation libre en écriture, résolution unique par le `World` au point de validation (ADR-006) ; le `World` expose des stockages sans connaître les requêtes (ADR-001, point 3) — cette seconde partie de l'invariant n'a de raison d'apparaître qu'ici, puisque c'est `add_component` qui, le premier, exige un stockage.
+
+Cette phase démontre deux invariants indépendants ; elle donne donc lieu à deux commits distincts (cf. règle de granularité ci-dessus) :
+
+**4a — spawn/despawn différés, sans composant**
+**Test** : plusieurs producteurs accumulent des commandes `Spawn`/`Despawn` distinctes dans le même buffer ; un seul flush les applique de façon atomique en appelant les primitives déjà posées en Phase 3 ; le buffer est vide après flush.
+**API minimale** : `CommandBuffer::spawn(...)`, `::despawn(...)`, `World::apply(CommandBuffer)`.
+**Commit** : `command: Command Buffer pour spawn/despawn, aucune donnée composant`.
+
+**4b — add_component, première apparition d'un stockage dans World**
+**Test** : un `add_component(Position)` accumulé puis flushé rend la donnée lisible directement depuis le stockage exposé par `World` — première vérification que « le `World` expose des stockages » (ADR-001, point 3) est réellement observable, pas seulement énoncée.
+**API minimale** : `CommandBuffer::add_component(...)`, apparition du premier champ direct par type sur `World` (`positions: SparseSet<Position>`) — introduit uniquement parce que ce test l'exige maintenant, pas avant. Aucun registre, aucun `TypeId`, aucune `HashMap` de dispatch : chaque nouveau type de composant s'ajoute délibérément comme un champ, jusqu'à ce qu'un besoin réel force une automatisation (décision d'implémentation différée, jamais anticipée).
+**Commit** : `world+command: premier SparseSet<T> intégré à World, add_component via flush`.
 
 ### Phase 5 — Ressource
 **Invariant** : donnée de cardinalité 1 par `World`, mêmes contrats qu'un composant (ADR-005).
