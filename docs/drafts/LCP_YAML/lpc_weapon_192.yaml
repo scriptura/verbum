@@ -1,0 +1,32 @@
+# lpc_weapon_192.yaml
+# Bloc Large : animations oversize pour armes très longues.
+
+contract_id: "LPC_Weapon_192"
+
+applies_to:
+  path_prefix: "textures/characters/weapons/"
+  asset_whitelist:
+    - "weapon_trident_dark"
+    - "weapon_halberd"
+    - "weapon_long_spear"
+    - "weapon_pike"
+
+target_bucket: "Large"
+
+stroke_profiles:
+
+  walk_192:
+    reference: walk_192
+    rows: [54, 55, 56, 57, 58, 59, 60, 61]
+
+  slash_192:
+    reference: slash_192
+    rows: [62, 63, 64, 65]
+
+  slash_reverse_192:
+    reference: slash_reverse_192
+    rows: [62, 63, 64, 65]
+
+  thrust_192:
+    reference: thrust_192
+    rows: [66, 67, 68, 69]

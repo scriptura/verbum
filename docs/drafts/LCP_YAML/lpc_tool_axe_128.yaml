@@ -1,0 +1,16 @@
+# lpc_tool_axe_128.yaml
+
+contract_id: "LPC_Tool_Axe_128"
+
+applies_to:
+  path_prefix: "textures/characters/tools/"
+  asset_whitelist:
+    - "tool_axe"
+
+target_bucket: "Medium"
+
+stroke_profiles:
+
+  slash:
+    reference: slash
+    rows: [54, 55, 56, 57, 58, 59]

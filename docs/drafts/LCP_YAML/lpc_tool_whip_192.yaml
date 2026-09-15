@@ -1,0 +1,16 @@
+# lpc_tool_whip_192.yaml
+
+contract_id: "LPC_Tool_Whip_192"
+
+applies_to:
+  path_prefix: "textures/characters/tools/"
+  asset_whitelist:
+    - "tool_whip"
+
+target_bucket: "Large"
+
+stroke_profiles:
+
+  slash:
+    reference: slash
+    rows: [54, 55, 56, 57, 58, 59]

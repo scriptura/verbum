@@ -1,0 +1,147 @@
+# canonical_animations.yaml
+# Déclaration d'intentions d'animation du corpus LPC humanoïde.
+# Aucun champ lié à un PNG (rows, target_bucket) ne doit figurer ici.
+
+canonical_animations:
+
+  # ---------------------------------------------------------------
+  # StrokeProfiles — extraction directe
+  # ---------------------------------------------------------------
+
+  - name: spellcast
+    type: StrokeProfile
+    frame_count: 7
+    directions: [top, left, down, right]
+
+  - name: thrust
+    type: StrokeProfile
+    frame_count: 8
+    directions: [top, left, down, right]
+
+  - name: walk
+    type: StrokeProfile
+    frame_count: 9
+    directions: [top, left, down, right]
+    sequence: [1, 2, 3, 4, 5, 6, 7, 8]
+
+  - name: slash
+    type: StrokeProfile
+    frame_count: 6
+    directions: [top, left, down, right]
+
+  - name: shoot
+    type: StrokeProfile
+    frame_count: 13
+    directions: [top, left, down, right]
+
+  - name: hurt
+    type: StrokeProfile
+    frame_count: 6
+    directions: [down]
+    aliases: [death]
+
+  - name: climb
+    type: StrokeProfile
+    frame_count: 6
+    directions: [top]
+
+  - name: idle
+    type: StrokeProfile
+    frame_count: 2
+    directions: [top, left, down, right]
+    sequence: [0, 0, 1]
+
+  - name: run
+    type: StrokeProfile
+    frame_count: 8
+    directions: [top, left, down, right]
+
+  - name: jump
+    type: StrokeProfile
+    frame_count: 5
+    directions: [top, left, down, right]
+    sequence: [0, 1, 2, 3, 4, 1]
+
+  - name: sit
+    type: StrokeProfile
+    frame_count: 3
+    directions: [top, left, down, right]
+    sequence: [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2]
+
+  - name: emote
+    type: StrokeProfile
+    frame_count: 3
+    directions: [top, left, down, right]
+    sequence: [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2]
+
+  # ---------------------------------------------------------------
+  # Variantes Oversized Equipment (suffixes _128 / _192)
+  # ---------------------------------------------------------------
+
+  - name: walk_128
+    type: StrokeProfile
+    frame_count: 9
+    directions: [top, left, down, right]
+    sequence: [1, 2, 3, 4, 5, 6, 7, 8]
+
+  - name: walk_192
+    type: StrokeProfile
+    frame_count: 9
+    directions: [top, left, down, right]
+    sequence: [1, 2, 3, 4, 5, 6, 7, 8]
+
+  - name: slash_128
+    type: StrokeProfile
+    frame_count: 6
+    directions: [top, left, down, right]
+
+  - name: slash_192
+    type: StrokeProfile
+    frame_count: 6
+    directions: [top, left, down, right]
+
+  - name: slash_reverse_192
+    type: StrokeProfile
+    frame_count: 6
+    directions: [top, left, down, right]
+    sequence: [5, 4, 3, 2, 1, 0]
+
+  - name: thrust_192
+    type: StrokeProfile
+    frame_count: 8
+    directions: [top, left, down, right]
+
+  # ---------------------------------------------------------------
+  # CompositionProfiles — dérivés d'un StrokeProfile source
+  # frame_count et directions hérités de source_stroke
+  # ---------------------------------------------------------------
+
+  - name: watering
+    type: CompositionProfile
+    source_stroke: thrust
+    sequence: [0, 1, 4, 4, 4, 4, 5]
+
+  - name: tool_whip
+    type: CompositionProfile
+    source_stroke: slash
+    sequence: [0, 1, 2, 3, 4, 5]
+
+  - name: tool_axe
+    type: CompositionProfile
+    source_stroke: slash
+    sequence: [5, 5, 4, 4, 3, 1, 0, 0, 0, 0]
+
+  - name: tool_hoe
+    type: CompositionProfile
+    source_stroke: slash
+    # sequence à préciser
+
+  - name: tool_shovel
+    type: CompositionProfile
+    source_stroke: slash
+    # sequence à préciser
+
+  - name: swim
+    type: CompositionProfile
+    source_stroke: spellcast
+    # sequence à préciser (provisoire)

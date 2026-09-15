@@ -1,0 +1,26 @@
+# lpc_weapon_128.yaml
+# Bloc Medium : animations oversize pour armes longues.
+
+contract_id: "LPC_Weapon_128"
+
+applies_to:
+  path_prefix: "textures/characters/weapons/"
+  asset_whitelist:
+    - "weapon_crossbow_extended"
+    - "weapon_compound_bow"
+
+target_bucket: "Medium"
+
+stroke_profiles:
+
+  walk_128:
+    reference: walk_128
+    rows: [54, 55, 56, 57, 58, 59, 60, 61]
+
+  slash_128:
+    reference: slash_128
+    rows: [62, 63, 64, 65]
+
+  thrust:
+    reference: thrust
+    rows: [4, 5, 6, 7]

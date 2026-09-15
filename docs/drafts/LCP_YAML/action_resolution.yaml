@@ -1,0 +1,96 @@
+# action_resolution.yaml
+# Résolution des AnimationActions vers les Profiles.
+# Toute cible doit exister dans canonical_animations.yaml.
+
+actions:
+
+  # ---------------------------------------------------------------
+  # Combat — résolution par équipement
+  # ---------------------------------------------------------------
+
+  - animation_action: attack
+    resolution:
+      default: slash
+      by_equipment:
+        spear: thrust
+        crossbow: thrust
+        bow: shoot
+        slingshot: shoot
+        longsword: slash
+        trident_dark: thrust_192
+        halberd: slash_192
+
+  # ---------------------------------------------------------------
+  # Déplacement — résolution par bucket
+  # ---------------------------------------------------------------
+
+  - animation_action: walk
+    resolution:
+      by_bucket:
+        Small: walk
+        Medium: walk_128
+        Large: walk_192
+
+  - animation_action: run
+    resolution:
+      default: run
+
+  - animation_action: swim
+    resolution:
+      default: swim
+
+  # ---------------------------------------------------------------
+  # Magie et capacités
+  # ---------------------------------------------------------------
+
+  - animation_action: cast
+    resolution:
+      default: spellcast
+
+  # ---------------------------------------------------------------
+  # États
+  # ---------------------------------------------------------------
+
+  - animation_action: idle
+    resolution:
+      default: idle
+
+  - animation_action: die
+    resolution:
+      default: hurt
+
+  - animation_action: stagger
+    resolution:
+      default: hurt
+
+  - animation_action: sit
+    resolution:
+      default: sit
+
+  - animation_action: emote
+    resolution:
+      default: emote
+
+  # ---------------------------------------------------------------
+  # Outils — résolution contextuelle
+  # ---------------------------------------------------------------
+
+  - animation_action: watering
+    resolution:
+      default: watering
+
+  - animation_action: hoe
+    resolution:
+      default: tool_hoe
+
+  - animation_action: shovel
+    resolution:
+      default: tool_shovel
+
+  - animation_action: whipping
+    resolution:
+      default: tool_whip
+
+  - animation_action: chopping
+    resolution:
+      default: tool_axe

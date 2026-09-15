@@ -1,0 +1,59 @@
+# lpc_base_64.yaml
+# Bloc Small (grid_y 0–53) : animations de base présentes dans tous les PNG personnages.
+
+contract_id: "LPC_Base_64"
+
+applies_to:
+  path_prefix: "textures/characters/"
+
+target_bucket: "Small"
+
+stroke_profiles:
+
+  spellcast:
+    reference: spellcast
+    rows: [0, 1, 2, 3]
+
+  thrust:
+    reference: thrust
+    rows: [4, 5, 6, 7]
+
+  walk:
+    reference: walk
+    rows: [8, 9, 10, 11]
+
+  slash:
+    reference: slash
+    rows: [12, 13, 14, 15]
+
+  shoot:
+    reference: shoot
+    rows: [16, 17, 18, 19]
+
+  hurt:
+    reference: hurt
+    rows: [20]
+
+  climb:
+    reference: climb
+    rows: [21]
+
+  idle:
+    reference: idle
+    rows: [22, 23, 24, 25]
+
+  jump:
+    reference: jump
+    rows: [26, 27, 28, 29]
+
+  sit:
+    reference: sit
+    rows: [30, 31, 32, 33]
+
+  emote:
+    reference: emote
+    rows: [34, 35, 36, 37]
+
+  run:
+    reference: run
+    rows: [38, 39, 40, 41]
