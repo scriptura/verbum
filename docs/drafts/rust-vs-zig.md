@@ -5,7 +5,7 @@
 
 ## 1. Contexte
 
-Verbum est un moteur de jeu 2D top-down pixel art reposant sur un pipeline déterministe. Son architecture exige une stricte séparation entre les données et la logique (DOD), une résolution des ressources à la compilation (AOT) et la garantie de zéro allocation sur le hot path (la boucle de simulation par frame).
+Verbum est un moteur de jeu 2D reposant sur un pipeline déterministe. Son architecture exige une stricte séparation entre les données et la logique (DOD), une résolution des ressources à la compilation (AOT) et la garantie de zéro allocation sur le hot path (la boucle de simulation par frame).
 
 L'analyse de l'alternative Zig démontre que Rust est le candidat naturel, à condition d'imposer des restrictions drastiques sur l'usage de son écosystème.
 

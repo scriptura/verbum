@@ -1,7 +1,7 @@
 # ADR-000 — Langage et invariants matériels
 
 ## Statut
-Adopté. Date : 25 août 2026.
+Non adopté. Date : 25 août 2026.
 
 ## 1. Quel est le contrat du domaine ?
 

@@ -4,7 +4,7 @@
 **Normatif.** Date de rédaction : 31 juillet 2026. Ce document ne décrit pas un état du projet ; il définit une norme. Il fixe la philosophie générale du moteur. Toute ADR ultérieure doit être compatible avec ces principes ; en cas de conflit apparent, c'est la nouvelle décision qui doit être reformulée, pas ce document qui doit être amendé sans discussion explicite.
 
 ## Contexte
-**Verbum** est un moteur de jeu 2D top-down pixel art (RPG), écrit en Rust, conçu selon des principes DOD (Data-Oriented Design), avec un pipeline de production de données Ahead-Of-Time (AOT) et un modèle ECS (Entity-Component-System) au runtime. Le nom reflète le soin porté à la construction d'un vocabulaire architectural rigoureux tout au long de ce corpus (`02-concepts.md`).
+**Verbum** est un moteur de jeu 2D, écrit en Rust, conçu selon des principes DOD (Data-Oriented Design), avec un pipeline de production de données Ahead-Of-Time (AOT) et un modèle ECS (Entity-Component-System) au runtime. Le nom reflète le soin porté à la construction d'un vocabulaire architectural rigoureux tout au long de ce corpus (`02-concepts.md`).
 
 ## Invariants de philosophie générale
 

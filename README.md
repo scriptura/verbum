@@ -16,7 +16,7 @@
 [![Storage](https://img.shields.io/badge/Storage-Sparse%20Set-023E8A?style=for-the-badge)]()
 [![Mutations](https://img.shields.io/badge/Mutations-Command%20Buffer-0077B6?style=for-the-badge)]()
 
-**Verbum** est un moteur de jeu 2D top-down, écrit en Rust, construit selon les principes **ECS** (*Entity–Component–System*), **DOD** (*Data-Oriented Design*) et **Ahead-Of-Time** (AOT).
+**Verbum** est un moteur de jeu 2D, écrit en Rust, construit selon les principes **ECS** (*Entity–Component–System*), **DOD** (*Data-Oriented Design*) et **Ahead-Of-Time** (AOT).
 
 Plus qu'un moteur, Verbum est une recherche sur la manière de construire un runtime dont le comportement découle d'un petit nombre d'invariants architecturaux, plutôt que d'une accumulation de mécanismes particuliers.
 

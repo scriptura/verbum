@@ -3,7 +3,7 @@
 Ce document ne pose aucune nouvelle règle. Il sert de carte de navigation pour quiconque — développeur, futur collaborateur, ou IA — aborde le corpus documentaire de Verbum. Commencer la lecture ici.
 
 ## Vision
-Verbum est un moteur de jeu 2D top-down pixel art (RPG), écrit en Rust, selon des principes DOD, avec un pipeline de production de données Ahead-Of-Time (AOT) et un modèle ECS au runtime. Le nom reflète le soin porté à la construction d'un vocabulaire architectural rigoureux — le corpus s'est progressivement révélé être moins une collection de décisions qu'un système axiomatique : un petit nombre de primitives, et une méthode pour vérifier que tout nouveau domaine s'y réduit sans l'étendre.
+Verbum est un moteur de jeu 2D écrit en Rust, selon des principes DOD, avec un pipeline de production de données Ahead-Of-Time (AOT) et un modèle ECS au runtime. Le nom reflète le soin porté à la construction d'un vocabulaire architectural rigoureux — le corpus s'est progressivement révélé être moins une collection de décisions qu'un système axiomatique : un petit nombre de primitives, et une méthode pour vérifier que tout nouveau domaine s'y réduit sans l'étendre.
 
 ## Méthode : réfutation plutôt que conception
 À partir du domaine Assets, chaque nouvelle ADR de domaine n'a plus cherché à *concevoir* une solution, mais à *tester* si les invariants déjà posés y suffisaient. Le raisonnement implicite était systématiquement le même : voici un domaine réputé difficile dans un moteur ECS — est-il capable de casser les invariants existants ?
