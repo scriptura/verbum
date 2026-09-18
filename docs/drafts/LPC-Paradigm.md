@@ -1,6 +1,6 @@
-# Document fondateur conceptuel — LPC (pipeline AOT) — v21
+# Document fondateur conceptuel — LPC (pipeline AOT) — v23
 
-> **Statut** : brouillon / schéma directeur — à auditer avant finalisation.
+> **Statut** : brouillon / schéma directeur — après première passe de cohérence ; points d’arbitrage restants explicitement signalés.
 > **Portée** : ce document couvre le **pipeline AOT**. Le runtime n'est mentionné que pour fixer les **invariants de frontière**.
 > **Exhaustivité** : ce document **n'est pas exhaustif** sur les animations. Il pose le **principe**, des **exemples illustratifs** et des **invariants**. La liste complète relève des **YAML**.
 
@@ -13,8 +13,8 @@ Ce document établit le **paradigme** qui gouverne la transformation des sprites
 ### Principes fondateurs
 
 1. **LPC est une banque de pixels, pas un format d'animation.**
-2. **Toute complexité est absorbée AOT.**
-3. **Le runtime ne manipule que des identifiants.**
+2. **Toute complexité de résolution, d’extraction, de composition structurelle et d’ordonnancement statique est absorbée AOT.**
+3. **Le runtime ne manipule que des identifiants et des structures de données précompilées.**
 4. **Le système d'animation est un service moteur global.**
 5. **Le pipeline est un traducteur, pas un perroquet.**
 
@@ -39,29 +39,29 @@ Ce document établit le **paradigme** qui gouverne la transformation des sprites
 - **« grid_y »** désigne toujours la coordonnée **physique** d'extraction dans la grid.
 - Ces deux termes ne sont **jamais interchangeables**.
 
-**Important** : les YAML déclarent toujours en **rows logiques** (une par direction). La conversion rows logiques → `grid_y` est absorbée par le pipeline AOT.
+**Important** : les YAML déclarent toujours en **rows logiques** (une par direction). Dans un contrat d'équipement, chaque élément de `rows` matérialise le `grid_y` de départ correspondant à cette row ; l'expansion verticale requise par le `frame_size` est absorbée par le pipeline AOT.
 
 ### Convention de vocabulaire — préfixes
 
 - **`AnimationAction`** : **jamais de préfixe de catégorie**.
-- **Profils (`StrokeProfile`, `CompositionProfile`)** : **préfixe descriptif toléré** (ex. `tool_whip`).
+- **Profils (`ExtractionProfile`, `CompositionProfile`)** : **préfixe descriptif toléré** (ex. `tool_whip`).
 - Aucun préfixe n'est **jamais** porté par une `AnimationAction`.
 
 ### Convention de vocabulaire — chemins et identifiants
 
-**Chemins, noms de fichiers et identifiants sont en lowercase.** Aucune convention PascalCase n'est retenue, par cohérence avec les conventions LPC et pour éviter les ambiguïtés de casse dans un pipeline déterministe.
+**Chemins, noms de fichiers et identifiants sont en lowercase.**
 
 ---
 
 ## 2. Architecture à trois étages
 
 ```
-[ÉTAGE 1]   AnimationAction      ← ce que le runtime connaît
+[ÉTAGE 1]   AnimationAction      ← vocabulaire d’animation fourni au runtime
                 │
                 │  résolution AOT (équipement, bucket, contexte)
                 ▼
 [ÉTAGE 2]   Profile              ← ce que les PNG fournissent / composent
-            ├── StrokeProfile        (extraction)
+            ├── ExtractionProfile        (extraction)
             └── CompositionProfile   (composition)
                 │
                 │  extraction + composition AOT
@@ -71,7 +71,7 @@ Ce document établit le **paradigme** qui gouverne la transformation des sprites
 
 ### Étage 1 — AnimationAction
 
-C'est le langage du gameplay. C'est ce que les systèmes écrivent, et la **seule** chose que le runtime connaît.
+C'est le langage du gameplay. C'est ce que les systèmes écrivent, et la **seule notion sémantique d'animation qu'ils fournissent au runtime**.
 
 Exemples (liste **illustrative**, non exhaustive, **sans préfixes**) :
 `attack`, `cast`, `walk`, `run`, `swim`, `idle`, `die`, `stagger`, `watering`, `sit`, `emote`…
@@ -79,23 +79,49 @@ Exemples (liste **illustrative**, non exhaustive, **sans préfixes**) :
 - Indépendant de LPC, de l'équipement, de la taille des sprites.
 - Ne dit **rien** sur la cinématique ni sur les pixels.
 
-### Étage 2 — Profile, StrokeProfile, CompositionProfile
+### Étage 2 — Profile, ExtractionProfile, CompositionProfile
 
 **`Profile`** est le terme **générique** englobant les deux sous-types :
 
 ```
 Profile
-├── StrokeProfile
+├── ExtractionProfile
 └── CompositionProfile
 ```
 
-- **`StrokeProfile`** — profil d'**extraction**. Décrit ce que les PNG fournissent : `frame_count`, `directions`, et une séquence canonique par défaut (`sequence`, optionnelle).
-- **`CompositionProfile`** — profil de **composition**. Décrit comment les frames extraites sont ordonnées en séquence. **Hérite `frame_count` et `directions` de son `source_stroke`**.
+- **`ExtractionProfile`** — profil d'**extraction**. Décrit ce que les PNG fournissent : `frame_count`, `directions`, et une séquence canonique par défaut (`sequence`, optionnelle).
+- **`CompositionProfile`** — profil de **composition ordinale**. Décrit comment les frames extraites sont ordonnées en séquence. **Hérite `frame_count` et `directions` de son `source_extraction`**.
+
+**Précision sur les variantes physiques de bucket** :
+
+- `walk_128`, `walk_192`, `slash_128`, `slash_192`, `thrust_192` désignent des **variantes physiques de bucket** d'un `ExtractionProfile` existant.
+- Cette expression est **purement descriptive** : elle ne constitue **pas** un troisième type de `Profile`.
+- Conceptuellement, `walk_128` **est** `walk` composé dans un canvas Medium. Ce n'est ni une nouvelle intention d'animation, ni un nouveau `ExtractionProfile`.
+- Le suffixe `_128` / `_192` décrit la variante physique ; le `ExtractionProfile` sous-jacent reste `walk`.
+- Le pipeline AOT résout `(ExtractionProfile, bucket applicable)` → variante physique. Aucun `ExtractionProfile::Walk128` n'est créé.
+
+**Précision sur `slash_reverse_192`** :
+
+- `slash_reverse_192` n'est **pas** un `ExtractionProfile` autonome.
+- Si `slash_reverse` correspond bien à une inversion de `slash`, la chaîne conceptuelle est :
+
+```
+slash (ExtractionProfile)
+    │
+    ▼
+slash_reverse (CompositionProfile, source_extraction: slash, sequence: [5,4,3,2,1,0])
+    │
+    ▼
+variante physique Large : slash_reverse_192
+```
+
+- La variante physique `slash_reverse_192` hérite de la localisation physique de `slash` au bucket Large.
+- **Cette chaîne reste à vérifier contre les YAML réels avant d'être tenue pour acquise.** Si les YAML existants traitent `slash_reverse_192` différemment, la modélisation devra être ajustée.
 
 **Précision sur `rows`** :
-- `rows` **n'est pas une propriété intrinsèque** d'un `StrokeProfile`.
-- `rows` est fourni par le **contrat d'équipement**, qui localise le `StrokeProfile` dans un PNG donné.
-- Un même `StrokeProfile` peut être localisé à des `rows` différentes selon le contrat et le bucket.
+- `rows` **n'est pas une propriété intrinsèque** d'un `ExtractionProfile`.
+- `rows` est fourni par le **contrat d'équipement**, qui localise le `ExtractionProfile` dans un PNG donné.
+- Un même `ExtractionProfile` peut être localisé à des `rows` différentes selon le contrat et le bucket.
 
 **Distinction critique — `frame_count` source vs longueur de séquence jouée** :
 
@@ -107,10 +133,11 @@ Profile
 
 | Nom | Type | Source | Remarque |
 |---|---|---|---|
-| `slash`, `thrust`, `shoot`, `spellcast`, `walk`, `run`, `jump`, `climb`, `idle`, `sit`, `hurt`, `emote`… | StrokeProfile | — | Extraction directe |
+| `slash`, `thrust`, `shoot`, `spellcast`, `walk`, `run`, `jump`, `climb`, `idle`, `sit`, `hurt`, `emote`… | ExtractionProfile | — | Extraction directe |
 | `watering` | CompositionProfile | `thrust` | Séquence `[0,1,4,4,4,4,5]` |
 | `tool_whip` | CompositionProfile | `slash` | Séquence `[0,1,2,3,4,5]` |
 | `tool_axe` | CompositionProfile | `slash` | Séquence `[5,5,4,4,3,1,0,0,0,0]` |
+| `slash_reverse` | CompositionProfile | `slash` | Séquence `[5,4,3,2,1,0]` |
 | `swim` | CompositionProfile | `spellcast` | Provisoire (voir §13) |
 
 ### Étage 3 — FrameSequence
@@ -119,7 +146,7 @@ Séquence linéaire, **immuable dans son contenu** (ordre des frames figé), pro
 
 - Ne contient **aucun pixel**.
 - Référence des frames stockées dans des structures globales.
-- Le runtime n'itère que sur des **indices et offsets**.
+- Le runtime n'itère que sur des **indices et offsets précompilés**.
 - **Chaque séquence porte un `next_sequence_id`** (propriété adjacente) qui indique la séquence à jouer une fois le curseur épuisé.
 
 **Distinction `sequence` vs `FrameSequence`** :
@@ -136,18 +163,32 @@ Séquence linéaire, **immuable dans son contenu** (ordre des frames figé), pro
 | Medium | 128×128 |
 | Large | 192×192 |
 
-- Bucket **orthogonal** au StrokeProfile.
+- Bucket **orthogonal** au ExtractionProfile.
 - Toutes les frames d'un bucket ont même taille, même **centre géométrique d'alignement AOT**.
 - Grid_cells hétérogènes **ajoutées en fin de PNG**, par ordre croissant.
 - **Armes et outils uniquement** : les PNG > 64×64 sont réservés aux **variantes oversized d'équipement**.
 - Corps, cheveux, vêtements, armures, bouclier : **toujours** 64×64.
-- Les layers non-équipement sont **reprojetés** vers le bucket cible imposé par l'équipement.
+- Les layers non-équipement sont **composés dans le canvas du bucket cible** imposé par l'équipement. **Il ne s'agit pas d'un redimensionnement** : la résolution intrinsèque du layer n'est pas modifiée. Un corps 64×64 reste 64×64, mais il est **positionné** dans un canvas 128×128 (ou 192×192) selon la règle de centrage.
+
+**Exemple de composition (sans scaling)** :
+
+```
+body : 64×64
+bucket cible : 128×128
+
+offset de centrage :
+(128 - 64) / 2 = 32
+
+→ body placé à (+32, +32) dans le canvas 128×128
+```
+
+Le body n'est **pas redimensionné**. Il est composé dans un repère plus grand.
 
 ### Trois familles de layers
 
 | Famille | Exemples | Buckets possibles | Rôle |
 |---|---|---|---|
-| **Corporel** | corps, cheveux, vêtements, armures, bouclier | Small uniquement | Reprojeté vers le bucket cible |
+| **Corporel** | corps, cheveux, vêtements, armures, bouclier | Small uniquement | Composé dans le canvas cible |
 | **Arme** | épée, arc, bâton… | Small / Medium / Large | Détermine le bucket cible |
 | **Outil** | pioche, hache, fouet… | Small / Medium / Large | Détermine le bucket cible, comme une arme |
 
@@ -161,11 +202,11 @@ Séquence linéaire, **immuable dans son contenu** (ordre des frames figé), pro
 - Si le bucket de base est Small mais que l'équipement n'a qu'une variante Large : **promotion automatique vers Large**.
 - **La promotion s'applique identiquement aux armes et aux outils.**
 
-**Précision sur la nature de la promotion** : la promotion est une **déduction** (`bucket_cible = max(buckets_disponibles_de_l'équipement)`). Elle n'entraîne **pas** de transformation effective des assets : les layers non-équipement sont reprojetés vers ce bucket cible via le mécanisme standard de reprojection (§9).
+**Précision sur la nature de la promotion** : la promotion est une **déduction** (`bucket_cible = max(buckets_disponibles_de_l'équipement)`). Elle n'entraîne **pas** de transformation effective des assets : les layers non-équipement sont composés dans le bucket cible via le mécanisme standard de composition (§9).
 
 ### Alignement des frames hétérogènes
 
-**Toute frame source, quelle que soit sa taille, est centrée sur un point d'ancrage commun avant reprojection.**
+**Toute frame source, quelle que soit sa taille, est centrée sur un point d'ancrage commun avant composition.**
 
 - Le **centre géométrique** de la frame source doit coïncider avec le **centre géométrique** de la frame cible.
 - Convention **invariante**, non négociable, non configurable.
@@ -189,14 +230,15 @@ Bloc Medium     (grid_y 54–61, walk_128)
 Bloc Large      (grid_y 62–73, thrust_192)
 ```
 
-**Structure monotone des PNG étendus :**
+**Structure monotone des PNG étendus** :
 
-- **Le bloc Small (grid_y 0–53) est strictement identique d'un PNG à l'autre.** C'est l'**héritage LPC commun**.
+- **Dans le layout LPC Character étudié ici**, le bloc Small (`grid_y` 0–53) est strictement identique d'un PNG à l'autre. C'est l'**héritage LPC commun**.
+- Cette uniformité est une propriété de **ce layout particulier**, pas une invariante générale du pipeline AOT. D'autres familles d'assets (foliage, water, fire, etc.) pourraient avoir des layouts physiques entièrement différents.
 - Les `grid_y` sont **monotones de 0 à 53** pour le bloc Small.
-- **La zone des blocs oversize commence au `grid_y` 54.** Chaque bloc oversize occupe ensuite ses propres `grid_y`, dans l'ordre d'apparition.
+- **La zone des blocs oversize commence au `grid_y` 54** (dans ce layout).
 - **Sur un même PNG, les variantes de taille d'un même profil partagent les mêmes `grid_y`.**
 
-**Structure physique du PNG** :
+**Structure physique du layout LPC Character** :
 
 ```
 grid_y 0 ──────────────── 53 │ 54 ────────────────>
@@ -208,12 +250,17 @@ grid_y 0 ──────────────── 53 │ 54 ────
 
 **Précision importante** : les rows logiques (0–53) couvrent **l'ensemble du bloc Small**, mais chaque animation n'occupe qu'une plage restreinte de rows dans ce bloc. La frontière `0–53` est **structurelle** ; les frontières entre animations sont **sémantiques**.
 
+### Origine physique par défaut
+
+**L'origine physique par défaut des frames est `x = 0`.** Le pipeline AOT extrait les frames à partir de cette origine. Aucun mécanisme de surcharge d'origine n'est prévu à ce stade.
+
 ### Extensibilité à d'autres gabarits
 
 - **Buckets** configurables.
 - **Grid_cell de base** configurable par corpus (`64` pour LPC humanoïde).
 - **Frame sizes** : tout multiple entier de la grid_cell de base.
-- **StrokeProfiles** extensibles.
+- **ExtractionProfiles** extensibles.
+- **Layouts physiques** : chaque famille d'assets peut définir son propre layout physique. Le layout LPC Character décrit ici n'est qu'un cas particulier.
 - **Aucune convention implicite** : chaque YAML déclare explicitement ses valeurs.
 
 **Cas particulier — créatures à animation unique** : 1 direction, 1 frame, sans séquence custom.
@@ -230,7 +277,7 @@ grid_y 0 ──────────────── 53 │ 54 ────
 - quel **nombre de frames source** (`frame_count`, déclaré par le YAML canonique),
 - quel **bucket cible** (déclaré par le contrat d'équipement).
 
-### Composition
+### Composition ordinale
 
 **Ce qu'on joue** à partir de ce pool :
 
@@ -242,20 +289,20 @@ grid_y 0 ──────────────── 53 │ 54 ────
 **1. YAML canonique d'animations** — un seul, liste **toutes** les animations du corpus. Il représente la **déclaration d'intentions d'animation**.
 
 Chaque entrée porte :
-- `name`, `type` (`StrokeProfile` par défaut, ou `CompositionProfile`),
+- `name`, `type` (`ExtractionProfile` par défaut, ou `CompositionProfile`),
 - `frame_count`, `directions`,
 - `sequence` (optionnel),
-- `source_stroke` (CompositionProfile uniquement),
+- `source_extraction` (CompositionProfile uniquement),
 - `aliases` (optionnel — liste de synonymes historiques).
 
-**2. YAML d'équipement** — localise les `StrokeProfile` dans un PNG donné.
+**2. YAML d'équipement** — localise les `ExtractionProfile` dans un PNG donné.
 
 Chaque entrée porte :
 - `contract_id`, `applies_to` (`path_prefix` + `asset_whitelist` optionnelle),
 - `target_bucket`,
-- `stroke_profiles` (dictionnaire `reference` + `rows`).
+- `extraction_profiles` (dictionnaire `reference` + `rows`).
 
-> **Note sur `stroke_profiles`** : la clé reste `stroke_profiles` car le contrat d'équipement ne référence **que des sources physiques**. Un `CompositionProfile` n'a pas de localisation physique propre — il dérive d'un `StrokeProfile` localisé ailleurs.
+> **Note sur `extraction_profiles`** : la clé reste `extraction_profiles` car le contrat d'équipement ne référence **que des sources physiques**. Un `CompositionProfile` n'a pas de localisation physique propre — il dérive d'un `ExtractionProfile` localisé ailleurs.
 
 **3. YAML de résolution `AnimationAction`** (ex. `action_resolution.yaml`) — **contrat de liaison** entre le domaine Gameplay et le domaine Moteur.
 
@@ -268,9 +315,9 @@ Chaque entrée porte :
 | Champ | Canonique | Équipement | Résolution |
 |---|---|---|---|
 | `name`, `type` | ✔ | — | — |
-| `frame_count`, `directions` | ✔ (StrokeProfile) | — | — |
+| `frame_count`, `directions` | ✔ (ExtractionProfile) | — | — |
 | `sequence` | ✔ | — | — |
-| `source_stroke` | ✔ (CompositionProfiles) | — | — |
+| `source_extraction` | ✔ (CompositionProfiles) | — | — |
 | `aliases` | ✔ | — | — |
 | `reference`, `rows` | — | ✔ | — |
 | `target_bucket` | — | ✔ | — |
@@ -281,16 +328,18 @@ Chaque entrée porte :
 
 **`frame_size` n'est jamais déclaré** dans les YAML. Il est déduit de `target_bucket` au build : `Small` → 64, `Medium` → 128, `Large` → 192.
 
+Pour un contrat d'équipement, chaque élément de `rows` représente le **`grid_y` de départ** d'une direction logique. Les `grid_y` physiques supplémentaires occupés par cette direction sont déduits de `frame_size / grid_cell` : 1 pour Small, 2 pour Medium, 3 pour Large. Ainsi, `len(rows) == len(directions)` reste vrai quel que soit le bucket.
+
 ### Héritage des CompositionProfiles
 
-Un **CompositionProfile** hérite `frame_count` et `directions` de son `source_stroke`.
+Un **CompositionProfile** hérite `frame_count` et `directions` de son `source_extraction`.
 
 Exemple simplifié :
 
 ```yaml
 - name: watering
   type: CompositionProfile
-  source_stroke: thrust
+  source_extraction: thrust
   sequence: [0, 1, 4, 4, 4, 4, 5]
 ```
 
@@ -301,7 +350,7 @@ Exemple simplifié :
 Formellement :
 
 ```
-(Profile, applicable Contract) → physical rows
+(Profile, applicable Contract) → extraction coordinates
 ```
 
 Le contrat est lui-même sélectionné par :
@@ -312,18 +361,18 @@ Le contrat est lui-même sélectionné par :
 
 **Conséquences** :
 
-- Un même `StrokeProfile` (ex. `slash`) peut être déclaré dans **plusieurs contrats**, avec des `rows` propres à chaque bucket.
+- Un même `ExtractionProfile` (ex. `slash`) peut être déclaré dans **plusieurs contrats**, avec des `rows` propres à chaque bucket.
 - L'AOT ne produit **jamais** de contrat fusionné.
 - La chaîne de résolution est :
 
 ```
 AnimationAction + EquipmentId + BucketId
         ↓
-   Profile (StrokeProfile ou CompositionProfile)
+   Profile (ExtractionProfile ou CompositionProfile)
         ↓
-   source_stroke éventuel
+   source_extraction éventuel
         ↓
-   StrokeProfile
+   ExtractionProfile
         ↓
    contrat applicable (applies_to, target_bucket)
         ↓
@@ -332,7 +381,7 @@ AnimationAction + EquipmentId + BucketId
    frames
 ```
 
-**Distinction clé — `CompositionProfile` n'est jamais localisé physiquement.** Un `CompositionProfile` est une **identité de composition/résolution**. La localisation physique est toujours portée par son `StrokeProfile` source.
+**Distinction clé — `CompositionProfile` n'est jamais localisé physiquement.** Un `CompositionProfile` est une **identité de composition/résolution**. La localisation physique est toujours portée par son `ExtractionProfile` source.
 
 **Invariant d'unicité de contrat** :
 
@@ -344,6 +393,17 @@ AnimationAction + EquipmentId + BucketId
 
 Cette règle évite toute fusion implicite ou priorité cachée entre contrats.
 
+### Invariant des couples `(EquipmentId, BucketId)` valides
+
+**Le pipeline AOT ne matérialise que les couples `(EquipmentId, BucketId)` effectivement résolus par la logique d'équipement.**
+
+- `EquipmentId = None` → `BucketId = Small`.
+- `EquipmentId = X` → `BucketId = max(buckets_disponibles(X))`.
+- Le produit cartésien `tous les EquipmentId × tous les BucketId` **n'est jamais généré**.
+- Les couples invalides sont **absents** de l'espace généré.
+
+Le runtime utilise `EquipmentId` et `BucketId` comme **identifiants d'indexation**, sans en interpréter la sémantique. Aucun branchement conditionnel du type `if equipment == X` n'est jamais effectué.
+
 ### Contrat YAML d'équipement — exemple idiomatique
 
 ```yaml
@@ -354,7 +414,7 @@ applies_to:
 
 target_bucket: "Small"
 
-stroke_profiles:
+extraction_profiles:
   spellcast:
     reference: spellcast
     rows: [0, 1, 2, 3]
@@ -400,6 +460,8 @@ actions:
       default: watering
 ```
 
+**Note** : les entrées `walk_128` / `walk_192` de la résolution sont **descriptives** — elles désignent la variante physique de `walk` au bucket correspondant. Conceptuellement, `walk_128` **est** `walk` composé dans un canvas Medium.
+
 **Note sur `fallback`** : la clé `fallback` du YAML de résolution est **réservée** pour une politique de repli explicite. Sa sémantique exacte relève de la Phase 5. En son absence, le comportement par défaut est : `default` si présent, sinon **erreur de build**.
 
 ### Indices locaux vs offsets globaux
@@ -418,11 +480,11 @@ Sinon → **erreur de build**.
 
 **Règle 1 — référence manquante dans un contrat d'équipement → erreur de build.**
 
-**Règle 2 — résolution manquante dans le YAML de résolution → erreur de build.**
+**Règle 2 — cible de résolution référencée mais inexistante dans le YAML canonique → erreur de build.**
 
 **Règle 3 — animation canonique non référencée → warning informatif.**
 
-**Règle 4 — `AnimationAction` sans résolution → warning informatif.**
+**Règle 4 — `AnimationAction` déclarée mais non référencée par une entrée de résolution → warning informatif.**
 
 **Règle 5 — ambiguïté de contrat (plusieurs contrats applicables au même asset et bucket) → erreur de build.**
 
@@ -486,13 +548,16 @@ Invariant calibré pour le gameplay (séquences ≤ 13 frames). Cinématiques lo
 | Contrainte | Valeur |
 |---|---|
 | Direction canonique | `[top, left, down, right]` |
-| Exception `hurt` | `[down]` |
-| Exception `climb` | `[top]` |
+| Direction source de `hurt` | `[down]` |
+| Direction source de `climb` | `[top]` |
 | Variantes oversize | **toujours 4 directions** |
 
-### StrokeProfiles canoniques
+**Normalisation AOT des profils mono-directionnels** : lorsqu'un `ExtractionProfile` ne déclare qu'une seule direction (`hurt` ou `climb`), le pipeline AOT **duplique la séquence résolue sur les quatre directions canoniques**. Le runtime conserve ainsi un domaine de `Direction` uniforme ; aucune règle de remapping directionnel n'est nécessaire au runtime.
 
-| StrokeProfile | directions | frame_count | sequence |
+
+### ExtractionProfiles canoniques
+
+| ExtractionProfile | directions | frame_count | sequence |
 |---|---|---|---|
 | `spellcast` | 4 | 7 | défaut |
 | `thrust` | 4 | 8 | défaut |
@@ -509,31 +574,35 @@ Invariant calibré pour le gameplay (séquences ≤ 13 frames). Cinématiques lo
 
 **Note sur `walk`** : `frame_count = 9`. La frame 0 existe mais est ignorée. Séquence à partir de `1`.
 
-**Note sur la `sequence` d'un StrokeProfile** : séquence canonique par défaut, utilisée quand aucun `CompositionProfile` ne dérive de lui.
+**Note sur la `sequence` d'un ExtractionProfile** : séquence canonique par défaut, utilisée quand aucun `CompositionProfile` ne dérive de lui.
 
 ### CompositionProfiles (exemples)
 
-| CompositionProfile | source_stroke | sequence |
+| CompositionProfile | source_extraction | sequence |
 |---|---|---|
 | `watering` | `thrust` | `[0,1,4,4,4,4,5]` |
 | `tool_whip` | `slash` | `[0,1,2,3,4,5]` |
 | `tool_axe` | `slash` | `[5,5,4,4,3,1,0,0,0,0]` |
+| `slash_reverse` | `slash` | `[5,4,3,2,1,0]` |
 | `tool_hoe` | `slash` | à préciser (YAML) |
 | `tool_shovel` | `slash` | à préciser (YAML) |
 | `swim` | `spellcast` | à préciser (provisoire, voir §13) |
 
-### Variantes Oversized Equipment
+**Note sur `slash_reverse`** : modélisé comme `CompositionProfile` dérivé de `slash`, sa variante physique au bucket Large est notée `slash_reverse_192`. Cette chaîne reste à vérifier contre les YAML réels.
 
-| Profile de base | Small | Medium | Large |
+### Variantes physiques de bucket (descriptives)
+
+> **Rappel** : ces entrées ne sont **pas** des `ExtractionProfile` autonomes. Elles désignent le même `ExtractionProfile` composé dans un bucket plus grand. Le suffixe `_128` / `_192` est descriptif.
+
+| ExtractionProfile de base | Small | Medium | Large |
 |---|---|---|---|
 | `walk` | `walk` | `walk_128` | `walk_192` |
 | `thrust` | `thrust` | — | `thrust_192` |
 | `slash` | `slash` | `slash_128` | `slash_192` |
-| `slash_reverse` | — | — | `slash_reverse_192` |
 
 ### Rows LPC canoniques (0-based) — bloc Small
 
-| StrokeProfile | rows (logiques) | Nb rows |
+| ExtractionProfile | rows (logiques) | Nb rows |
 |---|---|---|
 | `spellcast` | 0–3 | 4 |
 | `thrust` | 4–7 | 4 |
@@ -551,14 +620,14 @@ Invariant calibré pour le gameplay (séquences ≤ 13 frames). Cinématiques lo
 | `1h_slash` | 46–49 | 4 (écarté) |
 | `1h_backslash` | 50–53 | 4 (écarté) |
 
-### Blocs oversize — exemple trident
+### Blocs oversize — exemple trident (layout LPC Character)
 
-| StrokeProfile | grid_y (allocation) | frame_size (déduit) |
+| ExtractionProfile | grid_y (allocation) | frame_size (déduit) |
 |---|---|---|
 | `walk_128` | 54–61 | 128×128 |
 | `thrust_192` | 62–73 | 192×192 |
 
-**Note critique** : le **bloc Small (`grid_y` 0–53) est strictement identique d'un PNG à l'autre**. **La zone des blocs oversize commence au `grid_y` 54.**
+**Note critique** : **dans le layout LPC Character**, le **bloc Small (`grid_y` 0–53) est strictement identique d'un PNG à l'autre**. **La zone des blocs oversize commence au `grid_y` 54.** Ces valeurs sont **spécifiques à ce layout**, pas une invariante générale du pipeline AOT.
 
 ### Profils écartés
 
@@ -575,9 +644,9 @@ Invariant calibré pour le gameplay (séquences ≤ 13 frames). Cinématiques lo
 
 **Note** : `1h_backslash` et `backslash` désignent la même réalité sous deux nommages distincts.
 
-**Invariant de sélection** : un StrokeProfile n'est canonique que si tous les layers essentiels le supportent (whitelist empirique).
+**Invariant de sélection** : un ExtractionProfile n'est canonique que si tous les layers essentiels le supportent (whitelist empirique).
 
-**Invariant d'héritage** : un CompositionProfile dérivé d'un StrokeProfile **écarté** est **écarté par construction**.
+**Invariant d'héritage** : un CompositionProfile dérivé d'un ExtractionProfile **écarté** est **écarté par construction**.
 
 ---
 
@@ -585,7 +654,7 @@ Invariant calibré pour le gameplay (séquences ≤ 13 frames). Cinématiques lo
 
 **Artefact central du paradigme.**
 
-> **Une `AnimationAction` peut correspondre à plusieurs cinématiques, selon le contexte. La résolution produit un `Profile` — `StrokeProfile` ou `CompositionProfile`.**
+> **Une `AnimationAction` peut correspondre à plusieurs cinématiques, selon le contexte. La résolution produit un `Profile` — `ExtractionProfile` ou `CompositionProfile`.**
 
 ### Structure conceptuelle
 
@@ -597,11 +666,11 @@ AnimationAction
 └── fallback
 ```
 
-**Note** : `by_bucket` est un axe de résolution à part entière. Une même action peut résoudre vers `walk` (Small), `walk_128` (Medium), `walk_192` (Large), indépendamment de l'équipement.
+**Note** : `by_bucket` est un axe de résolution à part entière. Une même action peut résoudre vers `walk` (Small), `walk_128` (Medium), `walk_192` (Large), indépendamment de l'équipement. Les entrées `walk_128` / `walk_192` désignent la variante physique de `walk` au bucket correspondant.
 
 ### Localisation dans le YAML de résolution
 
-La table de résolution est **intégralement portée par le troisième YAML** (§4). Chaque entrée associe une `AnimationAction` à sa résolution.
+La table de résolution est **intégralement portée par le troisième YAML** (§4).
 
 ### Exemples illustratifs
 
@@ -627,8 +696,8 @@ Plusieurs `AnimationAction` peuvent se résoudre vers le même `Profile` :
 
 | AnimationAction | Profile |
 |---|---|
-| `die` | `hurt` (StrokeProfile) |
-| `stagger` | `hurt` (StrokeProfile) |
+| `die` | `hurt` (ExtractionProfile) |
+| `stagger` | `hurt` (ExtractionProfile) |
 
 ### Matérialisation runtime
 
@@ -637,8 +706,9 @@ Plusieurs `AnimationAction` peuvent se résoudre vers le même `Profile` :
 ```
 
 - Aucun parcours d'arbre au runtime.
-- `StrokeProfile` et `CompositionProfile` disparaissent du binaire final.
+- `ExtractionProfile` et `CompositionProfile` disparaissent du binaire final.
 - `EquipmentId` est un **index**, pas un prédicat.
+- **Seuls les couples `(EquipmentId, BucketId)` valides sont matérialisés** (§4).
 - **La table est générée par l'AOT** à partir du YAML de résolution, du YAML canonique et des contrats d'équipement.
 
 ### Note terminologique
@@ -646,30 +716,41 @@ Plusieurs `AnimationAction` peuvent se résoudre vers le même `Profile` :
 | Notion | Niveau | Nature |
 |---|---|---|
 | **Convergence** | Étage 1 → 2 | Plusieurs `AnimationAction` vers un même `Profile`. |
-| **Composition de séquence** | Étage 2 → 3 | Réordonnancement, répétition. |
-| **Interning** | Étage 3 (AOT) | Déduplication mécanique. |
+| **Composition ordinale** | Étage 2 → 3 | Réordonnancement, répétition. |
+| **Déduplication** | Étage 3 (AOT) | Déduplication mécanique. |
 | **Assemblage multi-couches** | Runtime | Superposition spatiale. |
 
 ---
 
-## 9. Reprojection, composition multi-couches, interning
+## 9. Composition multi-couches, déduplication
 
-### Reprojection
+### Composition dans le bucket cible
 
 Pour chaque combinaison `(LayerId, AnimationAction, Direction, contexte de résolution)` :
 
 1. Résoudre le `Profile` cible.
-2. Identifier le `StrokeProfile` sous-jacent (si `CompositionProfile`, remonter à `source_stroke`).
+2. Identifier le `ExtractionProfile` sous-jacent (si `CompositionProfile`, remonter à `source_extraction`).
 3. Sélectionner le **contrat applicable** `(applies_to, target_bucket)`.
-4. Extraire les rows du PNG source selon les `rows` déclarées dans ce contrat.
-5. Reprojeter dans le bucket cible (toile vide, offset centré, padding transparent).
+4. Extraire les frames du PNG source à partir des `grid_y` de départ déclarés dans ce contrat, en appliquant la largeur verticale induite par `frame_size`.
+5. **Composer la source dans le canvas du bucket cible** — sans redimensionnement :
+   - toile vide `BucketSize × BucketSize` ;
+   - offset centré : `offset = (BucketSize - source_size) / 2` ;
+   - blitter la source à cet offset ;
+   - padding transparent autour.
 6. Si le layer n'a **pas** de variante : **frame transparente canonique**.
 7. Composer la séquence finale.
 8. Empaqueter.
 
+**Rappel important** : la source n'est **jamais** redimensionnée. Un body 64×64 reste 64×64 ; il est simplement positionné dans un canvas plus grand.
+
 **Note sur « contexte de résolution »** : ce terme désigne la dimension **conceptuelle** de résolution (par équipement, par bucket). Il **ne correspond pas** à une dimension runtime supplémentaire.
 
 ### Invariant de validation : `source_size ≤ BucketSize`
+
+Ici :
+- `source_size` désigne la dimension intrinsèque de la frame source extraite du layer ;
+- `BucketSize` désigne la dimension de la frame finale consommée par le runtime ;
+- `frame_size` est la dimension de build dérivée de `target_bucket` et correspond à `BucketSize`.
 
 Sinon → **erreur de build**.
 
@@ -685,10 +766,11 @@ Cible = maximum des buckets disponibles pour l'équipement actif. Sans équipeme
 | Layer n'a pas une animation **non requise** | **Frame transparente** injectée, longueur alignée |
 | CompositionProfile dont la source manque | **Erreur de build** |
 | `reference` manquante dans un contrat d'équipement | **Erreur de build** |
-| Résolution cible manquante dans le YAML de résolution | **Erreur de build** |
+| Cible de résolution inexistante dans le YAML canonique | **Erreur de build** |
 | Plusieurs contrats applicables au même asset/bucket | **Erreur de build (ambiguïté)** |
+| Couple `(EquipmentId, BucketId)` invalide | **Absent de l'espace généré** |
 | Animation canonique non référencée | **Warning informatif** |
-| `AnimationAction` sans résolution | **Warning informatif** |
+| `AnimationAction` déclarée mais non référencée | **Warning informatif** |
 
 ### Traitement des overlays
 
@@ -699,17 +781,17 @@ Un effet visuel peut être traité de **deux manières** :
 
 **Règle de classification** : déterminée au build par inspection de l'asset.
 
-### Interning et génération — trois notions distinctes
+### Déduplication et génération — trois notions distinctes
 
 | Notion | Définition |
 |---|---|
 | **Scope de déduplication** | Au sein d'un même layer (ou variante de layer). |
-| **Clé de génération AOT** | `(LayerId, BucketId, AnimationAction, Direction, EquipmentId)`. |
+| **Clé de génération AOT** | `(LayerId, BucketId, AnimationAction, Direction, EquipmentId)` — limitée aux couples valides. |
 | **Clé d'adressage runtime** | La matrice finale `[LayerId][BucketId][AnimationAction][Direction][EquipmentId] → SequenceId`. |
 
 **Anti-explosion combinatoire** : l'AOT **n'itère pas** sur les combinaisons de layers. Chaque layer est traité indépendamment.
 
-**Interning** : après génération, les séquences identiques au sein d'un même layer partagent le même stockage.
+**Déduplication** : après génération, les séquences identiques au sein d'un même layer partagent le même stockage.
 
 **Chiffrage indicatif** : ordre de 60 000–80 000 séquences.
 
@@ -719,13 +801,16 @@ Un effet visuel peut être traité de **deux manières** :
 
 ### Connaît
 - `LayerId`, `BucketId`, `AnimationAction`, `Direction`, `EquipmentId`
+- Identifiants et structures AOT déjà résolues
 - Taille de frame résolue
 
 **Précision** : le runtime utilise `BucketId` et `EquipmentId` comme **identifiants d'indexation**, mais ignore leur **sémantique** (pas de branche sur `if bucket == Large`), ainsi que les concepts de `row`, `grid_cell`, `grid`, `grid_y`.
 
 ### Ignore
-- LPC, rows, grid_cells, grid, grid_y, PNG, `Profile`, `StrokeProfile`, `CompositionProfile`
+- LPC, rows, grid_cells, grid, grid_y, PNG, `Profile`, `ExtractionProfile`, `CompositionProfile`
 - Pivot d'ancrage gameplay
+- Logique de résolution des contrats
+- Interprétation des YAML
 
 ### Fait
 - Écrit `AnimationAction` + `Direction`
@@ -742,7 +827,7 @@ Un effet visuel peut être traité de **deux manières** :
 
 ### Frontière temporelle
 
-L'AOT fige la topologie spatiale et ordinale. Le runtime est maître du domaine temporel.
+L'AOT fige la topologie spatiale, ordinale et structurelle. Le runtime reste maître du domaine temporel.
 
 ---
 
@@ -763,31 +848,45 @@ L'AOT fige la topologie spatiale et ordinale. Le runtime est maître du domaine 
 - Profils : préfixe descriptif toléré. §1
 
 ### Profils
-- `Profile` = terme générique englobant `StrokeProfile` et `CompositionProfile`. §2
-- Un `StrokeProfile` possède une séquence canonique par défaut. §2
+- `Profile` = terme générique englobant `ExtractionProfile` et `CompositionProfile`. §2
+- Un `ExtractionProfile` possède une séquence canonique par défaut. §2
+- `walk_128`, `walk_192`, `slash_128`, `slash_192`, `thrust_192` sont des **variantes physiques de bucket**, descriptives, pas des Profiles autonomes. §2
+- `slash_reverse` est un `CompositionProfile` dérivé de `slash`. Sa variante physique Large est `slash_reverse_192` (à vérifier contre les YAML réels). §2
 
 ### Contextualisation des contrats
 - L'AOT **ne fusionne jamais** les contrats. §4
-- Un même `StrokeProfile` peut apparaître dans plusieurs contrats, avec des `rows` propres à chaque bucket. §4
-- Un `CompositionProfile` n'est **jamais** localisé physiquement : sa localisation est portée par son `source_stroke`. §4
+- Un même `ExtractionProfile` peut apparaître dans plusieurs contrats, avec des `rows` propres à chaque bucket. §4
+- Un `CompositionProfile` n'est **jamais** localisé physiquement : sa localisation est portée par son `source_extraction`. §4
 - 0 contrat applicable → erreur ; 1 contrat → résolution normale ; >1 → erreur d'ambiguïté. §4
+
+### Couples (EquipmentId, BucketId)
+- Seuls les couples valides sont matérialisés. §4
+- Pas de produit cartésien. §4
+- Le runtime utilise les identifiants comme clés d'indexation, sans interpréter leur sémantique. §4
 
 ### Directions
 - Directions canoniques `[top, left, down, right]`. §7
-- Exceptions : `hurt` = `[down]`, `climb` = `[top]`. §7
+- Exceptions de source : `hurt` = `[down]`, `climb` = `[top]`. §7
+- Les profils mono-directionnels sont dupliqués AOT sur les quatre directions canoniques. §7
 - Variantes oversize : toujours 4 directions. §7
 
 ### Structure PNG
 - Un PNG est une **grid** de grid_cells de 64×64. §3
 - Blocs contigus, sans padding. §3
-- Bloc Small (grid_y 0–53) identique d'un PNG à l'autre. §3
-- Zone des blocs oversize à partir du grid_y 54. §3
+- **Dans le layout LPC Character**, le bloc Small (grid_y 0–53) est identique d'un PNG à l'autre. §3
+- **Dans le layout LPC Character**, la zone des blocs oversize commence au grid_y 54. §3
 - Sur un même PNG, variantes de taille d'un même profil partagent leurs grid_y. §3
+- Les valeurs du layout LPC Character ne sont **pas** des invariantes générales du pipeline AOT. §3
 
 ### Alignement et dimensions
 - Toute frame centrée sur le centre géométrique. §3
 - `source_size ≤ BucketSize` (erreur sinon). §9
-- Frames commencent à x = 0. §3
+- `source_size` désigne la dimension intrinsèque de la frame source ; `BucketSize` la dimension de la frame finale ; `frame_size` dérive de `target_bucket`. §9
+- **Origine physique par défaut : `x = 0`.** §3
+
+### Composition dans le bucket
+- Un layer n'est **jamais redimensionné** pour le bucket. §3, §9
+- Un layer est **composé** dans le canvas du bucket cible (positionnement centré, padding transparent). §3, §9
 
 ### Bucket
 - Trois familles : corporel / arme / outil. §3
@@ -805,7 +904,7 @@ L'AOT fige la topologie spatiale et ordinale. Le runtime est maître du domaine 
 - **Trois YAML distincts** : canonique + équipement + résolution. §4
 - `frame_size` déduit de `target_bucket`. §4
 - CompositionProfiles héritent `frame_count` et `directions` de leur source. §4
-- Référence manquante → erreur. Résolution manquante → erreur. Ambiguïté → erreur. Fantômes → warnings. §4
+- Référence manquante → erreur. Cible de résolution inexistante → erreur. Ambiguïté → erreur. Éléments déclarés mais non référencés → warnings. §4
 - `tool_whip` et `tool_axe` dérivent de `slash`. §4
 - Le YAML canonique est une **déclaration d'intentions**, pas une description physique. §12
 
@@ -813,9 +912,9 @@ L'AOT fige la topologie spatiale et ordinale. Le runtime est maître du domaine 
 - Résolue AOT par graphe de succession (`next_sequence_id`). §6
 - Runtime ignore la nature du bouclage (loop vs transition). §6
 
-### Interning et génération
-- Interning par layer. §9
-- Génération par combinaison `(LayerId, BucketId, AnimationAction, Direction, EquipmentId)`. §9
+### Déduplication et génération
+- Déduplication par layer. §9
+- Génération par combinaison `(LayerId, BucketId, AnimationAction, Direction, EquipmentId)` — couples valides uniquement. §9
 - Pas de combinaison multi-layers matérialisée. §9
 
 ### Fallback
@@ -850,15 +949,15 @@ L'AOT fige la topologie spatiale et ordinale. Le runtime est maître du domaine 
 12. facial
 13. neck
 14. arms_armor
-15. weapon_behind
-16. weapon
+15. equipment_behind
+16. equipment
 17. shield (position variable selon direction)
 18. cape_front
-19. weapon_front
+19. equipment_front
 20. overlays
 ```
 
-**Note sur les trois positions d'arme** : composants visuels distincts d'une même arme, résolus depuis le **même `EquipmentId`**.
+**Note sur les trois positions d'équipement** : composants visuels distincts d'un même équipement, résolus depuis le **même `EquipmentId`**.
 
 **Exception bouclier** (validé) :
 
@@ -881,8 +980,8 @@ L'AOT fige la topologie spatiale et ordinale. Le runtime est maître du domaine 
 |---|---|---|
 | **PNG** | Vérité des pixels, `grid_y`, frames | **Autoritaire absolue** |
 | **YAML canonique** | Déclaration d'intentions d'animation | Autoritaire pour nos intentions |
-| **YAML d'équipement** | Liaison PNG ↔ équipement | Autoritaire pour nos intentions |
-| **YAML de résolution** | Liaison `AnimationAction` ↔ `Profile` | Autoritaire pour nos intentions |
+| **YAML d'équipement** | Déclaration du mapping PNG ↔ équipement | Autoritaire pour nos intentions |
+| **YAML de résolution** | Déclaration du mapping `AnimationAction` ↔ `Profile` | Autoritaire pour nos intentions |
 | **Liste des assets au build** | Vérité d'existence | Autoritaire |
 
 Règle : `Asset utilisé = déclaré au build ∩ présent sur disque ∩ déclaré en YAML`. Toute divergence = **erreur de build**.
@@ -895,10 +994,10 @@ Règle : `Asset utilisé = déclaré au build ∩ présent sur disque ∩ décla
 
 **Validation croisée :**
 - `reference` manquante → **erreur de build**.
-- Résolution cible manquante → **erreur de build**.
+- Cible de résolution inexistante → **erreur de build**.
 - Ambiguïté de contrat → **erreur de build**.
 - Animation canonique non référencée → **warning informatif**.
-- `AnimationAction` sans résolution → **warning informatif**.
+- `AnimationAction` déclarée mais non référencée par une entrée de résolution → **warning informatif**.
 
 ---
 
@@ -907,8 +1006,8 @@ Règle : `Asset utilisé = déclaré au build ∩ présent sur disque ∩ décla
 ### Vérifié (empirique)
 
 - ✔ Rows LPC canoniques (0-based).
-- ✔ Bloc Small (grid_y 0–53) identique d'un PNG à l'autre.
-- ✔ Zone des blocs oversize à partir du grid_y 54.
+- ✔ Bloc Small (grid_y 0–53) identique d'un PNG à l'autre, dans le layout LPC Character.
+- ✔ Zone des blocs oversize à partir du grid_y 54, dans le layout LPC Character.
 - ✔ `1h_backslash` = rows 50–53.
 - ✔ `walk_128` = 9 frames.
 - ✔ `tool_whip` et `tool_axe` dérivent de `slash`.
@@ -920,34 +1019,55 @@ Règle : `Asset utilisé = déclaré au build ∩ présent sur disque ∩ décla
 
 - ✔ Quatre unités : `row`, `grid_cell`, `grid`, `grid_y`.
 - ✔ `Profile` comme terme générique.
+- ✔ `ExtractionProfile` comme terme pour les profils d'extraction directe.
 - ✔ Indexation 0-based.
 - ✔ Chemins et identifiants en lowercase.
 - ✔ Préfixes interdits pour `AnimationAction`, tolérés pour profils.
 - ✔ `EquipmentId` — arme ou outil.
-- ✔ `by_equipment` partout (remplace `by_weapon`).
+- ✔ `by_equipment` partout.
 - ✔ Pivot d'ancrage gameplay hors-scope AOT.
 - ✔ Nomenclature uniformisée `_128` / `_192`, lowercase.
-- ✔ Écartés : `1h_*`, `backslash`, `halfslash`, + héritage. Terme unique : « écarté ».
+- ✔ Écartés : `1h_*`, `backslash`, `halfslash`, + héritage.
 - ✔ Trois familles de layers.
 - ✔ Promotion automatique de bucket.
 - ✔ Politique de boucle par graphe de succession.
-- ✔ Interning par layer.
+- ✔ Déduplication par layer.
 - ✔ Trois YAML distincts.
 - ✔ `frame_size` déduit de `target_bucket`.
 - ✔ PNG source de vérité physique unique.
 - ✔ Terme générique « Oversized Equipment ».
-- ✔ **Contextualisation des contrats** : sélection, jamais fusion. Ambiguïté = erreur.
-- ✔ **`aliases` non utilisé pour `hurt`** : seul `hurt` est retenu.
+- ✔ Contextualisation des contrats : sélection, jamais fusion.
+- ✔ `aliases` non utilisé pour `hurt`.
+- ✔ **Variantes physiques de bucket** : `walk_128` et consorts sont descriptives, pas des Profiles.
+- ✔ **`slash_reverse`** : modélisé comme `CompositionProfile` dérivé de `slash`.
+- ✔ **Composition dans le bucket cible** : pas de scaling.
+- ✔ **Layout LPC Character** : qualifié comme spécifique.
+- ✔ **Origine `x = 0`** : par défaut, sans mécanisme de surcharge.
+- ✔ **Couples `(EquipmentId, BucketId)`** : valides uniquement.
+
+### Réserves d'arbitrage avant v1
+
+Les points suivants restent volontairement **non tranchés** dans cette version :
+
+- **Résolution multi-axes** : priorité ou exclusivité entre `by_equipment`, `by_bucket` et `default` (§8).
+- **Variantes physiques de bucket** : statut nominal et représentation exacte de `walk_128`, `walk_192`, etc. (§2, §8).
+- **Animations requises** : définition de la notion de `required` et éventuel `required_animations` (§9).
+- **`EquipmentId`** : pertinence du nom actuel vis-à-vis du périmètre réel du concept, notamment en présence du bouclier (§3, §4, §11).
+- **Déduplication** : identité exacte d'une séquence lorsqu'elle porte également une topologie de succession via `next_sequence_id` (§6, §9).
+- **Frame transparente canonique** : nature exacte de la représentation associée à l'index global `0` pour les différents buckets (§4, §9).
 
 ### Notes de veille (non des tickets ouverts)
 
 - **B11 — CompositionProfiles multi-source** : non retenu. À reconsidérer si besoin concret.
 - **`swim`** : CompositionProfile dérivé de `spellcast`, marqué **provisoire**.
 - **`fallback`** : clé réservée dans le YAML de résolution ; sémantique à figer Phase 5.
+- **`slash_reverse_192`** : chaîne conceptuelle `slash → slash_reverse → variante physique Large` à **vérifier contre les YAML réels**.
 
 ### Tickets conceptuels ouverts
 
 - (aucun)
+
+> Les **réserves d'arbitrage** ci-dessus sont intentionnellement distinctes des tickets conceptuels : elles représentent des décisions de vocabulaire ou de contrat encore en discussion, sans constituer à ce stade de nouvelles fonctionnalités ou extensions du paradigme.
 
 ---
 
@@ -970,13 +1090,17 @@ Règle : `Asset utilisé = déclaré au build ∩ présent sur disque ∩ décla
 - **Terme « rangée de cellules »** — remplacé par `grid_y`.
 - **Terme `cell`** — remplacé par `grid_cell`.
 - **Runtime-only pour les `AnimationAction`** — écarté.
-- **`WeaponId`** — remplacé par `EquipmentId`.
+- **`WeaponId`** — remplacé par `EquipmentId` ; le nom `EquipmentId` reste soumis à arbitrage lexical (§13).
+- **`StrokeProfile`** — remplacé par `ExtractionProfile`.
 - **Zone « héritée 21–53 »** — remplacée par « bloc Small 0–53 ».
 - **Terme `MotorAction`** — supprimé du document.
 - **`by_weapon`** — remplacé par `by_equipment`.
-- **`aliases: [death]` sur `hurt`** — retiré (legacy non conservé).
-- **Convention PascalCase pour les chemins** — écartée (lowercase partout).
+- **`aliases: [death]` sur `hurt`** — retiré.
+- **Convention PascalCase pour les chemins** — écartée.
 - **Fusion de contrats d'équipement** — écartée (sélection, pas fusion).
+- **Redimensionnement (scaling) d'un layer** — écarté (composition dans le canvas uniquement).
+- **Troisième type de `Profile`** — écarté (les variantes physiques de bucket sont descriptives).
+- **Surcharge de l'origine physique `x = 0`** — écartée (par défaut, sans mécanisme).
 
 ---
 
@@ -986,4 +1110,4 @@ Règle : `Asset utilisé = déclaré au build ∩ présent sur disque ∩ décla
 
 ---
 
-_Document rédigé le 15 septembre 2026_
+_Document révisé le 19 septembre 2026_
