@@ -1,0 +1,320 @@
+# build_manifest.yaml
+# LPC AOT PoC reference fixture.
+#
+# Global PhysicalRealization registry and driver-equipment topology.
+#
+# Responsibilities here:
+# - PhysicalRealization identity and existence
+# - Profile reference
+# - source asset
+# - LayerId / topology
+# - RealizationBucket
+# - DriverEquipmentId -> available equipment realizations
+# - declarative physical selection
+#
+# rows are deliberately NOT stored here; see localization contracts.
+# TargetBucket is contextual and derived from the driver's realization buckets.
+# Bucket -> frame_size is also derived by the paradigm; it is not declared here.
+# Source paths are illustrative because the paradigm fixes no repository names.
+
+schema:
+  paradigm: lpc
+  paradigm_version: "1.3"
+  fixture_role: representative_poc
+
+assets:
+  - asset_id: base_character
+    source_path: "textures/characters/base_character.png"
+    kind: character_layer_source
+    source_path_status: illustrative
+
+  - asset_id: hair
+    source_path: "textures/characters/hair.png"
+    kind: character_layer_source
+    source_path_status: illustrative
+
+  - asset_id: clothes
+    source_path: "textures/characters/clothes.png"
+    kind: character_layer_source
+    source_path_status: illustrative
+
+  - asset_id: longsword
+    source_path: "textures/equipment/longsword.png"
+    kind: equipment
+    source_path_status: illustrative
+
+  - asset_id: trident
+    source_path: "textures/equipment/trident.png"
+    kind: equipment
+    source_path_status: illustrative
+
+realizations:
+
+  # ============================================================
+  # Base Character — canonical Small rows from the reference ASCII
+  # ============================================================
+
+  - realization_id: base-spellcast
+    profile: spellcast
+    source_asset: base_character
+    layer_id: body
+    realization_bucket: small
+
+  - realization_id: base-thrust
+    profile: thrust
+    source_asset: base_character
+    layer_id: body
+    realization_bucket: small
+
+  - realization_id: base-walk
+    profile: walk
+    source_asset: base_character
+    layer_id: body
+    realization_bucket: small
+
+  - realization_id: base-slash
+    profile: slash
+    source_asset: base_character
+    layer_id: body
+    realization_bucket: small
+
+  - realization_id: base-shoot
+    profile: shoot
+    source_asset: base_character
+    layer_id: body
+    realization_bucket: small
+
+  - realization_id: base-hurt
+    profile: hurt
+    source_asset: base_character
+    layer_id: body
+    realization_bucket: small
+
+  - realization_id: base-climb
+    profile: climb
+    source_asset: base_character
+    layer_id: body
+    realization_bucket: small
+
+  - realization_id: base-idle
+    profile: idle
+    source_asset: base_character
+    layer_id: body
+    realization_bucket: small
+
+  - realization_id: base-jump
+    profile: jump
+    source_asset: base_character
+    layer_id: body
+    realization_bucket: small
+
+  - realization_id: base-sit
+    profile: sit
+    source_asset: base_character
+    layer_id: body
+    realization_bucket: small
+
+  - realization_id: base-emote
+    profile: emote
+    source_asset: base_character
+    layer_id: body
+    realization_bucket: small
+
+  - realization_id: base-run
+    profile: run
+    source_asset: base_character
+    layer_id: body
+    realization_bucket: small
+
+  # Representative separate layer sources.
+  - realization_id: hair-slash
+    profile: slash
+    source_asset: hair
+    layer_id: hair
+    realization_bucket: small
+
+  - realization_id: clothes-slash
+    profile: slash
+    source_asset: clothes
+    layer_id: clothes
+    realization_bucket: small
+
+  # ============================================================
+  # Longsword — blocks confirmed by the ASCII fixture
+  # ============================================================
+
+  - realization_id: longsword-walk
+    profile: walk
+    source_asset: longsword
+    layer_id: equipment
+    realization_bucket: small
+
+  - realization_id: longsword-hurt
+    profile: hurt
+    source_asset: longsword
+    layer_id: equipment
+    realization_bucket: small
+
+  - realization_id: longsword-slash
+    profile: slash
+    source_asset: longsword
+    layer_id: equipment
+    realization_bucket: large
+
+  - realization_id: longsword-slash-reverse
+    profile: slash_reverse
+    source_asset: longsword
+    layer_id: equipment
+    realization_bucket: large
+
+  - realization_id: longsword-thrust
+    profile: thrust
+    source_asset: longsword
+    layer_id: equipment
+    realization_bucket: large
+
+  # ============================================================
+  # Trident — mixed Medium/Large blocks in one PNG
+  # ============================================================
+
+  - realization_id: trident-walk
+    profile: walk
+    source_asset: trident
+    layer_id: equipment
+    realization_bucket: medium
+
+  - realization_id: trident-thrust
+    profile: thrust
+    source_asset: trident
+    layer_id: equipment
+    realization_bucket: large
+
+# ================================================================
+# DriverEquipmentId -> available equipment realizations
+# ================================================================
+#
+# TargetBucket is deliberately NOT repeated. It is derived as the maximum
+# RealizationBucket among the realizations listed for the active driver.
+# With no driver, the paradigm default is Small.
+
+driver_equipment:
+
+  none:
+    role: none
+    available_realizations: []
+
+  longsword:
+    role: weapon
+    available_realizations:
+      - longsword-walk
+      - longsword-hurt
+      - longsword-slash
+      - longsword-slash-reverse
+      - longsword-thrust
+
+  trident:
+    role: weapon
+    available_realizations:
+      - trident-walk
+      - trident-thrust
+
+# ================================================================
+# Declarative physical selection
+# ================================================================
+#
+# Selection is by (LayerId, DriverEquipmentId, Profile).
+# TargetBucket is not duplicated here; it is derived from DriverEquipmentId
+# and used only for compatibility validation.
+#
+# A valid context may have exactly one selected realization. Multiple
+# candidates for the same selection context are a build error.
+
+physical_selection:
+
+  # Base, no-driver contexts.
+  - layer_id: body
+    driver_equipment_id: none
+    profile: walk
+    realization_id: base-walk
+
+  - layer_id: body
+    driver_equipment_id: none
+    profile: slash
+    realization_id: base-slash
+
+  - layer_id: body
+    driver_equipment_id: none
+    profile: spellcast
+    realization_id: base-spellcast
+
+  - layer_id: body
+    driver_equipment_id: none
+    profile: hurt
+    realization_id: base-hurt
+
+  - layer_id: body
+    driver_equipment_id: none
+    profile: idle
+    realization_id: base-idle
+
+  # Longsword contexts: lower-bucket body source composed into Large target.
+  - layer_id: body
+    driver_equipment_id: longsword
+    profile: walk
+    realization_id: base-walk
+
+  - layer_id: body
+    driver_equipment_id: longsword
+    profile: slash
+    realization_id: base-slash
+
+  - layer_id: hair
+    driver_equipment_id: longsword
+    profile: slash
+    realization_id: hair-slash
+
+  - layer_id: clothes
+    driver_equipment_id: longsword
+    profile: slash
+    realization_id: clothes-slash
+
+  - layer_id: equipment
+    driver_equipment_id: longsword
+    profile: walk
+    realization_id: longsword-walk
+
+  - layer_id: equipment
+    driver_equipment_id: longsword
+    profile: slash
+    realization_id: longsword-slash
+
+  - layer_id: equipment
+    driver_equipment_id: longsword
+    profile: slash_reverse
+    realization_id: longsword-slash-reverse
+
+  - layer_id: equipment
+    driver_equipment_id: longsword
+    profile: thrust
+    realization_id: longsword-thrust
+
+  # Trident contexts: mixed Medium/Large physical realizations.
+  - layer_id: body
+    driver_equipment_id: trident
+    profile: walk
+    realization_id: base-walk
+
+  - layer_id: body
+    driver_equipment_id: trident
+    profile: thrust
+    realization_id: base-thrust
+
+  - layer_id: equipment
+    driver_equipment_id: trident
+    profile: walk
+    realization_id: trident-walk
+
+  - layer_id: equipment
+    driver_equipment_id: trident
+    profile: thrust
+    realization_id: trident-thrust

@@ -1,0 +1,114 @@
+# canonical_animations.yaml
+# LPC AOT PoC reference fixture, derived from LPC-Paradigm-v1.3.
+#
+# This is a representative semantic corpus, not a claim of exhaustive LPC
+# coverage. Physical facts do NOT belong here.
+#
+# frame_count = extraction-pool size.
+# sequence = local indices actually played.
+# CompositionProfile inherits frame_count and directions from source_extraction.
+
+schema:
+  paradigm: lpc
+  paradigm_version: "1.3"
+  fixture_role: representative_poc
+
+profiles:
+
+  # ============================================================
+  # ExtractionProfiles — canonical LPC Character examples
+  # ============================================================
+
+  - name: spellcast
+    type: ExtractionProfile
+    frame_count: 7
+    directions: [top, left, down, right]
+
+  - name: thrust
+    type: ExtractionProfile
+    frame_count: 8
+    directions: [top, left, down, right]
+
+  - name: walk
+    type: ExtractionProfile
+    frame_count: 9
+    directions: [top, left, down, right]
+    # Frame 0 exists in the source pool but is not played.
+    sequence: [1, 2, 3, 4, 5, 6, 7, 8]
+
+  - name: slash
+    type: ExtractionProfile
+    frame_count: 6
+    directions: [top, left, down, right]
+
+  - name: shoot
+    type: ExtractionProfile
+    frame_count: 13
+    directions: [top, left, down, right]
+
+  - name: hurt
+    type: ExtractionProfile
+    frame_count: 6
+    directions: [down]
+
+  - name: climb
+    type: ExtractionProfile
+    frame_count: 6
+    directions: [top]
+
+  - name: idle
+    type: ExtractionProfile
+    frame_count: 2
+    directions: [top, left, down, right]
+    sequence: [0, 0, 1]
+
+  - name: jump
+    type: ExtractionProfile
+    frame_count: 5
+    directions: [top, left, down, right]
+    sequence: [0, 1, 2, 3, 4, 1]
+
+  - name: sit
+    type: ExtractionProfile
+    frame_count: 3
+    directions: [top, left, down, right]
+    sequence: [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2]
+
+  - name: emote
+    type: ExtractionProfile
+    frame_count: 3
+    directions: [top, left, down, right]
+    sequence: [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2]
+
+  - name: run
+    type: ExtractionProfile
+    frame_count: 8
+    directions: [top, left, down, right]
+
+  # ============================================================
+  # CompositionProfiles — semantic reuse
+  # ============================================================
+
+  - name: slash_reverse
+    type: CompositionProfile
+    source_extraction: slash
+    sequence: [5, 4, 3, 2, 1, 0]
+
+  - name: watering
+    type: CompositionProfile
+    source_extraction: thrust
+    sequence: [0, 1, 4, 4, 4, 4, 5]
+
+  - name: tool_whip
+    type: CompositionProfile
+    source_extraction: slash
+    sequence: [0, 1, 2, 3, 4, 5]
+
+  - name: tool_axe
+    type: CompositionProfile
+    source_extraction: slash
+    sequence: [5, 5, 4, 4, 3, 1, 0, 0, 0, 0]
+
+  # `tool_hoe`, `tool_shovel`, and `swim` remain declared by the paradigm,
+  # but their concrete sequences are intentionally not invented here.
+  # They will be added when their sequence definitions are closed.

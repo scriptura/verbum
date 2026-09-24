@@ -1,0 +1,35 @@
+# trident.contract.yaml
+# Localization contract for the empirical Trident ASCII fixture.
+#
+# Confirmed physical blocks:
+#   grid_y 0–53     -> physically present but entirely transparent in the asset
+#   walk / Medium   -> grid_y 54–61
+#   thrust / Large  -> grid_y 62–73
+#
+# The Large thrust realization is contractually optional while remaining
+# physically present in this fixture. Optionality is orthogonal to presence.
+
+schema:
+  paradigm: lpc
+  paradigm_version: "1.3"
+  fixture_role: representative_poc
+
+contract_id: trident
+
+applies_to:
+  asset_ids:
+    - trident
+
+realizations:
+
+  - realization_id: trident-walk
+    optional: false
+    rows: [54, 56, 58, 60]
+
+  - realization_id: trident-thrust
+    optional: true
+    rows: [62, 65, 68, 71]
+
+# There is deliberately NO Small realization for this asset.
+# The physically present 0–53 region is transparent; physical canvas presence
+# is therefore not confused with an exploitable PhysicalRealization.

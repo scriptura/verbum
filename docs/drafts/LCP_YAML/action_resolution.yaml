@@ -1,0 +1,72 @@
+# action_resolution.yaml
+# LPC AOT PoC reference fixture.
+#
+# Semantic resolution only:
+#     AnimationAction + contextual axis -> Profile
+#
+# Physical realizations never appear here.
+# Bucket-sized labels such as slash_192 are forbidden here.
+
+schema:
+  paradigm: lpc
+  paradigm_version: "1.3"
+  fixture_role: representative_poc
+
+actions:
+
+  # Central fixture:
+  #   attack + longsword -> slash
+  #   attack + trident   -> thrust
+  - animation_action: attack
+    resolution:
+      default: slash
+      by_equipment:
+        longsword: slash
+        trident: thrust
+
+  - animation_action: walk
+    resolution:
+      default: walk
+
+  - animation_action: run
+    resolution:
+      default: run
+
+  - animation_action: cast
+    resolution:
+      default: spellcast
+
+  - animation_action: idle
+    resolution:
+      default: idle
+
+  # Convergence: two distinct actions resolve to the same semantic Profile.
+  - animation_action: die
+    resolution:
+      default: hurt
+
+  - animation_action: stagger
+    resolution:
+      default: hurt
+
+  - animation_action: sit
+    resolution:
+      default: sit
+
+  - animation_action: emote
+    resolution:
+      default: emote
+
+  # Legacy vocabulary retained where the CompositionProfile definition is
+  # already closed in the current paradigm corpus.
+  - animation_action: whipping
+    resolution:
+      default: tool_whip
+
+  - animation_action: chopping
+    resolution:
+      default: tool_axe
+
+# `by_bucket` remains a supported semantic resolution axis in v1.3.
+# It is intentionally not instantiated here because the current corpus does
+# not establish a genuine bucket-dependent Profile mapping.

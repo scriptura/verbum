@@ -1,0 +1,70 @@
+# base_character.contract.yaml
+# Localization contract for the LPC Character base ASCII fixture.
+#
+# Confirmed canonical Small row starts are used here.
+# The contract references PhysicalRealization identities; it does not carry
+# RealizationBucket or TargetBucket.
+
+schema:
+  paradigm: lpc
+  paradigm_version: "1.3"
+  fixture_role: representative_poc
+
+contract_id: base_character_small
+
+applies_to:
+  asset_ids:
+    - base_character
+
+realizations:
+
+  - realization_id: base-spellcast
+    optional: false
+    rows: [0, 1, 2, 3]
+
+  - realization_id: base-thrust
+    optional: false
+    rows: [4, 5, 6, 7]
+
+  - realization_id: base-walk
+    optional: false
+    rows: [8, 9, 10, 11]
+
+  - realization_id: base-slash
+    optional: false
+    rows: [12, 13, 14, 15]
+
+  - realization_id: base-shoot
+    optional: false
+    rows: [16, 17, 18, 19]
+
+  - realization_id: base-hurt
+    optional: false
+    rows: [20]
+
+  - realization_id: base-climb
+    optional: false
+    rows: [21]
+
+  - realization_id: base-idle
+    optional: false
+    rows: [22, 23, 24, 25]
+
+  - realization_id: base-jump
+    optional: false
+    rows: [26, 27, 28, 29]
+
+  - realization_id: base-sit
+    optional: false
+    rows: [30, 31, 32, 33]
+
+  - realization_id: base-emote
+    optional: false
+    rows: [34, 35, 36, 37]
+
+  - realization_id: base-run
+    optional: false
+    rows: [38, 39, 40, 41]
+
+# Rows 42–53 correspond to profiles explicitly excluded by the paradigm.
+# They therefore have no PhysicalRealization entries here.

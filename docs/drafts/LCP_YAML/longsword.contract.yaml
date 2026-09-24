@@ -1,0 +1,45 @@
+# longsword.contract.yaml
+# Localization contract for the empirical Longsword ASCII fixture.
+#
+# Confirmed physical blocks:
+#   walk / Small        -> grid_y 8–11
+#   hurt / Small        -> grid_y 20
+#   slash / Large       -> grid_y 54–65
+#   slash_reverse/Large -> grid_y 66–77
+#   grid_y 78–80        -> intentionally unassigned
+#   thrust / Large      -> grid_y 81–92
+#
+# A 192x192 realization consumes 3 grid_y per direction.
+
+schema:
+  paradigm: lpc
+  paradigm_version: "1.3"
+  fixture_role: representative_poc
+
+contract_id: longsword
+
+applies_to:
+  asset_ids:
+    - longsword
+
+realizations:
+
+  - realization_id: longsword-walk
+    optional: false
+    rows: [8, 9, 10, 11]
+
+  - realization_id: longsword-hurt
+    optional: false
+    rows: [20]
+
+  - realization_id: longsword-slash
+    optional: false
+    rows: [54, 57, 60, 63]
+
+  - realization_id: longsword-slash-reverse
+    optional: false
+    rows: [66, 69, 72, 75]
+
+  - realization_id: longsword-thrust
+    optional: false
+    rows: [81, 84, 87, 90]
