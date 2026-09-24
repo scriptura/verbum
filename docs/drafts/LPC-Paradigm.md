@@ -1,9 +1,10 @@
-# Document fondateur conceptuel — LPC (pipeline AOT) — v1.3
+# Document fondateur conceptuel — LPC (pipeline AOT) — v1.3.1
 
-> **Statut** : **version stable — paradigme conceptuel consolidé**. Cette version ferme explicitement le modèle des **réalisations physiques** : une réalisation possède une identité propre (`RealizationId`), est décrite au niveau du build manifest / asset registry, et est localisée physiquement par un contrat d’équipement. Un même PNG peut contenir plusieurs réalisations physiques, éventuellement de buckets différents, ainsi que des zones transparentes ; une même identité sémantique peut posséder plusieurs réalisations physiques distinctes. Le `DriverEquipmentId` détermine le contexte cinématique commun et le `TargetBucket`, tandis que chaque layer sélectionne sa propre réalisation physique compatible avec ce contexte.
+> **Statut** : **révision de maintenance v1.3.1 — paradigme conceptuel v1.3 inchangé dans ses principes**. Cette version ferme explicitement le modèle des **réalisations physiques** : une réalisation possède une identité propre (`RealizationId`), est décrite au niveau du build manifest / asset registry, et est localisée physiquement par un contrat d’équipement. Un même PNG peut contenir plusieurs réalisations physiques, éventuellement de buckets différents, ainsi que des zones transparentes ; une même identité sémantique peut posséder plusieurs réalisations physiques distinctes. Le `DriverEquipmentId` détermine le contexte cinématique commun et le `TargetBucket`, tandis que chaque layer sélectionne sa propre réalisation physique compatible avec ce contexte.
+> **Socle normatif** : **v1.3**. Cette révision v1.3.1 met à jour la cohérence documentaire avec les fixtures post-audit sans introduire de nouveau principe architectural.
 > **Évolution v1.3** : le schéma distingue désormais explicitement **Profile**, **PhysicalRealization**, **LocalizationContract** et **ActionResolution**. La sélection physique est déclarative et doit être unique ; l’optionalité est attachée à la réalisation physique. Aucun changement de responsabilité n’est introduit côté runtime.
 > **Portée** : ce document couvre le **pipeline AOT**. Le runtime n'est mentionné que pour fixer les **invariants de frontière**.
-> **Exhaustivité** : ce document **n'est pas exhaustif** sur les animations. Il pose le **principe**, des **exemples illustratifs** et des **invariants**. La liste complète relève des **YAML**.
+> **Exhaustivité** : ce document **n'est pas exhaustif** sur les animations. Il pose le **principe**, des **exemples illustratifs**, des **invariants** et certains profils encore provisoires. Les YAML constituent le **corpus de référence effectivement déclaré** ; l'absence d'un profil provisoire ou non encore matérialisé dans ce corpus ne constitue pas une décision d'obsolescence.
 
 ---
 
@@ -418,7 +419,7 @@ LocalizationContract
        └── optional
 ```
 
-Le contrat **ne porte pas `realization_bucket` à la racine**. Le bucket appartient à la `PhysicalRealization` définie au niveau du build manifest / asset registry.
+Le contrat **ne porte pas `realization_bucket`**. Le bucket appartient à la `PhysicalRealization` définie au niveau du build manifest / asset registry.
 
 Le contrat ne définit pas non plus le `TargetBucket` final.
 
@@ -445,7 +446,7 @@ DriverEquipmentId
     → RealizationBucket disponibles
 ```
 
-**Invariant** : une `RealizationId` identifie une seule combinaison déclarative `(Profile, source asset, LayerId, RealizationBucket)`. Les coordonnées `rows` n'entrent pas dans l'identité ; elles appartiennent au contrat de localisation.
+**Invariant** : une `RealizationId` identifie une seule **occurrence déclarative** d'un `Profile` pour un `source asset`, un `LayerId` / une topologie et un `RealizationBucket` donnés. Les coordonnées `rows` n'entrent pas dans l'identité sémantique du `Profile` ; elles appartiennent au contrat de localisation.
 
 ainsi que la classification `overlay` / `variant`.
 
@@ -470,7 +471,7 @@ Le manifest **ne porte pas les `rows`** : celles-ci restent dans le contrat de l
 
 `RealizationId` est une identité déclarative de donnée, unique dans le scope du build.
 
-Il ne porte aucune sémantique de bucket dans son nom. Un suffixe documentaire comme `_192` peut être utilisé dans une annotation humaine, mais n'est pas requis et ne fait pas partie de l'identité du `Profile`.
+Il ne porte aucune sémantique de bucket dans son nom. Un label documentaire comme `slash_192` peut être utilisé pour désigner humainement cette réalisation, mais il ne constitue ni une identité de `Profile` ni une référence YAML obligatoire.
 
 Le build doit pouvoir référencer une même identité sémantique depuis plusieurs `RealizationId` distincts.
 
@@ -550,7 +551,7 @@ Le `TargetBucket` ne constitue pas une seconde identité de la PhysicalRealizati
 
 ### Optionalité
 
-L'optionalité est attachée à une `RealizationId` **dans le contrat de localisation**.
+L'optionalité est attachée à une `RealizationId` **dans le contrat de localisation**. Elle décrit une **exigence contractuelle**, pas la présence ou l'absence physique de la réalisation dans le PNG.
 
 ```text
 realization_id: body-slash-small
@@ -563,6 +564,8 @@ optional: true
 Une réalisation requise absente → **erreur de build**.
 
 Une réalisation optionnelle absente → **substitution transparente AOT** (§9).
+
+**La présence physique et l’optionalité sont deux dimensions indépendantes** : une réalisation peut être physiquement présente dans un asset tout en étant contractuellement optionnelle. Inversement, une réalisation peut être optionnelle et absente, auquel cas seule la politique AOT d'absence s'applique.
 
 Cette règle s'applique identiquement aux réalisations d'`ExtractionProfile` et de `CompositionProfile`.
 
@@ -594,7 +597,7 @@ realizations:
 
 Pour chaque `TargetBucket`, l'AOT matérialise **exactement une** frame transparente canonique de dimensions `TargetBucketSize × TargetBucketSize`.
 
-Le paradigme ne fixe **aucune numérotation réservée** : l'AOT maintient la correspondance `TargetBucket → TransparentFrameId`.
+Le paradigme ne fixe **aucune numérotation réservée** : l'AOT maintient la correspondance `TargetBucket → TransparentFrameId`. Cette frame physique partagée ne doit pas être confondue avec l'optionalité d'une réalisation.
 
 ### Validation des références croisées
 
@@ -712,7 +715,7 @@ Invariant calibré pour le gameplay (séquences ≤ 13 frames). Cinématiques lo
 | `tool_shovel` | `slash` | à préciser (YAML) |
 | `swim` | `spellcast` | à préciser (provisoire, voir §13) |
 
-**Note sur `slash_reverse`** : modélisé comme `CompositionProfile` dérivé de `slash`, avec une réalisation physique Large distincte `slash_reverse_192`. Sur le Longsword, cette réalisation occupe un bloc propre ; les lignes `78–80` restent à interpréter précisément.
+**Note sur `slash_reverse`** : modélisé comme `CompositionProfile` dérivé de `slash`, avec une réalisation physique Large distincte dans le corpus Longsword. Le bloc observé est `grid_y 66–77` ; les lignes `78–80` restent non attribuées.
 
 ### Variantes physiques de bucket (descriptives)
 
@@ -751,7 +754,7 @@ Invariant calibré pour le gameplay (séquences ≤ 13 frames). Cinématiques lo
 | `walk_128` | trident | 54–61 | 128×128 |
 | `thrust_192` | trident | 62–73 | 192×192 |
 | `slash_192` | longsword | 54–65 | 192×192 |
-| `slash_reverse_192` | longsword | 66–80 | 192×192 |
+| `slash_reverse_192` | longsword | 66–77 | 192×192 |
 | `thrust_192` | longsword | 81–92 | 192×192 |
 
 **Note critique** : **dans le layout LPC Character**, la **région Small (`grid_y` 0–53) est commune comme région physique et repère**. Son contenu peut toutefois varier selon l'asset, y compris être entièrement transparent. **La zone des réalisations oversized commence au `grid_y` 54.** Ces valeurs sont **spécifiques à ce layout**, pas des invariantes générales du pipeline AOT.
@@ -1074,7 +1077,7 @@ L'AOT fige la topologie spatiale, ordinale et structurelle. Le runtime reste ma�
 - `RealizationBucket` et `TargetBucket` sont deux rôles distincts d'un même `BucketId`. §1, §3
 - Un `ExtractionProfile` possède une séquence canonique par défaut. §2
 - `walk_128`, `walk_192`, `slash_128`, `slash_192`, `thrust_192` sont des **désignations descriptives de réalisations physiques de bucket**, jamais des identités de `Profile` ni des cibles YAML. §2, §8
-- `slash_reverse` est un `CompositionProfile` dérivé de `slash`. Sa variante physique Large est `slash_reverse_192` (à vérifier contre les YAML réels). §2
+- `slash_reverse` est un `CompositionProfile` dérivé de `slash`. Le Longsword fournit une réalisation physique Large distincte correspondant à ce profil. §2, §13
 
 ### Contextualisation des contrats
 - L'AOT **ne fusionne jamais** les contrats. §4
@@ -1164,7 +1167,7 @@ L'AOT fige la topologie spatiale, ordinale et structurelle. Le runtime reste ma�
 - `_128` / `_192` : suffixes réservés aux désignations descriptives de réalisations physiques ; jamais identités de `Profile`. §5
 
 ### Exhaustivité
-- Le document n'est pas exhaustif : les YAML le sont. §1, §7
+- Le document n'est pas exhaustif sur le vocabulaire d'animation ; les YAML décrivent le **corpus effectivement déclaré et testé**, pas nécessairement l'ensemble des profils conceptuellement mentionnés ou encore provisoires. §1, §7
 
 ### Ordre d'empilement canonique
 
@@ -1289,7 +1292,7 @@ est donc normative. L'absence est déterminée par la déclaration/topologie de 
 - ✔ Région Small `grid_y 0–53` commune comme repère/région physique du layout LPC Character observé ; son contenu peut être complet, partiel ou entièrement transparent selon l'asset.
 - ✔ Zone des blocs oversize à partir du grid_y 54, dans le layout LPC Character.
 - ✔ `1h_backslash` = rows 50–53.
-- ✔ `walk_128` = 9 frames.
+- ✔ La réalisation Medium observée de `walk` sur le Trident contient 9 frames source (héritées du `ExtractionProfile` `walk`).
 - ✔ PNG trident : `grid_y 0–53` présent physiquement mais transparent ; réalisation Medium `54–61` ; réalisation Large `62–73`.
 - ✔ PNG longsword : réalisation Small `walk` `8–11`, réalisation Small `hurt` `20`, réalisation Large `slash` `54–65`, réalisation Large `slash_reverse` `66–77`, réalisation Large `thrust` `81–92`.
 - ✔ Les lignes `78–80` du Longsword restent **non attribuées**.
@@ -1391,7 +1394,7 @@ est donc normative. L'absence est déterminée par la déclaration/topologie de 
 
 ## 15. Synthèse en une phrase
 
-> **Le pipeline fournit au moteur un contrat strict : les PNG LPC fixent le canvas et la vérité physique des pixels ; le build manifest / asset registry définit les `PhysicalRealization` et relie les équipements conducteurs à leurs réalisations et à leurs buckets ; les `Profile` fixent la sémantique, les contrats localisent les `RealizationId`, l'AOT résout séparément `AnimationAction → Profile` puis `Profile → PhysicalRealization`, valide `RealizationBucket ≤ TargetBucket`, compose au centre du canvas cible et produit les `FrameSequence` ; pour `attack + longsword`, les layers corporels peuvent utiliser `slash` Small tandis que le layer Longsword utilise `slash` Large, sans nouvelle responsabilité runtime.**
+> **Le pipeline fournit au moteur un contrat strict : les PNG LPC fixent le canvas et la vérité physique des pixels ; le build manifest / asset registry définit les `PhysicalRealization` et relie les équipements conducteurs à leurs réalisations et à leurs buckets ; les `Profile` fixent la sémantique, les contrats localisent les `RealizationId`, l'AOT résout séparément `AnimationAction → Profile` puis `Profile → PhysicalRealization`, valide `RealizationBucket ≤ TargetBucket`, compose au centre du canvas cible et produit les `FrameSequence` ; pour `attack + longsword`, les layers corporels peuvent utiliser une réalisation `slash` Small tandis que le layer Longsword utilise sa propre réalisation `slash` Large, sans nouvelle responsabilité runtime.**
 
 ## Annexe A — Représentations ASCII de ressources PNG LPC
 
@@ -1591,4 +1594,4 @@ Les trois PNG ne constituent pas une définition exhaustive du corpus. Ils illus
 7. **Pour `attack + longsword`, le contexte sémantique est `slash` et le `TargetBucket` est Large ; `slash_192` réalise le layer d’équipement, tandis que la réalisation `slash` Small fournit les layers de personnage, composée dans le canvas Large.**
 8. **Le même `source_extraction` peut alimenter des réalisations physiques distinctes et des `FrameSequence` distinctes.**
 
-_Document révisé le 24 septembre 2026 — v1.3_
+_Document révisé le 24 septembre 2026 — v1.3.1 (socle normatif v1.3)_
