@@ -1,28 +1,39 @@
 # action_resolution.yaml
-# LPC AOT PoC reference fixture.
+# LPC AOT PoC reference fixture aligned with LPC-Paradigm-v1.3.5.
 #
 # Semantic resolution only:
-#     AnimationAction + contextual axis -> Profile
+#     ResolutionContext -> Profile
 #
-# Physical realizations never appear here.
+# No PhysicalRealization, RealizationBucket or TargetBucket is declared here.
 # Bucket-sized labels such as slash_192 are forbidden here.
+#
+# Important model rule:
+#   the YAML vocabulary is semantic/gameplay-facing;
+#   the number of physical cinematiques found in a PNG does not create
+#   an implicit variant mechanism.
 
 schema:
   paradigm: lpc
-  paradigm_version: "1.3"
+  paradigm_version: "1.3.5"
   fixture_role: representative_poc
 
 actions:
 
-  # Central fixture:
-  #   attack + longsword -> slash
-  #   attack + trident   -> thrust
+  # Main generic attack.
+  # The active DriverEquipmentId may change the semantic Profile.
   - animation_action: attack
     resolution:
       default: slash
       by_equipment:
         longsword: slash
         trident: thrust
+
+  # A distinct gameplay action may directly resolve to the same semantic
+  # vocabulary as a canonical Profile. This is deliberately flat: there is
+  # no generic variant mechanism.
+  - animation_action: thrust
+    resolution:
+      default: thrust
 
   - animation_action: walk
     resolution:
@@ -40,7 +51,12 @@ actions:
     resolution:
       default: idle
 
-  # Convergence: two distinct actions resolve to the same semantic Profile.
+  # `hurt` is directly exercisable in the reference fixture. Other gameplay
+  # actions may still converge to the same Profile (for example die/stagger).
+  - animation_action: hurt
+    resolution:
+      default: hurt
+
   - animation_action: die
     resolution:
       default: hurt
@@ -57,8 +73,7 @@ actions:
     resolution:
       default: emote
 
-  # Legacy vocabulary retained where the CompositionProfile definition is
-  # already closed in the current paradigm corpus.
+  # Closed tool compositions currently retained by the fixture.
   - animation_action: whipping
     resolution:
       default: tool_whip
@@ -67,6 +82,10 @@ actions:
     resolution:
       default: tool_axe
 
-# `by_bucket` remains a supported semantic resolution axis in v1.3.
-# It is intentionally not instantiated here because the current corpus does
-# not establish a genuine bucket-dependent Profile mapping.
+# slash_reverse has a physical realization in the Longsword corpus, but no
+# final gameplay-facing AnimationAction name is invented here merely to expose
+# that asset. Its semantic entry can be added when the gameplay vocabulary is
+# established.
+#
+# by_bucket remains supported by the paradigm but is intentionally not
+# instantiated: this fixture has no genuine bucket-dependent semantic mapping.

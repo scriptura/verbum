@@ -1,13 +1,13 @@
 # base_character.contract.yaml
 # Localization contract for the LPC Character base ASCII fixture.
+# Aligned with LPC-Paradigm-v1.3.5.
 #
-# Confirmed canonical Small row starts are used here.
-# The contract references PhysicalRealization identities; it does not carry
-# RealizationBucket or TargetBucket.
+# The contract references PhysicalRealization identities only.
+# RealizationBucket and TargetBucket are not declared here.
 
 schema:
   paradigm: lpc
-  paradigm_version: "1.3"
+  paradigm_version: "1.3.5"
   fixture_role: representative_poc
 
 contract_id: base_character_small

@@ -1,58 +1,34 @@
 # build_manifest.yaml
-# LPC AOT PoC reference fixture.
+# LPC AOT PoC reference fixture aligned with LPC-Paradigm-v1.3.5.
 #
-# Global PhysicalRealization registry and driver-equipment topology.
+# This file remains a conceptual build-manifest / asset-registry shape, not a
+# frozen tool/API schema.
 #
-# Responsibilities here:
-# - PhysicalRealization identity and existence
-# - Profile reference
-# - source asset
-# - LayerId / topology
-# - RealizationBucket
-# - DriverEquipmentId -> available equipment realizations
-# - declarative physical selection
+# Responsibilities represented here:
+#   - global existence/identity of PhysicalRealization;
+#   - source asset and LayerId association;
+#   - RealizationBucket of each realization;
+#   - DriverEquipmentId -> available physical realizations;
+#   - declarative physical selection by context;
+#   - overlay / variant topology classification.
 #
-# rows are deliberately NOT stored here; see localization contracts.
-# TargetBucket is contextual and derived from the driver's realization buckets.
-# Bucket -> frame_size is also derived by the paradigm; it is not declared here.
-# Source paths are illustrative because the paradigm fixes no repository names.
+# TargetBucket is NOT declared here. It is derived AOT from the realizations
+# effectively selected for the current ResolutionContext.
 
 schema:
   paradigm: lpc
-  paradigm_version: "1.3"
+  paradigm_version: "1.3.5"
   fixture_role: representative_poc
 
-assets:
-  - asset_id: base_character
-    source_path: "textures/characters/base_character.png"
-    kind: character_layer_source
-    source_path_status: illustrative
+# ================================================================
+# PhysicalRealization catalogue
+# ================================================================
 
-  - asset_id: hair
-    source_path: "textures/characters/hair.png"
-    kind: character_layer_source
-    source_path_status: illustrative
+physical_realizations:
 
-  - asset_id: clothes
-    source_path: "textures/characters/clothes.png"
-    kind: character_layer_source
-    source_path_status: illustrative
-
-  - asset_id: longsword
-    source_path: "textures/equipment/longsword.png"
-    kind: equipment
-    source_path_status: illustrative
-
-  - asset_id: trident
-    source_path: "textures/equipment/trident.png"
-    kind: equipment
-    source_path_status: illustrative
-
-realizations:
-
-  # ============================================================
-  # Base Character — canonical Small rows from the reference ASCII
-  # ============================================================
+  # ------------------------------------------------------------
+  # Base Character — canonical Small realizations
+  # ------------------------------------------------------------
 
   - realization_id: base-spellcast
     profile: spellcast
@@ -126,7 +102,10 @@ realizations:
     layer_id: body
     realization_bucket: small
 
-  # Representative separate layer sources.
+  # ------------------------------------------------------------
+  # Separate layer sources represented in this fixture
+  # ------------------------------------------------------------
+
   - realization_id: hair-slash
     profile: slash
     source_asset: hair
@@ -139,9 +118,9 @@ realizations:
     layer_id: clothes
     realization_bucket: small
 
-  # ============================================================
-  # Longsword — blocks confirmed by the ASCII fixture
-  # ============================================================
+  # ------------------------------------------------------------
+  # Longsword — physical realizations confirmed by the fixture
+  # ------------------------------------------------------------
 
   - realization_id: longsword-walk
     profile: walk
@@ -173,9 +152,9 @@ realizations:
     layer_id: equipment
     realization_bucket: large
 
-  # ============================================================
-  # Trident — mixed Medium/Large blocks in one PNG
-  # ============================================================
+  # ------------------------------------------------------------
+  # Trident — mixed Medium/Large physical realizations
+  # ------------------------------------------------------------
 
   - realization_id: trident-walk
     profile: walk
@@ -190,12 +169,11 @@ realizations:
     realization_bucket: large
 
 # ================================================================
-# DriverEquipmentId -> available equipment realizations
+# DriverEquipmentId -> available physical realizations
 # ================================================================
 #
-# TargetBucket is deliberately NOT repeated. It is derived as the maximum
-# RealizationBucket among the realizations listed for the active driver.
-# With no driver, the paradigm default is Small.
+# No TargetBucket is stored here. The available RealizationBucket values are
+# inputs to context-specific AOT derivation after physical selection.
 
 driver_equipment:
 
@@ -222,20 +200,31 @@ driver_equipment:
 # Declarative physical selection
 # ================================================================
 #
-# Selection is by (LayerId, DriverEquipmentId, Profile).
-# TargetBucket is not duplicated here; it is derived from DriverEquipmentId
-# and used only for compatibility validation.
+# Selection key:
+#     (LayerId, DriverEquipmentId, Profile) -> RealizationId
 #
-# A valid context may have exactly one selected realization. Multiple
-# candidates for the same selection context are a build error.
+# 0 candidates = absence of selection.
+# 1 candidate  = deterministic selection.
+# >1 candidates = build ambiguity.
+#
+# TargetBucket is derived after the realizations for the current context are
+# selected; it is never used here as a heuristic selector.
 
 physical_selection:
 
-  # Base, no-driver contexts.
+  # ------------------------------------------------------------
+  # No-driver contexts
+  # ------------------------------------------------------------
+
   - layer_id: body
     driver_equipment_id: none
     profile: walk
     realization_id: base-walk
+
+  - layer_id: body
+    driver_equipment_id: none
+    profile: thrust
+    realization_id: base-thrust
 
   - layer_id: body
     driver_equipment_id: none
@@ -257,7 +246,10 @@ physical_selection:
     profile: idle
     realization_id: base-idle
 
-  # Longsword contexts: lower-bucket body source composed into Large target.
+  # ------------------------------------------------------------
+  # Longsword contexts
+  # ------------------------------------------------------------
+
   - layer_id: body
     driver_equipment_id: longsword
     profile: walk
@@ -267,6 +259,16 @@ physical_selection:
     driver_equipment_id: longsword
     profile: slash
     realization_id: base-slash
+
+  - layer_id: body
+    driver_equipment_id: longsword
+    profile: thrust
+    realization_id: base-thrust
+
+  - layer_id: body
+    driver_equipment_id: longsword
+    profile: hurt
+    realization_id: base-hurt
 
   - layer_id: hair
     driver_equipment_id: longsword
@@ -290,15 +292,18 @@ physical_selection:
 
   - layer_id: equipment
     driver_equipment_id: longsword
-    profile: slash_reverse
-    realization_id: longsword-slash-reverse
-
-  - layer_id: equipment
-    driver_equipment_id: longsword
     profile: thrust
     realization_id: longsword-thrust
 
-  # Trident contexts: mixed Medium/Large physical realizations.
+  - layer_id: equipment
+    driver_equipment_id: longsword
+    profile: hurt
+    realization_id: longsword-hurt
+
+  # ------------------------------------------------------------
+  # Trident contexts
+  # ------------------------------------------------------------
+
   - layer_id: body
     driver_equipment_id: trident
     profile: walk
@@ -318,3 +323,20 @@ physical_selection:
     driver_equipment_id: trident
     profile: thrust
     realization_id: trident-thrust
+
+# ================================================================
+# Asset topology classification
+# ================================================================
+#
+# This classification is declarative build metadata and is never inferred
+# from PNG pixels.
+
+asset_topology:
+
+  - asset: textures/effects/glow.png
+    topology: overlay
+    layer: overlays
+
+  - asset: textures/characters/armor_alt.png
+    topology: variant
+    layer: torso

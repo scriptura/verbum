@@ -1,19 +1,20 @@
 # longsword.contract.yaml
 # Localization contract for the empirical Longsword ASCII fixture.
+# Aligned with LPC-Paradigm-v1.3.5.
 #
 # Confirmed physical blocks:
 #   walk / Small        -> grid_y 8–11
 #   hurt / Small        -> grid_y 20
 #   slash / Large       -> grid_y 54–65
 #   slash_reverse/Large -> grid_y 66–77
-#   grid_y 78–80        -> intentionally unassigned
-#   thrust / Large      -> grid_y 81–92
+#   thrust / Large      -> grid_y 78–89
 #
+# The three Large blocks are contiguous. There is NO padding at grid_y 78–80.
 # A 192x192 realization consumes 3 grid_y per direction.
 
 schema:
   paradigm: lpc
-  paradigm_version: "1.3"
+  paradigm_version: "1.3.5"
   fixture_role: representative_poc
 
 contract_id: longsword
@@ -42,4 +43,4 @@ realizations:
 
   - realization_id: longsword-thrust
     optional: false
-    rows: [81, 84, 87, 90]
+    rows: [78, 81, 84, 87]

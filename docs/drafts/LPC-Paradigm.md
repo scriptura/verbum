@@ -1,7 +1,7 @@
-# Document fondateur conceptuel — LPC (pipeline AOT) — v1.3.1
+# Document fondateur conceptuel — LPC (pipeline AOT) — v1.3.5
 
-> **Statut** : **révision de maintenance v1.3.1 — paradigme conceptuel v1.3 inchangé dans ses principes**. Cette version ferme explicitement le modèle des **réalisations physiques** : une réalisation possède une identité propre (`RealizationId`), est décrite au niveau du build manifest / asset registry, et est localisée physiquement par un contrat d’équipement. Un même PNG peut contenir plusieurs réalisations physiques, éventuellement de buckets différents, ainsi que des zones transparentes ; une même identité sémantique peut posséder plusieurs réalisations physiques distinctes. Le `DriverEquipmentId` détermine le contexte cinématique commun et le `TargetBucket`, tandis que chaque layer sélectionne sa propre réalisation physique compatible avec ce contexte.
-> **Socle normatif** : **v1.3**. Cette révision v1.3.1 met à jour la cohérence documentaire avec les fixtures post-audit sans introduire de nouveau principe architectural.
+> **Statut** : **révision consolidée v1.3.5**. Cette version conserve le modèle des **réalisations physiques** et la dérivation contextuelle du `TargetBucket` introduite en v1.3.2. Elle consolide les clarifications issues des audits de cohérence et d’architecture, et simplifie la résolution sémantique autour de `AnimationAction` en écartant les mécanismes spécialisés de variantes d’action.
+> **Socle normatif** : **v1.3**. La v1.3.5 consolide les corrections précédentes : dérivation contextuelle du `TargetBucket`, distinction entre équipement conducteur (`DriverEquipmentId`) et couches visuelles non conductrices, correction de la localisation physique du Longsword `thrust`, et simplification de la résolution sémantique autour de `AnimationAction` sans mécanisme spécialisé de variante d’action.
 > **Évolution v1.3** : le schéma distingue désormais explicitement **Profile**, **PhysicalRealization**, **LocalizationContract** et **ActionResolution**. La sélection physique est déclarative et doit être unique ; l’optionalité est attachée à la réalisation physique. Aucun changement de responsabilité n’est introduit côté runtime.
 > **Portée** : ce document couvre le **pipeline AOT**. Le runtime n'est mentionné que pour fixer les **invariants de frontière**.
 > **Exhaustivité** : ce document **n'est pas exhaustif** sur les animations. Il pose le **principe**, des **exemples illustratifs**, des **invariants** et certains profils encore provisoires. Les YAML constituent le **corpus de référence effectivement déclaré** ; l'absence d'un profil provisoire ou non encore matérialisé dans ce corpus ne constitue pas une décision d'obsolescence.
@@ -84,13 +84,77 @@ Cette distinction est normative : **`RealizationBucket` et `TargetBucket` ne son
 
 ### Étage 1 — AnimationAction
 
-C'est le langage du gameplay. C'est ce que les systèmes écrivent, et la **seule notion sémantique d'animation qu'ils fournissent au runtime**.
+C'est le langage du gameplay. C'est ce que les systèmes écrivent. Une `AnimationAction` désigne une action cinématique déclarée par le gameplay. Plusieurs actions sémantiquement distinctes peuvent employer des `Profile` différents ou converger vers le même `Profile`.
 
 Exemples (liste **illustrative**, non exhaustive, **sans préfixes**) :
 `attack`, `cast`, `walk`, `run`, `swim`, `idle`, `die`, `stagger`, `watering`, `sit`, `emote`…
 
-- Indépendant de LPC, de l'équipement, de la taille des sprites.
-- Ne dit **rien** sur la cinématique ni sur les pixels.
+- Indépendante de LPC, de l'équipement et de la taille des sprites.
+- Ne dit **rien** sur la cinématique physique ni sur les pixels.
+- Une `AnimationAction` n'implique pas qu'il n'existe qu'un seul `Profile` associé.
+
+### Vocabulaire des actions et multiplicité des cinématiques
+
+`AnimationAction` constitue le vocabulaire sémantique du gameplay. Une valeur donnée identifie une intention d'action ; elle ne constitue ni une localisation physique, ni un bucket, ni une identité de réalisation.
+
+Le paradigme **n'introduit pas de mécanisme spécialisé de variante d’action**, ni d'équivalent tel que `ParryVariantId`, `CastVariantId`, etc. dans son modèle central. Lorsqu'une même famille d'action possède plusieurs cinématiques distinctes, le gameplay peut déclarer plusieurs `AnimationAction` sémantiquement distinctes et le YAML de résolution les relie aux `Profile` appropriés.
+
+Ainsi, le corpus Longsword peut contenir :
+
+```text
+slash
+slash_reverse
+thrust
+```
+
+sans que le paradigme en déduise automatiquement trois variantes d'une même `AnimationAction`. La manière dont le gameplay nomme et distingue ces actions relève de son propre vocabulaire.
+
+**Principe normatif** : **le nombre de cinématiques présentes dans un asset ne détermine pas le nombre d'`AnimationAction`.** Un PNG peut contenir plusieurs cinématiques exploitables par le jeu sans imposer l'existence d'un champ de variante dans le paradigme.
+
+Si deux `AnimationAction` distinctes doivent employer le même mouvement physique, elles peuvent toutes deux converger vers le même `Profile`. Inversement, plusieurs `AnimationAction` peuvent pointer vers des `Profile` différents tout en utilisant le même `DriverEquipmentId`.
+
+Le cas actuel Longsword peut donc être exprimé par une résolution plate :
+
+```text
+<action d'attaque du gameplay A> → slash
+<action d'attaque du gameplay B> → slash_reverse
+<action d'attaque du gameplay C> → thrust
+```
+
+Les identifiants concrets sont des décisions du vocabulaire gameplay/YAML ; ils ne doivent pas être confondus avec les `Profile` correspondants ni avec les réalisations physiques.
+
+### `ResolutionContext` — définition normative
+
+Le terme **`ResolutionContext`** désigne une notion conceptuelle AOT : l'ensemble minimal d'informations qui qualifie une demande de résolution sémantique. Il ne constitue ni un objet métier persistant, ni un agrégat runtime.
+
+Dans le paradigme actuel :
+
+```text
+ResolutionContext
+(
+    AnimationAction,
+    DriverEquipmentId?
+)
+```
+
+- `AnimationAction` est toujours présent et constitue l'intention d'action demandée ;
+- `DriverEquipmentId` est optionnel et désigne l'équipement actif — typiquement une arme ou un outil — capable d'influencer le contexte cinématique ;
+- **`TargetBucket` n'appartient pas au contexte d'entrée par défaut** : il est normalement dérivé après sélection des réalisations physiques ;
+- `TargetBucket` peut toutefois être fourni comme information déjà établie lorsqu'une résolution `by_bucket` l'exige.
+
+La résolution nominale suit donc :
+
+```text
+ResolutionContext
+        ↓
+Profile
+        ↓
+PhysicalRealization(s)
+        ↓
+TargetBucket dérivé
+```
+
+Cette définition permet d'employer le terme `contexte` de manière uniforme dans les sections suivantes sans transformer cette notion en nouvelle couche architecturale.
 
 ### Étage 2 — Profile
 
@@ -243,7 +307,7 @@ Deux `FrameSequence` ne peuvent donc être dédupliquées que si leur contenu et
 Exemple :
 
 ```
-Contexte : attack + longsword
+Contexte : `attack` + `longsword`
 TargetBucket = Large (192×192)
 
 body :
@@ -261,25 +325,103 @@ longsword :
 
 Il ne s'agit **jamais** d'un redimensionnement de la source : le body reste 64×64.
 
-### Trois familles de layers
+### Rôle cinématique et topologie de rendu : deux classifications orthogonales
 
-| Famille | Exemples | Réalisations physiques observées | Rôle dans le contexte |
+La classification des éléments visuels selon leur capacité à piloter une résolution cinématique est **distincte** de leur position dans la stack graphique.
+
+| Rôle cinématique | Exemples | Réalisations physiques observées | Effet sur le contexte |
 |---|---|---|---|
-| **Corporel** | corps, cheveux, vêtements, armures, bouclier | Small | Composé dans le `TargetBucket` |
-| **Arme** | épée, arc, bâton… | Small / Medium / Large | Détermine le `TargetBucket` |
-| **Outil** | pioche, hache, fouet… | Small / Medium / Large | Détermine le `TargetBucket`, comme une arme |
+| **Conducteur** | armes, outils | Small / Medium / Large | Peut modifier le `Profile` et contribuer au `TargetBucket` |
+| **Non-conducteur** | body, head, hair, vêtements, armures, boots, shield, etc. | Small dans le corpus LPC visé | Participe à la composition mais ne modifie ni `Profile` ni `TargetBucket` |
 
-**Note sur le bouclier** : classé **corporel** (jamais pilote du bucket), sa réalisation physique observée reste Small, et sa **position d'empilement varie selon la direction** (§11).
+`DriverEquipmentId` identifie l'équipement **conducteur** actif. Dans le paradigme actuel, il couvre les armes et les outils.
 
-### Promotion automatique de bucket
+**Règle normative** : tous les layers constitutifs du personnage participent à la composition AOT. Le fait qu'un layer soit non conducteur ne signifie jamais qu'il est absent de l'animation. Il signifie uniquement qu'il ne pilote pas la résolution cinématique et n'impose pas de promotion de bucket.
 
-**Le `TargetBucket` est déterminé par le maximum des `RealizationBucket` disponibles pour l'équipement conducteur actif.**
+**Le bouclier est un non-conducteur**. Sa réalisation physique observée reste Small ; ses règles particulières concernent sa position dans la stack selon la direction (§11), pas la résolution du `Profile` ou du `TargetBucket`.
 
-- Sans équipement : **Small par défaut**.
-- Si l'équipement conducteur fournit uniquement une réalisation Large : **promotion automatique vers Large**.
-- **La promotion s'applique identiquement aux armes et aux outils.**
+La classification cinématique **conducteur / non-conducteur** et la topologie de rendu (`LayerId`, ordre de stack, positions `behind/front`) sont donc deux dimensions indépendantes. Une couche peut avoir un rôle de rendu particulier sans devenir pour autant un `DriverEquipmentId`.
 
-**Précision sur la nature de la promotion** : la promotion est une **déduction de contexte** (`TargetBucket = max(RealizationBucket disponibles de l'équipement conducteur)`). Elle n'entraîne **pas** de transformation physique des assets.
+### Distinction normative — `DriverEquipmentId` vs équipements non conducteurs
+
+**Tous les objets visuels équipés participent à la composition de l’animation. Mais tous ne sont pas des `DriverEquipmentId`.**
+
+`DriverEquipmentId` désigne uniquement l’équipement actif qui possède une capacité à **piloter le contexte cinématique**. Dans le paradigme actuel, cette catégorie comprend les **armes et les outils**. Un `DriverEquipmentId` peut donc :
+
+- modifier le `Profile` résolu par `by_equipment` ;
+- fournir une ou plusieurs `PhysicalRealization` de buckets `Small`, `Medium` ou `Large` ;
+- contribuer ainsi à la dérivation du `TargetBucket`.
+
+À l'inverse, les équipements et couches **non conducteurs** participent bien à l'animation courante, mais **ne modifient ni la résolution sémantique du `Profile`, ni le `TargetBucket`**. Dans le corpus LPC visé ici, ils restent physiquement dans le format historique **Small (64×64)** et sont simplement composés dans le canvas du `TargetBucket` courant.
+
+Cela inclut notamment :
+
+```text
+body
+head
+hair
+short sleeve
+chainmail
+long pants
+boots
+shield
+...
+```
+
+Le bouclier est un cas particulier de layering, pas un équipement conducteur : sa position dans la stack varie selon la direction (§11), mais cette variation ne lui confère aucun rôle dans la résolution cinématique ou la dérivation du `TargetBucket`.
+
+**Conséquence AOT** : une animation résolue pour `DriverEquipmentId = longsword` doit être composée avec **toutes les couches constitutives du personnage**. Le `DriverEquipmentId` n’est donc pas une whitelist des layers à afficher ; c’est uniquement le **pilote sémantique et physique** du contexte.
+
+### Dérivation du `TargetBucket` à partir des réalisations sélectionnées
+
+**Le `TargetBucket` est le plus grand `RealizationBucket` parmi les réalisations physiques effectivement sélectionnées pour le contexte d’animation courant.**
+
+La dérivation suit donc cette chaîne :
+
+```text
+AnimationAction + contexte
+        ↓
+Profile(s) résolu(s)
+        ↓
+PhysicalRealization sélectionnée pour chaque layer
+        ↓
+TargetBucket = max(RealizationBucket effectivement sélectionnés)
+```
+
+Il ne faut **jamais** calculer le `TargetBucket` à partir de la capacité maximale de l’équipement sur l’ensemble de ses animations.
+
+Exemple critique :
+
+```text
+DriverEquipmentId = longsword
+
+longsword :
+    walk  → Small
+    slash → Large
+    thrust → Large
+```
+
+Pour `walk`, seule la réalisation `longsword-walk / Small` est sélectionnée. Le contexte produit donc :
+
+```text
+TargetBucket = Small
+```
+
+Pour une action d’attaque résolue vers `slash`, la réalisation `longsword-slash / Large` est sélectionnée. Le contexte produit alors :
+
+```text
+TargetBucket = Large
+```
+
+Une autre action d’attaque résolue vers `thrust` sélectionnera, elle, `longsword-thrust / Large` ; le `TargetBucket` restera `Large`, mais il s’agit d’un **contexte sémantique et physique distinct**.
+
+La présence d’une réalisation Large dans le même équipement ne provoque donc **aucune promotion globale permanente** des autres animations.
+
+- Dans le corpus LPC visé, l’absence de `DriverEquipmentId` conduit actuellement à `TargetBucket = Small` lorsque les réalisations sélectionnées sont toutes Small.
+- La règle s’applique identiquement aux armes et aux outils.
+- La dérivation est une **déduction de contexte**, pas une transformation physique des assets.
+
+**Invariant fondamental** : le `TargetBucket` dépend du **contexte d’animation courant**, jamais du catalogue complet des capacités physiques d’un équipement.
 
 ### Alignement des frames hétérogènes
 
@@ -319,8 +461,7 @@ PNG longsword
   grid_y 0–53 → présent physiquement, partiellement exploité
   grid_y 54–65 → réalisation Large de slash
   grid_y 66–77 → réalisation Large de slash_reverse
-  grid_y 78–80 → non attribués
-  grid_y 81–92 → réalisation Large de thrust
+  grid_y 78–89 → réalisation Large de thrust
 ```
 
 La zone des réalisations oversized commence au **`grid_y 54`** dans ce layout. Cette valeur est une propriété empirique du **layout LPC Character**, pas une règle générale applicable à tous les corpus.
@@ -454,6 +595,8 @@ Le manifest **ne porte pas les `rows`** : celles-ci restent dans le contrat de l
 
 ### Séparation des responsabilités
 
+**Principe de responsabilité** : le build manifest / asset registry ne connaît pas un `TargetBucket` final par équipement ; il fournit les réalisations physiques et leurs `RealizationBucket`, à partir desquels l'AOT dérive le `TargetBucket` pour chaque `ResolutionContext` effectivement matérialisé.
+
 | Information | Profile canonique | Build manifest / asset registry | Contrat d'équipement | YAML de résolution |
 |---|---:|---:|---:|---:|
 | `Profile` | ✔ | référence | référence indirecte | cible |
@@ -465,7 +608,7 @@ Le manifest **ne porte pas les `rows`** : celles-ci restent dans le contrat de l
 | `rows` | — | — | ✔ | — |
 | optionalité de la réalisation | — | existence/topologie | ✔ | — |
 | `AnimationAction` | — | — | — | ✔ |
-| `TargetBucket` | — | déduit pour l'équipement conducteur | — | contexte |
+| `TargetBucket` | — | fournit les `RealizationBucket` nécessaires à sa dérivation AOT | — | donnée de contexte dérivée |
 
 ### `RealizationId`
 
@@ -526,17 +669,21 @@ PhysicalRealization candidates
     ↓
 exactly one RealizationId
     |             |
-    |             +→ 0 → absence
+    |             +→ 0 → absence de sélection
     |
     +→ >1 → build error
 ```
 
-Le `TargetBucket` est dérivé du `DriverEquipmentId` :
+Le `TargetBucket` est dérivé des **réalisations effectivement sélectionnées dans le contexte d'animation courant** :
 
 ```text
-DriverEquipmentId
+`ResolutionContext`
     ↓
-TargetBucket = max(RealizationBucket disponibles)
+Profile
+    ↓
+PhysicalRealization sélectionnées
+    ↓
+TargetBucket = max(RealizationBucket effectivement sélectionnés)
 ```
 
 Il intervient ensuite dans la **validation de compatibilité** et dans la composition :
@@ -705,6 +852,8 @@ Invariant calibré pour le gameplay (séquences ≤ 13 frames). Cinématiques lo
 
 ### CompositionProfiles (exemples)
 
+> Les entrées marquées **« à préciser »** ou **« provisoire »** sont illustratives et ne constituent pas encore des profils canoniques effectivement déclarés par le corpus YAML courant.
+
 | CompositionProfile | source_extraction | sequence |
 |---|---|---|
 | `watering` | `thrust` | `[0,1,4,4,4,4,5]` |
@@ -715,7 +864,7 @@ Invariant calibré pour le gameplay (séquences ≤ 13 frames). Cinématiques lo
 | `tool_shovel` | `slash` | à préciser (YAML) |
 | `swim` | `spellcast` | à préciser (provisoire, voir §13) |
 
-**Note sur `slash_reverse`** : modélisé comme `CompositionProfile` dérivé de `slash`, avec une réalisation physique Large distincte dans le corpus Longsword. Le bloc observé est `grid_y 66–77` ; les lignes `78–80` restent non attribuées.
+**Note sur `slash_reverse`** : modélisé comme `CompositionProfile` dérivé de `slash`, avec une réalisation physique Large distincte dans le corpus Longsword. Le bloc observé est `grid_y 66–77` et il est immédiatement suivi par la réalisation `thrust` `grid_y 78–89`. Il n'y a aucun padding entre ces deux blocs.
 
 ### Variantes physiques de bucket (descriptives)
 
@@ -755,7 +904,7 @@ Invariant calibré pour le gameplay (séquences ≤ 13 frames). Cinématiques lo
 | `thrust_192` | trident | 62–73 | 192×192 |
 | `slash_192` | longsword | 54–65 | 192×192 |
 | `slash_reverse_192` | longsword | 66–77 | 192×192 |
-| `thrust_192` | longsword | 81–92 | 192×192 |
+| `thrust_192` | longsword | 78–89 | 192×192 |
 
 **Note critique** : **dans le layout LPC Character**, la **région Small (`grid_y` 0–53) est commune comme région physique et repère**. Son contenu peut toutefois varier selon l'asset, y compris être entièrement transparent. **La zone des réalisations oversized commence au `grid_y` 54.** Ces valeurs sont **spécifiques à ce layout**, pas des invariantes générales du pipeline AOT.
 
@@ -784,39 +933,43 @@ Invariant calibré pour le gameplay (séquences ≤ 13 frames). Cinématiques lo
 
 **Artefact central du paradigme.**
 
-> **Une `AnimationAction` peut correspondre à plusieurs cinématiques, selon le contexte. La résolution produit un `Profile` sémantique — `ExtractionProfile` ou `CompositionProfile`. Le choix de la PhysicalRealization intervient ensuite, layer par layer, selon les données déclaratives du build et les contrats de localisation.**
+> **Une `AnimationAction` résout vers un `Profile` sémantique — `ExtractionProfile` ou `CompositionProfile` — à partir du `ResolutionContext`. Le choix de la PhysicalRealization intervient ensuite, layer par layer, selon les données déclaratives du build et les contrats de localisation.**
 
 ### Structure conceptuelle
 
 ```text
 AnimationAction
-├── (au plus un axe parmi :)
+├── (au plus un axe de sélection parmi :)
 │   ├── by_equipment
 │   └── by_bucket
 └── default (repli)
 ```
 
-**Invariant d'axe de résolution** : une entrée `AnimationAction` déclare **au plus un axe de variation** parmi `by_equipment` et `by_bucket`. La présence simultanée des deux axes constitue une **erreur de build**. `default` n'est pas un axe de variation : il constitue la résolution par défaut. En l'absence de résolution applicable, le build échoue.
+**Invariant d'axe de résolution** : pour une `AnimationAction` donnée, la résolution déclare **au plus un axe de sélection** parmi `by_equipment` et `by_bucket`. La présence simultanée des deux axes constitue une **erreur de build**. `default` n'est pas un axe de variation : il constitue la résolution par défaut.
 
-**Rôle de `by_bucket`** : lorsqu'il est utilisé, `by_bucket` sélectionne un **`Profile` sémantique en fonction du `TargetBucket`**. Il ne sélectionne jamais une PhysicalRealization et ne référence jamais `walk_128`, `walk_192`, etc.
+**Résolution sémantique** : une entrée `AnimationAction` résout le `Profile` demandé à partir du `ResolutionContext`. Le paradigme n'introduit pas de qualification spécialisée propre à `attack`. Une pluralité de cinématiques est représentée, lorsque le gameplay en a besoin, par plusieurs `AnimationAction` sémantiquement distinctes.
+
+**Rôle de `by_equipment`** : `by_equipment` permet de faire dépendre le `Profile` de `DriverEquipmentId`. Il peut donc participer à l'établissement de la résolution sémantique du contexte.
+
+**Rôle de `by_bucket`** : `by_bucket` reste un mécanisme sémantique dérivé. Il sélectionne un `Profile` à partir d'un `TargetBucket` **déjà établi indépendamment**. Il ne sélectionne jamais une `PhysicalRealization` et ne référence jamais `walk_128`, `walk_192`, `slash_192`, etc.
 
 ### Résolution en deux étapes
 
-La séparation est normative :
+La séparation reste normative :
 
 ```text
 ÉTAPE A — résolution sémantique
-AnimationAction + contexte
-        ↓
+ResolutionContext
+    ↓
 Profile
 
 ÉTAPE B — résolution physique
 LayerId + DriverEquipmentId + Profile
-        ↓
+    ↓
 PhysicalRealization
 ```
 
-Le `TargetBucket` est une donnée de contexte dérivée du `DriverEquipmentId`. Il sert à vérifier la compatibilité de la réalisation choisie, pas à inventer un nouveau `Profile`.
+Le `TargetBucket` n'est pas une identité de `PhysicalRealization`. Il est normalement calculé **après** la sélection physique à partir du maximum des `RealizationBucket` effectivement sélectionnés.
 
 ### Convergence
 
@@ -826,6 +979,18 @@ Plusieurs `AnimationAction` peuvent se résoudre vers le même `Profile` :
 |---|---|
 | `die` | `hurt` (ExtractionProfile) |
 | `stagger` | `hurt` (ExtractionProfile) |
+
+Cette convergence ne doit pas être confondue avec une mécanique de variantes. De même, plusieurs `AnimationAction` peuvent pointer vers des `Profile` différents tout en partageant le même `DriverEquipmentId`.
+
+Le corpus Longsword observé peut ainsi être exprimé, selon les besoins du gameplay, comme trois actions sémantiquement distinctes :
+
+```text
+<action d'attaque A> → slash
+<action d'attaque B> → slash_reverse
+<action d'attaque C> → thrust
+```
+
+Le paradigme ne fixe ni leurs noms ni leur cardinalité. **La présence de trois blocs physiques dans le PNG ne crée pas à elle seule une nouvelle dimension du modèle.**
 
 ### Matérialisation AOT
 
@@ -843,7 +1008,7 @@ Le runtime n'effectue aucune sélection physique.
 La règle est :
 
 ```text
-0 candidate  → absence
+0 candidate  → absence de sélection
 1 candidate  → sélection déterministe
 >1 candidate → erreur de build
 ```
@@ -866,19 +1031,19 @@ Une implémentation peut naturellement indexer cette sélection via le build man
 
 Pour chaque combinaison `(LayerId, AnimationAction, contexte de résolution)` :
 
-1. Déterminer le **contexte cinématique** : `DriverEquipmentId` et `TargetBucket`.
-2. Résoudre le `Profile` sémantique cible à partir de `AnimationAction + DriverEquipmentId + TargetBucket`.
-3. Pour le `LayerId` concerné, déterminer la **PhysicalRealization** déclarativement sélectionnée pour ce `Profile` et cet asset source.
-4. Résoudre le contrat de localisation applicable à cette `RealizationId`.
-5. Extraire les frames du PNG source à partir des `grid_y` de départ déclarés pour cette réalisation, en appliquant la largeur/hauteur induite par son `RealizationBucket`.
-6. Si la réalisation correspond à un `CompositionProfile`, appliquer sa `sequence` au pool physique fourni par **cette même réalisation**. `source_extraction` fournit les métadonnées sémantiques du pool, mais n'impose aucune localisation physique.
+1. Résoudre le **`ResolutionContext`** (`AnimationAction` + `DriverEquipmentId` éventuel) vers le `Profile` concerné.
+2. Pour chaque `LayerId` concerné, déterminer la **PhysicalRealization** déclarativement sélectionnée pour ce `Profile` et cet asset source.
+3. À partir de ces réalisations effectivement sélectionnées, déterminer le `TargetBucket` comme le maximum de leurs `RealizationBucket`.
+4. Résoudre le contrat de localisation applicable à chaque `RealizationId`.
+5. Extraire les frames du PNG source à partir des `grid_y` de départ déclarés pour chaque réalisation, en appliquant la largeur/hauteur induite par son `RealizationBucket`.
+6. Si une réalisation correspond à un `CompositionProfile`, appliquer sa `sequence` au pool physique fourni par **cette même réalisation**. `source_extraction` fournit les métadonnées sémantiques du pool, mais n'impose aucune localisation physique.
 7. Vérifier `RealizationBucket ≤ TargetBucket`.
 8. **Composer la source dans le canvas du `TargetBucket`** — sans redimensionnement :
    - toile vide `TargetBucketSize × TargetBucketSize` ;
    - offset centré : `offset = (TargetBucketSize - source_size) / 2` ;
    - blitter la source à cet offset ;
    - padding transparent autour.
-9. Si aucune réalisation physique applicable n'existe alors qu'une absence optionnelle est déclarée : **FrameSequence transparente** de même longueur/topologie que la séquence qu'elle remplace.
+9. Si aucune réalisation physique applicable n'existe alors qu'une absence physique optionnelle est déclarée : **FrameSequence transparente** de même longueur/topologie que la séquence qu'elle remplace.
 10. Produire la `FrameSequence` finale.
 11. Empaqueter.
 
@@ -886,48 +1051,49 @@ Pour chaque combinaison `(LayerId, AnimationAction, contexte de résolution)` :
 
 **Distinction fondamentale** : `RealizationBucket` décrit la source extraite ; `TargetBucket` décrit le canvas final.
 
-### Exemple normatif — `attack` avec `longsword`
+### Exemple normatif — plusieurs actions d'attaque avec `longsword`
 
-Dans le contexte Longsword observé :
+Le corpus Longsword observé démontre trois cinématiques d'attaque distinctes :
 
 ```text
-DriverEquipmentId = longsword
+slash
+slash_reverse
+thrust
+```
+
+Le paradigme ne les transforme pas automatiquement en variantes d'une même `AnimationAction`. Selon le vocabulaire gameplay effectivement retenu, chacune peut être adressée par une `AnimationAction` distincte :
+
+```text
+<action d'attaque A> → slash
+<action d'attaque B> → slash_reverse
+<action d'attaque C> → thrust
+```
+
+Pour la première action, notre fixture actuelle connaît déjà :
+
+```text
 AnimationAction   = attack
+DriverEquipmentId = longsword
 Profile           = slash
 TargetBucket      = Large (192×192)
 ```
 
-Les layers corporels peuvent utiliser chacun une réalisation physique Small de `slash` :
+Pour une autre action d'attaque aboutissant à `thrust` :
 
 ```text
-body      → slash / Small → source 64×64 → canvas 192×192
-hair      → slash / Small → source 64×64 → canvas 192×192
-clothes   → slash / Small → source 64×64 → canvas 192×192
+AnimationAction   = <action d'attaque déclarée par le gameplay>
+DriverEquipmentId = longsword
+Profile           = thrust
+TargetBucket      = Large (192×192)
 ```
 
-Le layer d'équipement utilise une réalisation physique Large de `slash` :
+La réalisation physique `longsword-thrust` est localisée sur `grid_y 78–89`, sans padding entre elle et la réalisation `slash_reverse` (`66–77`).
 
-```text
-longsword → slash / Large → source 192×192 → canvas 192×192
-```
+Les layers corporels ou autres non-conducteurs utilisent leurs propres réalisations physiques du `Profile` résolu, généralement Small dans le corpus LPC visé ; ils sont ensuite composés au centre du canvas Large.
 
-Pour les réalisations observées :
+**Règle structurante** : le nom de l'`AnimationAction` exprime l'intention gameplay ; le `Profile` décrit la cinématique sémantique ; `PhysicalRealization` et `LocalizationContract` portent la matérialité. Une nouvelle cinématique trouvée dans un PNG n'impose donc pas automatiquement une nouvelle abstraction intermédiaire.
 
-```text
-slash_192
-    grid_y 54–65
-
-slash_reverse_192
-    grid_y 66–77
-
-thrust_192
-    grid_y 81–92
-
-grid_y 78–80
-    inconnus / non attribués
-```
-
-**`slash_reverse_192`** réalise le `CompositionProfile` `slash_reverse`, dont `source_extraction = slash`. Il possède un `RealizationId` et une localisation propres ; il ne réutilise pas implicitement la réalisation `slash_192`.
+**`slash_reverse`** réalise le `CompositionProfile` `slash_reverse`, dont `source_extraction = slash`. Il possède un `RealizationId` et une localisation propres ; il ne réutilise pas implicitement la réalisation `slash_192`.
 
 ### Invariant de sélection
 
@@ -965,17 +1131,100 @@ Sinon → **erreur de build**.
 
 ### Politique de bucket cible
 
-`TargetBucket` = maximum des `RealizationBucket` disponibles pour l'équipement conducteur actif.
+`TargetBucket` = maximum des `RealizationBucket` **effectivement sélectionnés pour le contexte courant**.
 
-- Sans équipement : **Small**.
-- Avec un équipement conducteur : la promotion est une **déduction de contexte**, pas une transformation physique.
+- Il ne dépend pas des réalisations non sélectionnées.
+- Il ne dépend pas du maximum global des capacités de `DriverEquipmentId`.
+- Dans le corpus LPC visé, l’absence de `DriverEquipmentId` conduit actuellement à `TargetBucket = Small` lorsque les réalisations sélectionnées sont toutes Small.
+- Avec un équipement conducteur, une réalisation Large sélectionnée pour l’action courante impose `TargetBucket = Large`.
+- Une réalisation Large appartenant à une autre action n’impose rien au contexte courant.
+
+### Dépendance et ordre de résolution du `TargetBucket`
+
+La dérivation corrigée impose un ordre AOT explicite :
+
+```text
+1. `ResolutionContext` (`AnimationAction` + `DriverEquipmentId` éventuel)
+2. `Profile` sémantique
+3. PhysicalRealization par layer
+4. TargetBucket
+5. validation / composition
+6. FrameSequence
+```
+
+Le `TargetBucket` ne doit donc pas être utilisé pour sélectionner la PhysicalRealization elle-même dans la même résolution, car cela créerait une dépendance circulaire :
+
+```text
+TargetBucket → PhysicalRealization → TargetBucket
+```
+
+**Règle normative pour `by_bucket`** : lorsqu’une `AnimationAction` utilise `by_bucket`, le bucket utilisé pour cette résolution doit être **déjà établi par un contexte indépendant**. Il ne peut pas être calculé à partir des réalisations que cette même résolution doit encore sélectionner. En l’absence d’un tel contexte indépendant, le couple est **invalide et absent de l’espace généré**.
+
+Le cas nominal des actions utilisant `default` ou `by_equipment` ne présente pas cette circularité : le `Profile` est d’abord résolu à partir du `ResolutionContext`, puis les réalisations physiques sont sélectionnées, puis le `TargetBucket` est calculé.
+
+`by_bucket` reste un mécanisme de résolution sémantique, mais il est **dérivé** et non fondateur du contexte : il n’est valide que lorsque le `TargetBucket` dont il dépend a déjà été établi indépendamment.
+
+### Test de non-régression — `walk + longsword`
+
+Le cas concret qui motive v1.3.2 doit désormais produire :
+
+```text
+AnimationAction = walk
+DriverEquipmentId = longsword
+Profile = walk
+
+body / walk       → Small
+head / walk       → Small
+hair / walk       → Small
+clothes / walk    → Small
+...
+longsword / walk  → Small
+
+TargetBucket = Small
+```
+
+Pour le Longsword, la réalisation physique est localisée sur :
+
+```text
+grid_y 8
+9
+10
+11
+```
+
+soit quatre directions Small, une `grid_y` par direction. Aucune composition `64×64 → 192×192` n’est produite pour ce contexte.
+
+Le même équipement peut néanmoins produire un autre contexte :
+
+```text
+AnimationAction = attack
+Profile = slash
+longsword / slash → Large
+TargetBucket = Large
+```
+
+La promotion est donc **locale au contexte d’animation**, et non une propriété permanente du personnage équipé.
+
+### Test de non-régression — trois cinématiques d'attaque `longsword`
+
+Le corpus Longsword contient trois cinématiques physiques distinctes : `slash`, `slash_reverse` et `thrust`. Le paradigme ne leur impose pas une hiérarchie de variantes ; elles peuvent être adressées par trois `AnimationAction` sémantiquement distinctes si le gameplay les distingue ainsi :
+
+```text
+<action d’attaque A> → slash
+<action d’attaque B> → slash_reverse
+<action d’attaque C> → thrust
+```
+
+Ces trois contextes peuvent partager le même `DriverEquipmentId` et le même `TargetBucket`, tout en produisant des `FrameSequence` différentes parce que le `Profile` résolu, et donc les réalisations physiques sélectionnées, diffèrent.
+
+La règle reste symétrique avec `walk + longsword` : le fait que trois réalisations d’attaque Large existent ne transforme pas `walk` en Large. Les capacités physiques sont évaluées dans le contexte de l’action réellement demandée.
 
 ### Fallback transparent vs erreur de build
 
 | Situation | Traitement |
 |---|---|
-| Réalisation requise absente | **Erreur de build** |
-| Réalisation optionnelle absente | **FrameSequence transparente** |
+| Réalisation physiquement requise absente | **Erreur de build** |
+| Réalisation physiquement optionnelle absente | **FrameSequence transparente** |
 | `CompositionProfile.source_extraction` manquant | **Erreur de build** |
 | Contrat de localisation requis manquant | **Erreur de build** |
 | Plusieurs contrats applicables à une même réalisation | **Erreur de build (ambiguïté)** |
@@ -1025,7 +1274,9 @@ Un effet visuel peut être traité de **deux manières** :
 - Identifiants et structures AOT déjà résolues
 - Taille de frame résolue
 
-**`DriverEquipmentId`** identifie l'équipement actif qui pilote le **contexte cinématique** et le `TargetBucket`. Il s'agit d'un **identifiant d'indexation**, pas d'un prédicat sémantique. Le runtime reçoit des réalisations déjà résolues par l'AOT ; il ne choisit pas leurs localisations physiques.
+**`DriverEquipmentId`** identifie l'équipement actif qui peut piloter le **contexte cinématique**. Ces identifiants servent uniquement à indexer une résolution déjà matérialisée ; le `TargetBucket` est issu des réalisations physiques effectivement sélectionnées. Le runtime reçoit des réalisations déjà résolues par l'AOT ; il ne choisit pas leurs localisations physiques.
+
+Le runtime ne connaît aucun mécanisme spécialisé de variante d'action. Une distinction supplémentaire entre actions relève du vocabulaire `AnimationAction` déjà déclaré et de la table d'adressage AOT correspondante. Il ne déclenche aucune recherche de `Profile`, de `PhysicalRealization`, de `RealizationBucket` ou de localisation `grid_y`.
 
 **Précision** : le runtime utilise `TargetBucket` et `DriverEquipmentId` comme **identifiants d'indexation**, mais ignore leur **sémantique** (pas de branche sur `if bucket == Large`), ainsi que les concepts de `RealizationBucket`, `row`, `grid_cell`, `grid`, `grid_y`.
 
@@ -1069,6 +1320,10 @@ L'AOT fige la topologie spatiale, ordinale et structurelle. Le runtime reste ma�
 ### Préfixes
 - `AnimationAction` : jamais de préfixe. §1
 - Profils : préfixe descriptif toléré. §1
+
+### `ResolutionContext`
+- `ResolutionContext` est une notion conceptuelle AOT, utilisée pour qualifier une demande de résolution ; il ne constitue ni un objet métier persistant ni un agrégat runtime. §1, §8
+- `ResolutionContext` comprend `AnimationAction` et `DriverEquipmentId` éventuel ; le `TargetBucket` est normalement une donnée dérivée. §1, §3, §8
 
 ### Profils
 - `Profile` = terme générique englobant `ExtractionProfile` et `CompositionProfile`. §2
@@ -1118,14 +1373,14 @@ L'AOT fige la topologie spatiale, ordinale et structurelle. Le runtime reste ma�
 - Pour un même contexte cinématique, les layers peuvent utiliser des réalisations physiques différentes du même `Profile`. §8, §9
 
 ### Bucket
-- Trois familles : corporel / arme / outil. §3
-- Promotion automatique (équipement = arme ou outil). §3
-- Sans équipement : `TargetBucket = Small`. §3
+- Deux rôles cinématiques : conducteur / non-conducteur ; les exemples de conducteurs actuels sont les armes et les outils. §3
+- Promotion contextuelle du `TargetBucket` lorsqu’une réalisation Medium ou Large est effectivement sélectionnée. §3
+- **Dans le corpus LPC visé, l’absence de `DriverEquipmentId` conduit actuellement à `TargetBucket = Small` lorsque les réalisations sélectionnées sont toutes Small.** §3
 
 ### Équipement
-- `DriverEquipmentId` identifie l'arme ou l'outil actif qui pilote le contexte cinématique et le `TargetBucket`. §4
+- `DriverEquipmentId` identifie l’équipement actif — arme ou outil — qui peut piloter le contexte cinématique ; il ne détermine pas directement le `TargetBucket`, lequel est dérivé des réalisations effectivement sélectionnées. §4
 - Le build manifest / asset registry associe `DriverEquipmentId` aux réalisations physiques d'équipement et à leurs `RealizationBucket` disponibles ; le YAML d'équipement reste scopé à la localisation physique. §4
-- Le `DriverEquipmentId` détermine le contexte cinématique commun et le `TargetBucket` ; chaque layer peut utiliser une réalisation physique distincte de ce contexte. §4, §9
+- Le `DriverEquipmentId` peut établir le contexte cinématique commun ; chaque layer peut utiliser une réalisation physique distincte du `Profile` résolu. Le `TargetBucket` est ensuite dérivé des réalisations effectivement sélectionnées. §4, §8, §9
 - Le bouclier est un équipement visuel auxiliaire, sans impact sur la cinématique ni sur le `TargetBucket`. §3
 - Les assets de bouclier observés restent au format Small du layout historique. §3
 - Jamais de dual wield. §3
@@ -1294,8 +1549,8 @@ est donc normative. L'absence est déterminée par la déclaration/topologie de 
 - ✔ `1h_backslash` = rows 50–53.
 - ✔ La réalisation Medium observée de `walk` sur le Trident contient 9 frames source (héritées du `ExtractionProfile` `walk`).
 - ✔ PNG trident : `grid_y 0–53` présent physiquement mais transparent ; réalisation Medium `54–61` ; réalisation Large `62–73`.
-- ✔ PNG longsword : réalisation Small `walk` `8–11`, réalisation Small `hurt` `20`, réalisation Large `slash` `54–65`, réalisation Large `slash_reverse` `66–77`, réalisation Large `thrust` `81–92`.
-- ✔ Les lignes `78–80` du Longsword restent **non attribuées**.
+- ✔ PNG longsword : réalisation Small `walk` `8–11`, réalisation Small `hurt` `20`, réalisation Large `slash` `54–65`, réalisation Large `slash_reverse` `66–77`, réalisation Large `thrust` `78–89`.
+- ✔ Les blocs Longsword `slash`, `slash_reverse` et `thrust` sont contigus ; il n'y a **pas** de padding `grid_y 78–80`.
 - ✔ Les assets de bouclier observés restent au format Small du layout historique.
 - ✔ `tool_whip` et `tool_axe` dérivent de `slash`.
 - ✔ Alignement par centre géométrique, validé visuellement.
@@ -1314,13 +1569,14 @@ est donc normative. L'absence est déterminée par la déclaration/topologie de 
 - ✔ Indexation 0-based.
 - ✔ Chemins, noms de fichiers et identifiants déclaratifs des données en lowercase ; les noms de concepts, types et structures documentaires ne sont pas concernés.
 - ✔ Préfixes interdits pour `AnimationAction`, tolérés pour profils.
-- ✔ `DriverEquipmentId` identifie l'arme ou l'outil actif qui pilote la résolution cinématique et le bucket cible ; le bouclier est hors de cette dimension.
+- ✔ **`DriverEquipmentId` identifie l'arme ou l'outil actif qui peut piloter le contexte cinématique ; le `TargetBucket` est ensuite dérivé des réalisations effectivement sélectionnées.** Le bouclier est hors de cette dimension.
+- ✔ **Les couches non conductrices participent toutes à la composition de l'animation, mais n'influencent ni le `Profile` ni le `TargetBucket` ; dans le corpus visé, leurs réalisations physiques restent Small.**
 - ✔ `by_equipment` partout.
 - ✔ Pivot d'ancrage gameplay hors-scope AOT.
 - ✔ Nomenclature `_128` / `_192` réservée aux désignations descriptives de réalisations physiques ; jamais identités de `Profile`.
 - ✔ Écartés : `1h_*`, `backslash`, `halfslash`, + héritage.
 - ✔ Trois familles de layers.
-- ✔ Promotion automatique de bucket.
+- ✔ **`TargetBucket` dérivé du maximum des `RealizationBucket` effectivement sélectionnés dans le contexte courant ; il ne provient pas du catalogue global de l’équipement.**
 - ✔ Politique de boucle par graphe de succession.
 - ✔ Déduplication par layer.
 - ✔ Identité de déduplication d'une `FrameSequence` = contenu ordonné des frames + `next_sequence_id`.
@@ -1336,12 +1592,12 @@ est donc normative. L'absence est déterminée par la déclaration/topologie de 
 - ✔ Position horizontale des frames : `x(i) = i × frame_size`, frames contiguës sans padding horizontal.
 - ✔ Couples `(DriverEquipmentId, TargetBucket)` : valides uniquement.
 - ✔ Relation globale équipement : le build manifest / asset registry associe `DriverEquipmentId` aux `PhysicalRealization` et buckets disponibles ; le YAML d'équipement reste scopé à la localisation physique.
-- ✔ Résolution `AnimationAction` : au plus un axe de variation parmi `by_equipment` et `by_bucket` ; `default` est un repli, `fallback` reste réservé.
-- ✔ Déclaration des `AnimationAction` : le YAML de résolution constitue le vocabulaire déclaré.
+- ✔ Résolution `AnimationAction` : au plus un axe de variation parmi `by_equipment` et `by_bucket` ; `default` est un repli ; `by_bucket` dépend d’un `TargetBucket` déjà établi indépendamment ; `fallback` reste réservé.
+- ✔ **Déclaration des `AnimationAction` : le YAML de résolution constitue le vocabulaire déclaré ; le nombre de cinématiques d’un asset ne détermine pas le nombre d’actions.**
 - ✔ Correspondance `rows` ↔ `directions` : les listes sont parallèles, avec cardinalité identique.
 - ✔ Profils mono-directionnels : normalisation AOT sur les quatre directions canoniques par référencement de la même `FrameSequence`.
 - ✔ **Optionalité portée par `RealizationId` dans le contrat de localisation.**
-- ✔ **Sélection physique déclarative : 0 = absence, 1 = sélection, >1 = ambiguïté de build.**
+- ✔ **Sélection physique déclarative : 0 = absence de sélection, 1 = sélection, >1 = ambiguïté de build ; l’absence physique d’une réalisation est traitée séparément selon l’optionalité du contrat.**
 - ✔ **`TargetBucket` n'intervient pas dans l'identité de la réalisation ; il sert de contexte de composition et de validation de compatibilité.**
 - ✔ **Les réalisations de `CompositionProfile` possèdent leur propre localisation physique.**
 - ✔ **Les contrats de localisation utilisent `realizations[]` et référencent des `RealizationId`.**
@@ -1374,6 +1630,7 @@ est donc normative. L'absence est déterminée par la déclaration/topologie de 
 - **Sémantique runtime du bouclage** — résolue AOT.
 - **Terminologie obsolète** `1h_*`, `backslash`, `halfslash`.
 - **Préfixes de catégorie sur les `AnimationAction`.**
+- **Mécanismes spécialisés de variantes d’action (`AttackVariantId`, `ParryVariantId`, etc.) dans le paradigme central** — écartés : lorsque le gameplay distingue des intentions distinctes, elles sont exprimées par le vocabulaire `AnimationAction`.
 - **Exhaustivité sur les animations.**
 - **Champ `frame_size` dans les YAML** — déduit du `RealizationBucket`.
 - **Champ `align` dans les YAML** — centrage par défaut.
@@ -1394,7 +1651,8 @@ est donc normative. L'absence est déterminée par la déclaration/topologie de 
 
 ## 15. Synthèse en une phrase
 
-> **Le pipeline fournit au moteur un contrat strict : les PNG LPC fixent le canvas et la vérité physique des pixels ; le build manifest / asset registry définit les `PhysicalRealization` et relie les équipements conducteurs à leurs réalisations et à leurs buckets ; les `Profile` fixent la sémantique, les contrats localisent les `RealizationId`, l'AOT résout séparément `AnimationAction → Profile` puis `Profile → PhysicalRealization`, valide `RealizationBucket ≤ TargetBucket`, compose au centre du canvas cible et produit les `FrameSequence` ; pour `attack + longsword`, les layers corporels peuvent utiliser une réalisation `slash` Small tandis que le layer Longsword utilise sa propre réalisation `slash` Large, sans nouvelle responsabilité runtime.**
+> **Le pipeline fournit au moteur un contrat strict : les PNG LPC fixent le canvas et la vérité physique des pixels ; le build manifest / asset registry définit les `PhysicalRealization` et relie les équipements conducteurs à leurs `RealizationBucket` disponibles ; les `Profile` fixent la sémantique ; le YAML de résolution relie les `AnimationAction` au `Profile` approprié ; les contrats localisent les `RealizationId` ; l’AOT résout le `ResolutionContext → Profile`, puis `Profile → PhysicalRealization`, dérive le `TargetBucket` depuis les réalisations effectivement sélectionnées, valide `RealizationBucket ≤ TargetBucket`, compose au centre du canvas cible et produit les `FrameSequence`.**
+
 
 ## Annexe A — Représentations ASCII de ressources PNG LPC
 
@@ -1563,22 +1821,19 @@ Cette annexe documente trois **PNG sources physiques** représentatifs du corpus
  75    ●●●●●●●●●●●●●●●●●●......  slash_reverse_192 (right, 1/3)
  76    ●●●●●●●●●●●●●●●●●●......  slash_reverse_192 (right, 2/3)
  77    ●●●●●●●●●●●●●●●●●●......  slash_reverse_192 (right, 3/3)
- 78    ●●●●●●●●●●●●●●●●●●......  [non attribué]
- 79    ●●●●●●●●●●●●●●●●●●......  [non attribué]
- 80    ●●●●●●●●●●●●●●●●●●......  [non attribué]
        ─────── fin de la réalisation slash_reverse_192 confirmée (66–77) ───────
- 81    ●●●●●●●●●●●●●●●●●●●●●●●●  thrust_192 (top, 1/3)
- 82    ●●●●●●●●●●●●●●●●●●●●●●●●  thrust_192 (top, 2/3)
- 83    ●●●●●●●●●●●●●●●●●●●●●●●●  thrust_192 (top, 3/3)
- 84    ●●●●●●●●●●●●●●●●●●●●●●●●  thrust_192 (left, 1/3)
- 85    ●●●●●●●●●●●●●●●●●●●●●●●●  thrust_192 (left, 2/3)
- 86    ●●●●●●●●●●●●●●●●●●●●●●●●  thrust_192 (left, 3/3)
- 87    ●●●●●●●●●●●●●●●●●●●●●●●●  thrust_192 (down, 1/3)
- 88    ●●●●●●●●●●●●●●●●●●●●●●●●  thrust_192 (down, 2/3)
- 89    ●●●●●●●●●●●●●●●●●●●●●●●●  thrust_192 (down, 3/3)
- 90    ●●●●●●●●●●●●●●●●●●●●●●●●  thrust_192 (right, 1/3)
- 91    ●●●●●●●●●●●●●●●●●●●●●●●●  thrust_192 (right, 2/3)
- 92    ●●●●●●●●●●●●●●●●●●●●●●●●  thrust_192 (right, 3/3)
+ 78    ●●●●●●●●●●●●●●●●●●●●●●●●  thrust_192 (top, 1/3)
+ 79    ●●●●●●●●●●●●●●●●●●●●●●●●  thrust_192 (top, 2/3)
+ 80    ●●●●●●●●●●●●●●●●●●●●●●●●  thrust_192 (top, 3/3)
+ 81    ●●●●●●●●●●●●●●●●●●●●●●●●  thrust_192 (left, 1/3)
+ 82    ●●●●●●●●●●●●●●●●●●●●●●●●  thrust_192 (left, 2/3)
+ 83    ●●●●●●●●●●●●●●●●●●●●●●●●  thrust_192 (left, 3/3)
+ 84    ●●●●●●●●●●●●●●●●●●●●●●●●  thrust_192 (down, 1/3)
+ 85    ●●●●●●●●●●●●●●●●●●●●●●●●  thrust_192 (down, 2/3)
+ 86    ●●●●●●●●●●●●●●●●●●●●●●●●  thrust_192 (down, 3/3)
+ 87    ●●●●●●●●●●●●●●●●●●●●●●●●  thrust_192 (right, 1/3)
+ 88    ●●●●●●●●●●●●●●●●●●●●●●●●  thrust_192 (right, 2/3)
+ 89    ●●●●●●●●●●●●●●●●●●●●●●●●  thrust_192 (right, 3/3)
 ```
 
 ### A.4 — Lecture croisée et invariants physiques illustrés
@@ -1594,4 +1849,122 @@ Les trois PNG ne constituent pas une définition exhaustive du corpus. Ils illus
 7. **Pour `attack + longsword`, le contexte sémantique est `slash` et le `TargetBucket` est Large ; `slash_192` réalise le layer d’équipement, tandis que la réalisation `slash` Small fournit les layers de personnage, composée dans le canvas Large.**
 8. **Le même `source_extraction` peut alimenter des réalisations physiques distinctes et des `FrameSequence` distinctes.**
 
-_Document révisé le 24 septembre 2026 — v1.3.1 (socle normatif v1.3)_
+## Annexe B — Scénarios de validation S1 à S4
+
+Cette annexe transforme les scénarios concrets utilisés pendant les arbitrages en **tests de cohérence du pipeline AOT**. Ils ne constituent pas une spécification YAML complète ; ils vérifient que le paradigme sait absorber les contextes représentatifs sans introduire de résolution runtime.
+
+### B.1 — S1 : `walk` avec `longsword`
+
+```text
+AnimationAction   = walk
+DriverEquipmentId = longsword
+Profile           = walk
+
+Longsword / walk  → RealizationBucket = Small
+Autres layers     → réalisations Small
+
+TargetBucket      = Small
+Target canvas      = 64×64
+```
+
+Tous les layers constitutifs participent à la composition. Les réalisations Large du même équipement, appartenant à d'autres actions, ne provoquent aucune promotion de `walk`.
+
+Le Longsword est physiquement localisé sur `grid_y 8, 9, 10, 11`.
+
+**Verdict paradigme : absorbé.**
+
+### B.2 — S2 : première attaque `longsword` → `slash`
+
+```text
+AnimationAction   = attack
+DriverEquipmentId = longsword
+Profile           = slash
+```
+
+La résolution `attack → slash` existe déjà dans le corpus représentatif. La réalisation d'équipement est `longsword-slash`, de bucket Large, localisée sur `grid_y 54–65`. Les layers non conducteurs restent Small et sont composés au centre du canvas Large.
+
+```text
+TargetBucket      = Large
+Target canvas      = 192×192
+
+Small source      → offset (64, 64)
+Large longsword   → offset (0, 0)
+```
+
+**Verdict paradigme : absorbé.**
+
+### B.3 — S3 : autre action d'attaque `longsword` → `thrust`
+
+```text
+AnimationAction   = <action d'attaque déclarée par le gameplay>
+DriverEquipmentId = longsword
+Profile           = thrust
+```
+
+Aucun identifiant spécialisé de variante n'est requis par le paradigme. Le gameplay choisit le nom sémantique de l'action ; le YAML de résolution la relie à `thrust`.
+
+La réalisation `longsword-thrust` est Large et occupe sans padding :
+
+```text
+grid_y 78–89
+
+rows de départ : [78, 81, 84, 87]
+```
+
+Le bloc est immédiatement contigu au bloc `slash_reverse` (`66–77`).
+
+```text
+TargetBucket      = Large
+Target canvas      = 192×192
+```
+
+**Verdict paradigme : absorbé.**
+
+### B.4 — S4 : `hurt` avec `longsword` toujours équipé
+
+```text
+AnimationAction   = hurt
+DriverEquipmentId = longsword
+Profile           = hurt
+```
+
+Toutes les couches constitutives du personnage participent à la composition. Les couches non conductrices restent Small dans le corpus LPC visé ; le Longsword possède lui aussi une réalisation `hurt` Small.
+
+```text
+body / hurt       → Small
+head / hurt       → Small
+hair / hurt       → Small
+clothes / hurt    → Small
+boots / hurt      → Small
+shield / hurt     → Small
+longsword / hurt  → Small
+```
+
+La réalisation du Longsword est localisée sur `grid_y 20`. Aucune des réalisations Large d'attaque du Longsword n'est pertinente pour ce contexte.
+
+**Verdict paradigme : absorbé.**
+
+**Remarque corpus** : la fixture représentative actuelle ne matérialise pas encore toutes les couches du personnage complet ; cela relève de la couverture YAML, pas d'une restriction du paradigme.
+
+### B.5 — Synthèse
+
+| Scénario | Profil résolu | RealizationBucket conducteur | TargetBucket | Canvas | Paradigme |
+|---|---|---:|---:|---:|---|
+| S1 — `walk + longsword` | `walk` | Small | Small | 64×64 | **Absorbé** |
+| S2 — première action d'attaque `longsword` | `slash` | Large | Large | 192×192 | **Absorbé** |
+| S3 — autre action d'attaque `longsword` | `thrust` | Large | Large | 192×192 | **Absorbé** |
+| S4 — `hurt + longsword` | `hurt` | Small | Small | 64×64 | **Absorbé** |
+
+Ces quatre scénarios couvrent les propriétés structurantes recherchées :
+
+```text
+1. équipement conducteur sans promotion globale ;
+2. composition Small → Large ;
+3. plusieurs cinématiques accessibles par le vocabulaire `AnimationAction` sans mécanisme spécialisé de variante ;
+4. retour à une animation Small malgré la conservation de l’équipement conducteur ;
+5. participation de toutes les couches sans confusion entre présence visuelle et rôle conducteur.
+```
+
+Ils constituent une base appropriée pour une annexe de non-régression et pour la prochaine phase de matérialisation YAML.
+
+_Document révisé le 24 septembre 2026 — v1.3.5 (socle normatif v1.3)_
