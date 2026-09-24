@@ -1,0 +1,100 @@
+# -----------------------------------------------------------------------------
+# LPC — contrat d'équipement : layout Small 64×64
+# -----------------------------------------------------------------------------
+# Exemple de référence directement aligné sur le contrat idiomatique de la v1.
+#
+# Responsabilité de ce fichier : LOCALISATION PHYSIQUE UNIQUEMENT.
+#
+# Il ne déclare pas :
+#   - l'AnimationAction ;
+#   - la résolution AnimationAction -> Profile ;
+#   - la bucket policy globale d'un DriverEquipmentId ;
+#   - la classification overlay / variant.
+#
+# Il déclare :
+#   - le périmètre des assets auxquels le contrat s'applique ;
+#   - le bucket physique ciblé ;
+#   - les ExtractionProfiles physiquement disponibles ;
+#   - le `grid_y` de départ de chaque direction.
+#
+# Pour un ExtractionProfile présent ici, l'absence physique est requise par
+# défaut. L'optionalité doit être portée explicitement par
+# `optional_extraction_profiles`, qui doit rester un sous-ensemble strict de
+# `extraction_profiles`.
+# -----------------------------------------------------------------------------
+
+contract_id: lpc_base_64
+
+applies_to:
+  path_prefix: textures/characters/
+
+# frame_size n'est jamais déclaré dans le YAML :
+# Small -> 64×64, par convention du paradigme.
+target_bucket: Small
+
+extraction_profiles:
+
+  # rows et directions sont deux listes parallèles : rows[i] ↔ directions[i].
+  spellcast:
+    reference: spellcast
+    rows: [0, 1, 2, 3]
+
+  thrust:
+    reference: thrust
+    rows: [4, 5, 6, 7]
+
+  walk:
+    reference: walk
+    rows: [8, 9, 10, 11]
+
+  slash:
+    reference: slash
+    rows: [12, 13, 14, 15]
+
+  shoot:
+    reference: shoot
+    rows: [16, 17, 18, 19]
+
+  hurt:
+    reference: hurt
+    rows: [20]
+
+  climb:
+    reference: climb
+    rows: [21]
+
+  idle:
+    reference: idle
+    rows: [22, 23, 24, 25]
+
+  jump:
+    reference: jump
+    rows: [26, 27, 28, 29]
+
+  sit:
+    reference: sit
+    rows: [30, 31, 32, 33]
+
+  emote:
+    reference: emote
+    rows: [34, 35, 36, 37]
+
+  run:
+    reference: run
+    rows: [38, 39, 40, 41]
+
+# -----------------------------------------------------------------------------
+# Pas de `optional_extraction_profiles` dans cet étalon : toutes les entrées
+# ci-dessus sont donc requises par défaut.
+#
+# Exemple de forme si une absence physique était réellement validée comme
+# optionnelle dans un corpus concret :
+#
+# optional_extraction_profiles:
+#   - some_profile
+#
+# `some_profile` devrait impérativement être une clé présente ci-dessus.
+# -----------------------------------------------------------------------------
+
+# Les profils écartés par le paradigme (`combat_idle`, `1h_*`, `backslash`,
+# `halfslash`) ne sont pas localisés dans cet étalon.

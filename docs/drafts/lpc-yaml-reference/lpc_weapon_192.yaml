@@ -1,0 +1,34 @@
+# -----------------------------------------------------------------------------
+# LPC — contrat d'équipement : réalisation Large 192×192
+# -----------------------------------------------------------------------------
+# Exemple PHYSIQUE limité au bloc Large observé dans le layout LPC Character.
+#
+# La v1 donne l'exemple concret :
+#   Bloc Large :  grid_y 62–73
+#   thrust_192 : 12 grid_y, soit 4 directions × 3 grid_y
+#
+# Pour frame_size = 192, chaque direction consomme 3 grid_y successifs.
+# Avec la règle rows[i] ↔ directions[i], les départs sont donc :
+#   62, 65, 68, 71
+#
+# Comme pour l'étalon Medium, le nom `thrust_192` reste une désignation
+# documentaire de réalisation physique ; le Profile référencé est `thrust`.
+# -----------------------------------------------------------------------------
+
+contract_id: lpc_weapon_192
+
+applies_to:
+  path_prefix: textures/characters/
+  asset_whitelist:
+    - trident.png
+
+target_bucket: Large
+
+extraction_profiles:
+
+  thrust:
+    reference: thrust
+    rows: [62, 65, 68, 71]
+
+# L'exemple est volontairement limité à ce profil : la v1 ne fournit pas une
+# cartographie exhaustive des profils oversized pour un PNG réel donné.

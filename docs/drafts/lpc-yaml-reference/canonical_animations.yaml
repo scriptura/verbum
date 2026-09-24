@@ -1,0 +1,168 @@
+# -----------------------------------------------------------------------------
+# LPC — YAML canonique des profils d'animation
+# -----------------------------------------------------------------------------
+# Document de référence illustratif fondé sur LPC-Paradigm-v1.
+#
+# Ce fichier n'est PAS la liste exhaustive du corpus LPC réel.
+# Il sert d'étalon de forme et de sémantique pour le YAML canonique.
+#
+# Principes issus de la v1 :
+#   - Le YAML canonique déclare les Profile.
+#   - Un ExtractionProfile décrit un pool physique : frame_count + directions,
+#     avec une sequence optionnelle.
+#   - Un CompositionProfile ne redéclare JAMAIS frame_count/directions :
+#     il les hérite de son source_extraction.
+#   - Les indices de sequence sont locaux au pool et doivent satisfaire
+#       0 <= i < frame_count
+#   - Les suffixes _128 / _192 ne sont jamais des identités de Profile.
+#   - rows n'appartient pas à ce fichier : la localisation physique appartient
+#     aux contrats d'équipement.
+#
+# La valeur `type` emploie les noms conceptuels de la v1. La convention
+# lowercase porte sur les identifiants déclaratifs des données, pas sur les
+# noms de concepts/types documentaires.
+# -----------------------------------------------------------------------------
+
+profiles:
+
+  # ---------------------------------------------------------------------------
+  # ExtractionProfiles canoniques
+  # ---------------------------------------------------------------------------
+
+  - name: spellcast
+    type: ExtractionProfile
+    frame_count: 7
+    directions: [top, left, down, right]
+    # `sequence` est volontairement omise : la v1 prévoit une séquence
+    # canonique par défaut lorsque ce champ n'est pas déclaré.
+
+  - name: thrust
+    type: ExtractionProfile
+    frame_count: 8
+    directions: [top, left, down, right]
+
+  - name: walk
+    type: ExtractionProfile
+    frame_count: 9
+    directions: [top, left, down, right]
+    # La frame locale 0 existe dans le pool mais n'est pas jouée.
+    sequence: [1, 2, 3, 4, 5, 6, 7, 8]
+
+  - name: slash
+    type: ExtractionProfile
+    frame_count: 6
+    directions: [top, left, down, right]
+
+  - name: shoot
+    type: ExtractionProfile
+    frame_count: 13
+    directions: [top, left, down, right]
+
+  - name: hurt
+    type: ExtractionProfile
+    frame_count: 6
+    # Profil physiquement mono-directionnel : le pipeline AOT le normalisera
+    # ensuite sur [top, left, down, right] en référençant la même FrameSequence.
+    directions: [down]
+
+  - name: climb
+    type: ExtractionProfile
+    frame_count: 6
+    # Même principe de normalisation AOT que pour `hurt`.
+    directions: [top]
+
+  - name: run
+    type: ExtractionProfile
+    frame_count: 8
+    directions: [top, left, down, right]
+
+  - name: jump
+    type: ExtractionProfile
+    frame_count: 5
+    directions: [top, left, down, right]
+    # Répétition explicite de la frame locale 1.
+    sequence: [0, 1, 2, 3, 4, 1]
+
+  - name: sit
+    type: ExtractionProfile
+    frame_count: 3
+    directions: [top, left, down, right]
+    # Notation compacte de la v1 développée en tableau YAML concret :
+    # [0×5, 1×5, 2×5] -> 15 positions jouées.
+    sequence: [
+      0, 0, 0, 0, 0,
+      1, 1, 1, 1, 1,
+      2, 2, 2, 2, 2
+    ]
+
+  - name: emote
+    type: ExtractionProfile
+    frame_count: 3
+    directions: [top, left, down, right]
+    sequence: [
+      0, 0, 0, 0, 0,
+      1, 1, 1, 1, 1,
+      2, 2, 2, 2, 2
+    ]
+
+  - name: idle
+    type: ExtractionProfile
+    frame_count: 2
+    directions: [top, left, down, right]
+    sequence: [0, 0, 1]
+
+  # ---------------------------------------------------------------------------
+  # CompositionProfiles
+  # ---------------------------------------------------------------------------
+  # Règle structurante : aucun frame_count ni directions ici.
+  # Ces propriétés sont héritées du source_extraction.
+
+  - name: watering
+    type: CompositionProfile
+    source_extraction: thrust
+    sequence: [0, 1, 4, 4, 4, 4, 5]
+
+  - name: tool_whip
+    type: CompositionProfile
+    source_extraction: slash
+    sequence: [0, 1, 2, 3, 4, 5]
+
+  - name: tool_axe
+    type: CompositionProfile
+    source_extraction: slash
+    sequence: [5, 5, 4, 4, 3, 1, 0, 0, 0, 0]
+
+  - name: slash_reverse
+    type: CompositionProfile
+    source_extraction: slash
+    sequence: [5, 4, 3, 2, 1, 0]
+
+  # Ces deux profils sont volontairement COMMENTÉS : la v1 les mentionne
+  # comme exemples dont la séquence reste à préciser dans les YAML réels.
+  # Les rendre actifs ici obligerait à inventer une donnée que la v1 ne fournit pas.
+  #
+  # - name: tool_hoe
+  #   type: CompositionProfile
+  #   source_extraction: slash
+  #   sequence: <à définir dans le corpus réel>
+  #
+  # - name: tool_shovel
+  #   type: CompositionProfile
+  #   source_extraction: slash
+  #   sequence: <à définir dans le corpus réel>
+
+  # Même prudence pour `swim` : la v1 le conserve explicitement comme
+  # CompositionProfile provisoire dérivé de spellcast, mais sa séquence n'est
+  # pas encore arrêtée.
+  #
+  # - name: swim
+  #   type: CompositionProfile
+  #   source_extraction: spellcast
+  #   sequence: <provisoire — à définir>
+
+# ----------------------------------------------------------------------------
+# Note de validation AOT
+# ----------------------------------------------------------------------------
+# Toute sequence active de ce fichier doit respecter 0 <= index < frame_count
+# de son pool source. Le builder doit rejeter toute valeur hors bornes.
+# ----------------------------------------------------------------------------

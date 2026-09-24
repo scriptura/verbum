@@ -1,0 +1,89 @@
+# -----------------------------------------------------------------------------
+# LPC — résolution AnimationAction -> Profile
+# -----------------------------------------------------------------------------
+# Document de référence illustratif fondé sur LPC-Paradigm-v1.
+#
+# Le YAML de résolution est l'endroit où le vocabulaire AnimationAction est
+# déclaré : chaque entrée `animation_action` constitue une action déclarée et
+# fournit sa résolution.
+#
+# Règles de la v1 :
+#   - au plus UN axe de variation parmi `by_equipment` et `by_bucket` ;
+#   - `default` est un repli, pas un axe supplémentaire ;
+#   - `_128` / `_192` ne sont jamais utilisés comme cibles ;
+#   - une cible doit exister dans canonical_animations.yaml ;
+#   - en l'absence de résolution applicable, le build échoue ;
+#   - `fallback` reste réservé et n'est pas utilisé ici.
+# -----------------------------------------------------------------------------
+
+actions:
+
+  # `attack` illustre la contextualisation par équipement.
+  # L'action reste sémantique : elle ne connaît ni la taille de frame ni LPC.
+  - animation_action: attack
+    resolution:
+      default: slash
+      by_equipment:
+        spear: thrust
+        crossbow: thrust
+        bow: shoot
+        longsword: slash
+
+  # Aucun axe n'est nécessaire ici : walk reste walk quel que soit le bucket
+  # cible. La réalisation Medium/Large est une conséquence physique AOT,
+  # jamais une autre identité de Profile.
+  - animation_action: walk
+    resolution:
+      default: walk
+
+  - animation_action: run
+    resolution:
+      default: run
+
+  - animation_action: cast
+    resolution:
+      default: spellcast
+
+  - animation_action: idle
+    resolution:
+      default: idle
+
+  # Convergence : deux AnimationAction distinctes peuvent viser le même Profile.
+  - animation_action: die
+    resolution:
+      default: hurt
+
+  - animation_action: stagger
+    resolution:
+      default: hurt
+
+  - animation_action: watering
+    resolution:
+      default: watering
+
+  - animation_action: sit
+    resolution:
+      default: sit
+
+  - animation_action: emote
+    resolution:
+      default: emote
+
+# ----------------------------------------------------------------------------
+# Forme de référence pour `by_bucket` (exemple volontairement commenté)
+# ----------------------------------------------------------------------------
+# La v1 autorise l'axe `by_bucket`, mais ne fournit pas dans le document un
+# mapping concret à recopier. On conserve donc ici uniquement la forme attendue
+# sans inventer de correspondance métier.
+#
+# - animation_action: <action>
+#   resolution:
+#     by_bucket:
+#       Small: <profile>
+#       Medium: <profile>
+#       Large: <profile>
+#     default: <profile>
+#
+# Important : `Medium` / `Large` sélectionnent ici un Profile sémantique, pas
+# `walk_128`, `walk_192` ou toute autre désignation physique.
+# -----------------------------------------------------------------------------

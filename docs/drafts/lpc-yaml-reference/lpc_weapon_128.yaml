@@ -1,0 +1,38 @@
+# -----------------------------------------------------------------------------
+# LPC — contrat d'équipement : réalisation Medium 128×128
+# -----------------------------------------------------------------------------
+# Exemple PHYSIQUE limité au bloc Medium observé dans le layout LPC Character.
+#
+# La v1 donne l'exemple concret suivant :
+#   Bloc Medium : grid_y 54–61
+#   walk_128    : 9 frames
+#
+# Pour une frame_size de 128, une direction consomme 2 grid_y successifs.
+# Comme rows[i] est le grid_y de départ de directions[i], les départs sont :
+#   54, 56, 58, 60
+#
+# Ce fichier est volontairement NARROW : il ne prétend pas constituer le
+# contrat exhaustif d'un vrai PNG d'arme. Il sert à étalonner la traduction du
+# bloc physique Medium en contrat AOT.
+# -----------------------------------------------------------------------------
+
+contract_id: lpc_weapon_128
+
+applies_to:
+  path_prefix: textures/characters/
+  asset_whitelist:
+    - trident.png
+
+target_bucket: Medium
+
+extraction_profiles:
+
+  # `walk_128` est une désignation physique documentaire ; l'identité YAML
+  # reste simplement `walk`.
+  walk:
+    reference: walk
+    rows: [54, 56, 58, 60]
+
+# IMPORTANT : cette entrée ne signifie PAS que `walk_128` est un Profile.
+# Le couple conceptuel est :
+#   ExtractionProfile `walk` + BucketId Medium -> réalisation physique 128×128.

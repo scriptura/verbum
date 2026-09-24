@@ -1,0 +1,65 @@
+# -----------------------------------------------------------------------------
+# LPC — build manifest / asset registry (référence conceptuelle)
+# -----------------------------------------------------------------------------
+# ATTENTION : la v1 fixe la RESPONSABILITÉ de ce registre, pas un schéma YAML
+# concret. La forme ci-dessous est donc un étalon conceptuel, volontairement
+# explicite sur les informations nécessaires, mais non un format binaire/API
+# figé.
+#
+# Responsabilités établies par LPC-Paradigm-v1 :
+#   - vérité d'existence des assets au niveau du build ;
+#   - relation DriverEquipmentId -> réalisations physiques / buckets disponibles ;
+#   - classification overlay / variant, qui ne doit jamais être inférée des
+#     pixels du PNG ;
+#   - le YAML d'équipement reste, lui, strictement scopé à la localisation
+#     physique (target_bucket, extraction_profiles, rows).
+# -----------------------------------------------------------------------------
+
+# Exemple conceptuel : un équipement conducteur peut avoir plusieurs
+# réalisations physiques. Le BucketId cible est le maximum des buckets
+# disponibles pour ce DriverEquipmentId.
+
+driver_equipment:
+
+  trident:
+    realizations:
+      # La réalisation exacte Small est illustrative : elle représente la
+      # présence de l'équipement dans le domaine Small.
+      - asset: textures/characters/trident.png
+        bucket: Small
+        contract: lpc_base_64
+
+      # Ces deux réalisations correspondent au layout LPC Character observé dans
+      # la v1 : un bloc Medium puis un bloc Large ajoutés en fin de PNG.
+      - asset: textures/characters/trident.png
+        bucket: Medium
+        contract: lpc_weapon_128
+
+      - asset: textures/characters/trident.png
+        bucket: Large
+        contract: lpc_weapon_192
+
+# -----------------------------------------------------------------------------
+# Classification topologique des assets
+# -----------------------------------------------------------------------------
+# Ces entrées sont également des EXEMPLES CONCEPTUELS : elles montrent où
+# réside l'information `overlay` / `variant`, sans prétendre définir le schéma
+# final du manifest.
+#
+asset_topology:
+
+  # Un overlay devient un LayerId distinct et est généré indépendamment.
+  - asset: textures/effects/glow.png
+    topology: overlay
+    layer: overlays
+
+  # Une variant est une réalisation alternative d'un LayerId déjà existant.
+  - asset: textures/characters/armor_alt.png
+    topology: variant
+    layer: torso
+
+# -----------------------------------------------------------------------------
+# La présence physique se vérifie avec la règle de la v1 :
+# Asset utilisé = déclaré au build ∩ présent sur disque ∩ déclaré en YAML.
+# Toute divergence est une erreur de build.
+# -----------------------------------------------------------------------------
