@@ -1,33 +1,47 @@
 # build_manifest.yaml
-# LPC AOT PoC reference fixture aligned with LPC-Paradigm-v1.3.5.
+# Fixture de référence LPC pour le pipeline AOT, alignée sur
+# LPC-Paradigm.md.
 #
-# This file remains a conceptual build-manifest / asset-registry shape, not a
-# frozen tool/API schema.
+# Ce fichier conserve une forme conceptuelle de build manifest ; il ne fixe
+# pas encore le schéma final d'un outil ou d'une API.
+# Le build manifest est l'artefact déclaratif source ; l'AssetRegistry est sa
+# représentation logique normalisée côté build.
 #
-# Responsibilities represented here:
-#   - global existence/identity of PhysicalRealization;
-#   - source asset and LayerId association;
-#   - RealizationBucket of each realization;
-#   - DriverEquipmentId -> available physical realizations;
-#   - declarative physical selection by context;
-#   - overlay / variant topology classification.
+# Responsabilités représentées ici :
+#   - existence et identité globales des PhysicalRealization ;
+#   - association avec l'asset source et le LayerId ;
+#   - RealizationBucket de chaque réalisation ;
+#   - relation DriverEquipmentId -> réalisations physiques disponibles ;
+#   - sélection physique déclarative selon le contexte ;
+#   - classification topologique overlay / variant.
 #
-# TargetBucket is NOT declared here. It is derived AOT from the realizations
-# effectively selected for the current ResolutionContext.
+# Le TargetBucket N'EST PAS déclaré ici. Il est dérivé AOT à partir des
+# réalisations effectivement sélectionnées dans le ResolutionContext courant.
+#
+# Règles de sélection :
+#   - (LayerId, DriverEquipmentId, Profile) identifie la sélection ;
+#   - 0 candidat = absence de sélection ;
+#   - 1 candidat = sélection déterministe ;
+#   - >1 candidat = ambiguïté de build.
+#
+# Règle de cohérence physique : pour un même asset source, les régions
+# d'extraction ne peuvent pas se chevaucher partiellement. Des régions
+# exactement congruentes peuvent être réutilisées explicitement par plusieurs
+# RealizationId ; les régions disjointes sont valides.
 
 schema:
   paradigm: lpc
-  paradigm_version: "1.3.5"
+  version: 1
   fixture_role: representative_poc
 
 # ================================================================
-# PhysicalRealization catalogue
+# Catalogue des PhysicalRealization
 # ================================================================
 
 physical_realizations:
 
   # ------------------------------------------------------------
-  # Base Character — canonical Small realizations
+  # LPC Character — réalisations canoniques Small
   # ------------------------------------------------------------
 
   - realization_id: base-spellcast
@@ -50,6 +64,14 @@ physical_realizations:
 
   - realization_id: base-slash
     profile: slash
+    source_asset: base_character
+    layer_id: body
+    realization_bucket: small
+
+  # Réutilisation exacte de la région `slash` pour le CompositionProfile
+  # `tool_hammer`. La localisation reste portée par le contrat du body.
+  - realization_id: base-tool-hammer
+    profile: tool_hammer
     source_asset: base_character
     layer_id: body
     realization_bucket: small
@@ -103,7 +125,7 @@ physical_realizations:
     realization_bucket: small
 
   # ------------------------------------------------------------
-  # Separate layer sources represented in this fixture
+  # Sources de layers séparées représentées dans cette fixture
   # ------------------------------------------------------------
 
   - realization_id: hair-slash
@@ -119,7 +141,7 @@ physical_realizations:
     realization_bucket: small
 
   # ------------------------------------------------------------
-  # Longsword — physical realizations confirmed by the fixture
+  # Longsword — réalisations physiques confirmées par la fixture
   # ------------------------------------------------------------
 
   - realization_id: longsword-walk
@@ -153,7 +175,7 @@ physical_realizations:
     realization_bucket: large
 
   # ------------------------------------------------------------
-  # Trident — mixed Medium/Large physical realizations
+  # Trident — réalisations physiques Medium/Large
   # ------------------------------------------------------------
 
   - realization_id: trident-walk
@@ -168,12 +190,53 @@ physical_realizations:
     layer_id: equipment
     realization_bucket: large
 
+  # ------------------------------------------------------------
+  # Hammer — deux réalisations physiques confirmées
+  # ------------------------------------------------------------
+
+  - realization_id: hammer-walk
+    profile: walk
+    source_asset: hammer
+    layer_id: equipment
+    realization_bucket: small
+
+  - realization_id: hammer-tool-hammer
+    profile: tool_hammer
+    source_asset: hammer
+    layer_id: equipment
+    realization_bucket: medium
+
+  # ------------------------------------------------------------
+  # Gnarled Staff — réalisations physiques confirmées
+  # ------------------------------------------------------------
+
+  - realization_id: gnarled-staff-walk
+    profile: walk
+    source_asset: gnarled_staff
+    layer_id: equipment
+    realization_bucket: small
+
+  - realization_id: gnarled-staff-hurt
+    profile: hurt
+    source_asset: gnarled_staff
+    layer_id: equipment
+    realization_bucket: small
+
+  - realization_id: gnarled-staff-thrust
+    profile: thrust
+    source_asset: gnarled_staff
+    layer_id: equipment
+    realization_bucket: large
+
 # ================================================================
-# DriverEquipmentId -> available physical realizations
+# DriverEquipmentId -> réalisations physiques disponibles
 # ================================================================
 #
-# No TargetBucket is stored here. The available RealizationBucket values are
-# inputs to context-specific AOT derivation after physical selection.
+# Aucun TargetBucket n'est stocké ici. Les RealizationBucket disponibles
+# servent d'entrées à la dérivation AOT propre au contexte après sélection
+# physique.
+# `none` est la valeur de domaine explicite pour l'absence de conducteur ;
+# il ne s'agit pas d'un null ni d'un sentinelle de runtime.
 
 driver_equipment:
 
@@ -196,24 +259,37 @@ driver_equipment:
       - trident-walk
       - trident-thrust
 
+  hammer:
+    role: tool
+    available_realizations:
+      - hammer-walk
+      - hammer-tool-hammer
+
+  gnarled_staff:
+    role: weapon
+    available_realizations:
+      - gnarled-staff-walk
+      - gnarled-staff-hurt
+      - gnarled-staff-thrust
+
 # ================================================================
-# Declarative physical selection
+# Sélection physique déclarative
 # ================================================================
 #
-# Selection key:
+# Clé de sélection :
 #     (LayerId, DriverEquipmentId, Profile) -> RealizationId
 #
-# 0 candidates = absence of selection.
-# 1 candidate  = deterministic selection.
-# >1 candidates = build ambiguity.
+# 0 candidat = absence de sélection.
+# 1 candidat  = sélection déterministe.
+# >1 candidats = ambiguïté de build.
 #
-# TargetBucket is derived after the realizations for the current context are
-# selected; it is never used here as a heuristic selector.
+# Le TargetBucket est dérivé après la sélection des réalisations du contexte
+# courant ; il n'est jamais utilisé ici comme heuristique de sélection.
 
 physical_selection:
 
   # ------------------------------------------------------------
-  # No-driver contexts
+  # Contextes sans conducteur
   # ------------------------------------------------------------
 
   - layer_id: body
@@ -247,7 +323,7 @@ physical_selection:
     realization_id: base-idle
 
   # ------------------------------------------------------------
-  # Longsword contexts
+  # Contextes avec Longsword conducteur
   # ------------------------------------------------------------
 
   - layer_id: body
@@ -301,7 +377,7 @@ physical_selection:
     realization_id: longsword-hurt
 
   # ------------------------------------------------------------
-  # Trident contexts
+  # Contextes avec Trident conducteur
   # ------------------------------------------------------------
 
   - layer_id: body
@@ -324,12 +400,85 @@ physical_selection:
     profile: thrust
     realization_id: trident-thrust
 
+  # ------------------------------------------------------------
+  # Contextes avec Hammer conducteur
+  # ------------------------------------------------------------
+
+  - layer_id: body
+    driver_equipment_id: hammer
+    profile: walk
+    realization_id: base-walk
+
+  - layer_id: body
+    driver_equipment_id: hammer
+    profile: tool_hammer
+    realization_id: base-tool-hammer
+
+  - layer_id: equipment
+    driver_equipment_id: hammer
+    profile: walk
+    realization_id: hammer-walk
+
+  - layer_id: equipment
+    driver_equipment_id: hammer
+    profile: tool_hammer
+    realization_id: hammer-tool-hammer
+
+  # ------------------------------------------------------------
+  # Contextes avec Gnarled Staff conducteur
+  # ------------------------------------------------------------
+
+  - layer_id: body
+    driver_equipment_id: gnarled_staff
+    profile: walk
+    realization_id: base-walk
+
+  - layer_id: body
+    driver_equipment_id: gnarled_staff
+    profile: thrust
+    realization_id: base-thrust
+
+  - layer_id: body
+    driver_equipment_id: gnarled_staff
+    profile: hurt
+    realization_id: base-hurt
+
+  - layer_id: equipment
+    driver_equipment_id: gnarled_staff
+    profile: walk
+    realization_id: gnarled-staff-walk
+
+  - layer_id: equipment
+    driver_equipment_id: gnarled_staff
+    profile: thrust
+    realization_id: gnarled-staff-thrust
+
+  - layer_id: equipment
+    driver_equipment_id: gnarled_staff
+    profile: hurt
+    realization_id: gnarled-staff-hurt
+
 # ================================================================
-# Asset topology classification
+# Scénarios Gnarled Staff couverts par cette fixture
 # ================================================================
 #
-# This classification is declarative build metadata and is never inferred
-# from PNG pixels.
+# S7 — walk + gnarled_staff : les réalisations sélectionnées restent Small,
+#      donc TargetBucket = Small.
+#
+# S8 — action gameplay déclarée + gnarled_staff -> thrust : le body utilise
+#      sa réalisation Small de `thrust`, tandis que le bâton fournit une
+#      réalisation Large dédiée sur le même Profile.
+#      TargetBucket = Large.
+#
+# Le nom de l'AnimationAction appartient au vocabulaire gameplay et n'est
+# pas inventé par le corpus physique.
+
+# ================================================================
+# Classification topologique des assets
+# ================================================================
+#
+# Cette classification constitue des métadonnées de build déclaratives ; elle
+# n'est jamais inférée à partir des pixels du PNG.
 
 asset_topology:
 
@@ -340,3 +489,20 @@ asset_topology:
   - asset: textures/characters/armor_alt.png
     topology: variant
     layer: torso
+
+# ================================================================
+# Scénarios Hammer couverts par cette fixture
+# ================================================================
+#
+# S5a — walk + hammer : les réalisations sélectionnées restent Small, donc
+#       TargetBucket = Small.
+#
+# S5b — cinématique `tool_hammer` : le body réutilise exactement sa région
+#       physique `slash` sous l'identité `base-tool-hammer`, tandis que le
+#       Hammer fournit une réalisation Medium dédiée.
+#       TargetBucket = Medium.
+#
+# Le mapping d'une AnimationAction gameplay vers `tool_hammer` n'est pas
+# inventé ici. Il pourra, lorsque le gameplay l'établira, être représenté par
+# `by_equipment: {hammer: tool_hammer}` sur une action existante telle que
+# `attack`.

@@ -1,8 +1,8 @@
-# Document fondateur conceptuel — LPC (pipeline AOT) — v1.3.5
+# Document fondateur conceptuel — LPC (pipeline AOT) — version 1
 
-> **Statut** : **révision consolidée v1.3.5**. Cette version conserve le modèle des **réalisations physiques** et la dérivation contextuelle du `TargetBucket` introduite en v1.3.2. Elle consolide les clarifications issues des audits de cohérence et d’architecture, et simplifie la résolution sémantique autour de `AnimationAction` en écartant les mécanismes spécialisés de variantes d’action.
-> **Socle normatif** : **v1.3**. La v1.3.5 consolide les corrections précédentes : dérivation contextuelle du `TargetBucket`, distinction entre équipement conducteur (`DriverEquipmentId`) et couches visuelles non conductrices, correction de la localisation physique du Longsword `thrust`, et simplification de la résolution sémantique autour de `AnimationAction` sans mécanisme spécialisé de variante d’action.
-> **Évolution v1.3** : le schéma distingue désormais explicitement **Profile**, **PhysicalRealization**, **LocalizationContract** et **ActionResolution**. La sélection physique est déclarative et doit être unique ; l’optionalité est attachée à la réalisation physique. Aucun changement de responsabilité n’est introduit côté runtime.
+> **Statut** : **document fondateur en conception / R&D — version 1**. La valeur de version reste `1` pendant toute la période de conception et de R&D ; les révisions intermédiaires ne constituent pas un versionnement du document. Elles sont uniquement des repères de travail pour les échanges. Cette version consolide le contrat déclaratif et la terminologie à la suite des audits de cohérence et d’architecture. Elle supprime la notion d’`aliases`, distingue explicitement `build_manifest.yaml` de l’`AssetRegistry`, renomme la localisation YAML en `grid_y_starts`, formalise la valeur `DriverEquipmentId = none`, encadre `by_bucket` comme mécanisme expérimental/réservé et explicite la topologie de rendu LPC du bouclier comme constante de pipeline distincte du modèle d’animation.
+> **Socle normatif** : **version 1**. Le document conserve le modèle des **réalisations physiques**, la dérivation contextuelle du `TargetBucket`, la distinction entre équipement conducteur (`DriverEquipmentId`) et couches visuelles non conductrices, ainsi que la résolution sémantique autour de `AnimationAction` sans mécanisme spécialisé de variante d’action.
+> **État du modèle** : le schéma distingue explicitement **Profile**, **PhysicalRealization**, **LocalizationContract** et **ActionResolution**. La sélection physique est déclarative et doit être unique ; l’optionalité est attachée à la réalisation physique dans le contrat de localisation. Aucun changement de responsabilité n’est introduit côté runtime.
 > **Portée** : ce document couvre le **pipeline AOT**. Le runtime n'est mentionné que pour fixer les **invariants de frontière**.
 > **Exhaustivité** : ce document **n'est pas exhaustif** sur les animations. Il pose le **principe**, des **exemples illustratifs**, des **invariants** et certains profils encore provisoires. Les YAML constituent le **corpus de référence effectivement déclaré** ; l'absence d'un profil provisoire ou non encore matérialisé dans ce corpus ne constitue pas une décision d'obsolescence.
 
@@ -19,6 +19,14 @@ Ce document établit le **paradigme** qui gouverne la transformation des sprites
 3. **Le runtime ne manipule que des identifiants et des structures de données précompilées.**
 4. **Le système d'animation est un service moteur global.**
 5. **Le pipeline est un traducteur, pas un perroquet.**
+
+### Convention de versionnement et de nommage documentaire
+
+Pendant toute la phase de conception et de R&D, le champ YAML **`version` vaut `1`**. Les révisions de conception ne provoquent pas d’incrément de cette valeur.
+
+Les fichiers YAML font référence au document sous le nom canonique **`LPC-Paradigm.md`**, sans suffixe de version. Les suffixes utilisés ponctuellement dans les noms de fichiers pendant les échanges de travail ne font pas partie du contrat YAML.
+
+Lorsque le schéma YAML lui-même sera stabilisé, un futur **`schema_version`** pourra remplacer `version` et porter alors le versionnement du schéma.
 
 ### Convention d'indexation
 
@@ -41,7 +49,7 @@ Ce document établit le **paradigme** qui gouverne la transformation des sprites
 - **« grid_y »** désigne toujours la coordonnée **physique** d'extraction dans la grid.
 - Ces deux termes ne sont **jamais interchangeables**.
 
-**Important** : les YAML de localisation déclarent toujours les **rows logiques** (une par direction). Chaque élément de `rows` donne le `grid_y` de départ correspondant à cette direction ; l'expansion verticale requise par le `frame_size` est dérivée AOT.
+**Important** : les YAML de localisation déclarent les **coordonnées physiques de départ** de chaque direction. Chaque élément de `grid_y_starts` donne le `grid_y` de départ correspondant à une direction ; la relation positionnelle est `grid_y_starts[i] ↔ directions[i]`. L'expansion verticale requise par le `frame_size` est dérivée AOT.
 
 ### Rôles du `BucketId` : réalisation et cible
 
@@ -138,7 +146,8 @@ ResolutionContext
 ```
 
 - `AnimationAction` est toujours présent et constitue l'intention d'action demandée ;
-- `DriverEquipmentId` est optionnel et désigne l'équipement actif — typiquement une arme ou un outil — capable d'influencer le contexte cinématique ;
+- `DriverEquipmentId` est optionnel conceptuellement et désigne l'équipement actif — typiquement une arme ou un outil — capable d'influencer le contexte cinématique ;
+- lorsqu'aucun équipement conducteur n'est présent, l'absence est **normalisée AOT en `DriverEquipmentId = none`** pour les clés et matrices matérialisées ; `none` est une valeur de domaine, pas un sentinel runtime ;
 - **`TargetBucket` n'appartient pas au contexte d'entrée par défaut** : il est normalement dérivé après sélection des réalisations physiques ;
 - `TargetBucket` peut toutefois être fourni comme information déjà établie lorsqu'une résolution `by_bucket` l'exige.
 
@@ -211,7 +220,7 @@ LocalizationContract
     = localisation physique de cette réalisation
 ```
 
-La localisation contient notamment les `rows` / `grid_y` de départ. Elle ne redéfinit ni le `Profile`, ni le `RealizationBucket`, ni le `TargetBucket`.
+La localisation contient notamment les `grid_y_starts`, c'est-à-dire les `grid_y` de départ de chaque direction. Elle ne redéfinit ni le `Profile`, ni le `RealizationBucket`, ni le `TargetBucket`.
 
 ### Cas des CompositionProfiles
 
@@ -233,6 +242,14 @@ PhysicalRealization C
 ```
 
 La localisation de C n'est jamais héritée de `slash`.
+
+**Réutilisation physique explicite** : lorsqu'un `CompositionProfile` réordonne le
+pool d'un `source_extraction` sans disposer d'un bloc physique dédié dans un
+asset donné, une `PhysicalRealization` distincte du `CompositionProfile` peut
+réutiliser **exactement** la région physique de la réalisation de son
+`source_extraction`. Cette congruence doit être déclarée explicitement ; elle ne
+constitue pas un héritage implicite de localisation. La règle de congruence des
+empreintes physiques (§4) autorise précisément ce cas.
 
 ### Désignations `_128` / `_192`
 
@@ -294,7 +311,7 @@ Deux `FrameSequence` ne peuvent donc être dédupliquées que si leur contenu et
 - Le `BucketId` est **orthogonal** au `Profile`.
 - Le même `Profile` peut être réalisé physiquement dans plusieurs buckets.
 - Toutes les frames d'un même bucket ont même taille, même **centre géométrique d'alignement AOT**.
-- Dans le **layout LPC Character**, la région Small historique occupe `grid_y 0–53` ; les réalisations oversized observées commencent à `grid_y 54`. Aucun ordre global des buckets oversized n'est imposé par le paradigme.
+- Dans le **layout LPC Character**, la grille de base Small occupe `grid_y 0–53` ; les réalisations oversized observées commencent à `grid_y 54`. Aucun ordre global des buckets oversized n'est imposé par le paradigme.
 - Corps, cheveux, vêtements, armures et boucliers observés utilisent des réalisations **Small** ; ils peuvent ensuite être composés dans un `TargetBucket` Medium ou Large.
 - Les armes et outils peuvent fournir des réalisations Small, Medium ou Large et sont les équipements conducteurs du `TargetBucket`.
 
@@ -338,9 +355,15 @@ La classification des éléments visuels selon leur capacité à piloter une ré
 
 **Règle normative** : tous les layers constitutifs du personnage participent à la composition AOT. Le fait qu'un layer soit non conducteur ne signifie jamais qu'il est absent de l'animation. Il signifie uniquement qu'il ne pilote pas la résolution cinématique et n'impose pas de promotion de bucket.
 
-**Le bouclier est un non-conducteur**. Sa réalisation physique observée reste Small ; ses règles particulières concernent sa position dans la stack selon la direction (§11), pas la résolution du `Profile` ou du `TargetBucket`.
+**Le bouclier est un non-conducteur**. Sa réalisation physique observée reste Small ; sa profondeur de rendu selon la direction relève de la **topologie de rendu LPC** (§11), pas de la résolution du `Profile` ou du `TargetBucket`.
 
 La classification cinématique **conducteur / non-conducteur** et la topologie de rendu (`LayerId`, ordre de stack, positions `behind/front`) sont donc deux dimensions indépendantes. Une couche peut avoir un rôle de rendu particulier sans devenir pour autant un `DriverEquipmentId`.
+
+### Topologie de rendu LPC — constante de pipeline
+
+Le pipeline possède une **topologie de rendu LPC canonique** : ordre d'empilement des layers et règle directionnelle de profondeur du bouclier. Cette topologie est une propriété du pipeline/renderer LPC ; elle n'est ni une propriété sémantique de `Profile`, ni une donnée de localisation physique, ni une convention à inférer depuis les pixels.
+
+Le fait qu'une règle soit fixe au niveau du pipeline ne constitue donc pas une exception au principe « Aucune convention implicite » applicable aux données d'assets. La topologie est **explicite dans le paradigme**, même si son implémentation peut être une constante du moteur et non une donnée YAML.
 
 ### Distinction normative — `DriverEquipmentId` vs équipements non conducteurs
 
@@ -352,7 +375,7 @@ La classification cinématique **conducteur / non-conducteur** et la topologie d
 - fournir une ou plusieurs `PhysicalRealization` de buckets `Small`, `Medium` ou `Large` ;
 - contribuer ainsi à la dérivation du `TargetBucket`.
 
-À l'inverse, les équipements et couches **non conducteurs** participent bien à l'animation courante, mais **ne modifient ni la résolution sémantique du `Profile`, ni le `TargetBucket`**. Dans le corpus LPC visé ici, ils restent physiquement dans le format historique **Small (64×64)** et sont simplement composés dans le canvas du `TargetBucket` courant.
+À l'inverse, les équipements et couches **non conducteurs** participent bien à l'animation courante, mais **ne modifient ni la résolution sémantique du `Profile`, ni le `TargetBucket`**. Dans le corpus LPC visé ici, ils restent physiquement dans le format Small de base **(64×64)** et sont simplement composés dans le canvas du `TargetBucket` courant.
 
 Cela inclut notamment :
 
@@ -440,16 +463,16 @@ La présence d’une réalisation Large dans le même équipement ne provoque do
 - Dans la grid, un **row logique** (une direction) consomme 1, 2 ou 3 **`grid_y` successifs**, selon le `RealizationBucket` : 64 → 1, 128 → 2, 192 → 3.
 - La présence d’un `grid_y` dans le canvas ne signifie pas qu’un contenu graphique utile y est présent.
 
-### Région Small historique — `grid_y 0–53`
+### Grille de base Small — `grid_y 0–53`
 
-Dans le **layout LPC Character**, la région physique `grid_y 0–53` constitue le **socle historique Small**. Les observations comparatives de nombreux PNG confirment la persistance de cette même région physique et de cette même convention de coordonnées d’un asset à l’autre.
+Dans le **layout LPC Character**, `grid_y 0–53` constitue la **grille de base Small** : une région spatiale organisée selon le gabarit standard 64×64 du personnage. Cette appellation décrit la structure physique et son repère ; elle ne qualifie ni la date d’apparition ni l’origine historique des contenus graphiques.
 
-**Important : la similarité porte sur la région physique et son repère, pas sur le contenu graphique.** Un PNG de base peut remplir largement cette région ; un asset spécialisé peut n’y exposer qu’un sous-ensemble de profils ; un autre peut laisser toute cette région transparente.
+**Important : la grille de base désigne une région physique et son repère, pas un contenu graphique invariant.** Un PNG de base peut remplir largement cette région ; un asset spécialisé peut n’y exposer qu’un sous-ensemble de profils ; un autre peut laisser toute cette région transparente. Un asset peut également conserver cette grille de base tout en ajoutant, ailleurs dans le PNG, des réalisations Medium ou Large de profils déjà présents dans cette grille de base.
 
 Exemples observés :
 
 ```
-PNG base historique
+PNG de base
   grid_y 0–53 → nombreuses réalisations Small
 
 PNG trident
@@ -474,7 +497,7 @@ Un PNG peut contenir :
 - plusieurs réalisations d’un même `BucketId` ;
 - plusieurs `Profile` distincts dans une même région de bucket ;
 - des zones transparentes ou sans contenu exploité ;
-- des profils Small partiellement présents au sein de la région historique `0–53`.
+- des profils Small partiellement présents au sein de la grille de base `0–53`.
 
 Les frontières physiques observées ne définissent pas, à elles seules, une identité de `Profile`. Le contrat d'équipement déclare quelles réalisations et localisations physiques le pipeline choisit d'exploiter.
 
@@ -496,7 +519,7 @@ où `frame_size` est déduit du **`RealizationBucket`** de la réalisation physi
 
 Les frames sources sont donc contiguës horizontalement, sans padding entre elles. La position horizontale n'est pas déclarée dans les YAML : elle est dérivée de l'indice local `i` et du `RealizationBucket`.
 
-Ainsi, `rows` porte la localisation verticale (`grid_y`) de chaque direction, tandis que l'indice de frame porte sa localisation horizontale.
+Ainsi, `grid_y_starts` porte la localisation verticale (`grid_y`) de départ de chaque direction, tandis que l'indice de frame porte sa localisation horizontale.
 
 ### Extensibilité à d'autres gabarits
 
@@ -505,7 +528,8 @@ Ainsi, `rows` porte la localisation verticale (`grid_y`) de chaque direction, ta
 - **Frame sizes** : tout multiple entier de la grid_cell de base.
 - **ExtractionProfiles** extensibles.
 - **Layouts physiques** : chaque famille d'assets peut définir son propre layout physique. Le layout LPC Character décrit ici n'est qu'un cas particulier. Un PNG peut n'exploiter qu'un sous-ensemble de ses régions physiques ; une zone transparente reste néanmoins présente dans le canvas.
-- **Aucune convention implicite** : chaque YAML déclare explicitement ses valeurs.
+- **Topologie de rendu** : la topologie d'empilement et les règles directionnelles de profondeur peuvent être propres à un pipeline donné. Pour le corpus étudié ici, la topologie de rendu LPC et la règle directionnelle du bouclier sont des constantes explicites du pipeline/renderer LPC ; elles ne sont pas inférées depuis les PNG.
+- **Aucune convention implicite sur les données d'assets** : chaque YAML déclare explicitement les valeurs dont il est responsable. Les constantes de topologie du renderer LPC sont documentées séparément comme des règles de pipeline.
 
 **Cas particulier — créatures à animation unique** : 1 direction, 1 frame, sans séquence custom. Elles suivent la même normalisation AOT que toute autre animation mono-directionnelle destinée au runtime.
 
@@ -519,7 +543,7 @@ Ainsi, `rows` porte la localisation verticale (`grid_y`) de chaque direction, ta
 
 - quelle **PhysicalRealization** a été sélectionnée pour le layer courant ;
 - quel **`RealizationBucket`** lui correspond ;
-- quelles **rows** logiques la localisent ;
+- quels **`grid_y_starts`** la localisent ;
 - quel **nombre de frames source** (`frame_count`, fourni par le `Profile` canonique).
 
 Le `TargetBucket` ne détermine donc **pas** la taille intrinsèque de la source extraite. Il appartient au contexte final de composition.
@@ -531,14 +555,16 @@ Le `TargetBucket` ne détermine donc **pas** la taille intrinsèque de la source
 - une **séquence ordonnée** d'indices,
 - qui peut **répéter**, **sauter**, **réordonner**, ou toute combinaison équivalente.
 
-### Les trois YAML
+### Les déclarations YAML
 
 **1. YAML canonique d'animations** — un seul, liste les `Profile` sémantiques du corpus.
 
 Chaque entrée porte, selon son type :
 
-- **`ExtractionProfile`** : `name`, `type`, `frame_count`, `directions`, `sequence` (optionnel), `aliases` (optionnel).
-- **`CompositionProfile`** : `name`, `type`, `source_extraction`, `sequence`, `aliases` (optionnel).
+- **`ExtractionProfile`** : `name`, `type`, `frame_count`, `directions`, `sequence` (optionnel).
+- **`CompositionProfile`** : `name`, `type`, `source_extraction`, `sequence`.
+
+**La notion d'`aliases` n'existe pas dans le paradigme.** Une identité de `Profile` est canonique et unique ; aucun nom secondaire n'est autorisé dans le schéma.
 
 Un `CompositionProfile` **ne redéclare jamais** `frame_count` ni `directions` : ces propriétés sont héritées de son `source_extraction`.
 
@@ -556,17 +582,17 @@ LocalizationContract
 ├── applies_to
 └── realizations[]
        ├── realization_id
-       ├── rows
+       ├── grid_y_starts
        └── optional
 ```
 
-Le contrat **ne porte pas `realization_bucket`**. Le bucket appartient à la `PhysicalRealization` définie au niveau du build manifest / asset registry.
+Le contrat **ne porte pas `realization_bucket`**. Le bucket appartient à la `PhysicalRealization` déclarée par le `build_manifest.yaml` et matérialisée dans l'`AssetRegistry`.
 
 Le contrat ne définit pas non plus le `TargetBucket` final.
 
-### Build manifest / asset registry
+### `build_manifest.yaml` et `AssetRegistry`
 
-Le build manifest / asset registry constitue la déclaration globale de l'existence et de la topologie des PhysicalRealization.
+`build_manifest.yaml` est l'**artefact déclaratif source** qui décrit globalement l'existence et la topologie des `PhysicalRealization`. L'`AssetRegistry` est la **représentation logique normalisée du build** produite à partir de ce manifeste et des données d'assets ; ce ne sont pas deux sources de vérité concurrentes.
 
 Une entrée conceptuelle contient au minimum :
 
@@ -587,17 +613,17 @@ DriverEquipmentId
     → RealizationBucket disponibles
 ```
 
-**Invariant** : une `RealizationId` identifie une seule **occurrence déclarative** d'un `Profile` pour un `source asset`, un `LayerId` / une topologie et un `RealizationBucket` donnés. Les coordonnées `rows` n'entrent pas dans l'identité sémantique du `Profile` ; elles appartiennent au contrat de localisation.
+**Invariant** : une `RealizationId` identifie une seule **occurrence déclarative** d'un `Profile` pour un `source asset`, un `LayerId` / une topologie et un `RealizationBucket` donnés. Les coordonnées de localisation n'entrent pas dans l'identité sémantique du `Profile` ; elles appartiennent au contrat de localisation.
 
-ainsi que la classification `overlay` / `variant`.
+Le manifeste porte également la classification `overlay` / `variant`.
 
-Le manifest **ne porte pas les `rows`** : celles-ci restent dans le contrat de localisation.
+Le manifeste **ne porte pas les `grid_y_starts`** et **ne porte pas l'optionalité contractuelle** : ces informations restent dans les contrats de localisation.
 
 ### Séparation des responsabilités
 
-**Principe de responsabilité** : le build manifest / asset registry ne connaît pas un `TargetBucket` final par équipement ; il fournit les réalisations physiques et leurs `RealizationBucket`, à partir desquels l'AOT dérive le `TargetBucket` pour chaque `ResolutionContext` effectivement matérialisé.
+**Principe de responsabilité** : le `build_manifest.yaml` ne connaît pas un `TargetBucket` final par équipement ; il fournit les réalisations physiques et leurs `RealizationBucket`, que l'`AssetRegistry` normalise pour permettre à l'AOT de dériver le `TargetBucket` pour chaque `ResolutionContext` effectivement matérialisé.
 
-| Information | Profile canonique | Build manifest / asset registry | Contrat d'équipement | YAML de résolution |
+| Information | Profile canonique | Build manifest | Contrat d'équipement | YAML de résolution |
 |---|---:|---:|---:|---:|
 | `Profile` | ✔ | référence | référence indirecte | cible |
 | `frame_count`, `directions` | ✔ | — | — | — |
@@ -605,8 +631,8 @@ Le manifest **ne porte pas les `rows`** : celles-ci restent dans le contrat de l
 | `RealizationId` | — | ✔ | référence | — |
 | source asset | — | ✔ | sélectionné par matching | — |
 | `RealizationBucket` | — | ✔ | — | — |
-| `rows` | — | — | ✔ | — |
-| optionalité de la réalisation | — | existence/topologie | ✔ | — |
+| `grid_y_starts` | — | — | ✔ | — |
+| optionalité de la réalisation | — | — | ✔ | — |
 | `AnimationAction` | — | — | — | ✔ |
 | `TargetBucket` | — | fournit les `RealizationBucket` nécessaires à sa dérivation AOT | — | donnée de contexte dérivée |
 
@@ -626,20 +652,20 @@ Le build doit pouvoir référencer une même identité sémantique depuis plusie
 - `Medium` → 128×128 ;
 - `Large` → 192×192.
 
-Pour une réalisation donnée, chaque élément de `rows` représente le **`grid_y` de départ** d'une direction logique. Les `grid_y` supplémentaires sont déduits de `frame_size / grid_cell` : 1, 2 ou 3.
+Pour une réalisation donnée, chaque élément de `grid_y_starts` représente le **`grid_y` de départ** d'une direction logique. Les `grid_y` supplémentaires sont déduits de `frame_size / grid_cell` : 1, 2 ou 3.
 
-### Cohérence `rows` ↔ `directions`
+### Cohérence `grid_y_starts` ↔ `directions`
 
 Les deux listes sont **parallèles** :
 
 ```text
-rows[i] ↔ directions[i]
+grid_y_starts[i] ↔ directions[i]
 ```
 
 avec :
 
 ```text
-len(rows) == len(directions)
+len(grid_y_starts) == len(directions)
 ```
 
 Sinon → **erreur de build**.
@@ -659,6 +685,18 @@ Aucune priorité ou fusion implicite entre contrats n'est autorisée.
 ### Sélection physique déclarative
 
 La sélection physique est une opération de build, pas une résolution runtime.
+
+### Cohérence des empreintes physiques
+
+Pour comparer deux `PhysicalRealization` dans un même `source asset` et une même topologie de layer, le build considère leur **empreinte d'extraction complète** : positions horizontales dérivées de `frame_count × frame_size` et positions verticales dérivées de `grid_y_starts` et de la hauteur de `frame_size`.
+
+- empreintes disjointes → valides ;
+- empreintes exactement congruentes → valides si les deux identités déclaratives sont distinctes et réutilisent volontairement la même région physique ;
+- intersection partielle → **erreur de build**.
+
+Cette règle interdit qu'une ambiguïté de découpage apparaisse silencieusement lors de l'extraction.
+
+Cette validation est scopée à une même combinaison **`source asset` + topologie de layer**. Un chevauchement géométrique entre layers distincts peut être légitime : il relève alors de la superposition de couches et non d'une collision de découpages au sein d'une même topologie.
 
 Le modèle conceptuel est :
 
@@ -725,13 +763,13 @@ applies_to:
   path_prefix: "textures/characters/"
 
 realizations:
-  - realization_id: "base-slash-small"
+  - realization_id: "base-slash"
     optional: false
-    rows: [12, 13, 14, 15]
+    grid_y_starts: [12, 13, 14, 15]
 
-  - realization_id: "base-thrust-small"
+  - realization_id: "base-thrust"
     optional: false
-    rows: [4, 5, 6, 7]
+    grid_y_starts: [4, 5, 6, 7]
 ```
 
 **Aucun `realization_bucket` n'est déclaré ici.** Il provient de la `PhysicalRealization` référencée.
@@ -750,7 +788,7 @@ Le paradigme ne fixe **aucune numérotation réservée** : l'AOT maintient la co
 
 **Règle 0** — pour toute `sequence`, chaque indice local `i` doit satisfaire `0 ≤ i < frame_count`. Sinon → erreur de build.
 
-**Règle 1** — chaque `RealizationId` référencé par un contrat doit exister dans le build manifest / asset registry. Sinon → erreur de build.
+**Règle 1** — chaque `RealizationId` référencé par un contrat doit exister dans le `build_manifest.yaml`. Sinon → erreur de build.
 
 **Règle 2** — chaque `Profile` utilisé par une `PhysicalRealization` doit exister dans le YAML canonique. Sinon → erreur de build.
 
@@ -765,6 +803,8 @@ Le paradigme ne fixe **aucune numérotation réservée** : l'AOT maintient la co
 **Règle 7** — une réalisation sélectionnée doit satisfaire `RealizationBucket ≤ TargetBucket`. Sinon → erreur de build.
 
 **Règle 8** — `optional: true` ne peut être déclaré que pour une `RealizationId` explicitement référencée par le contrat.
+
+**Règle 9** — pour un même `source asset` et une même topologie de layer, les **empreintes physiques d'extraction** de deux `PhysicalRealization` doivent être soit disjointes, soit exactement congruentes. Une congruence exacte est autorisée lorsqu'une même région physique est réutilisée par plusieurs identités déclaratives distinctes ; elle ne fusionne pas leurs `RealizationId`. Toute intersection partielle → **erreur de build**.
 
 ## 5. Vocabulaire LPC vs vocabulaire interne
 
@@ -793,6 +833,8 @@ Le paradigme ne fixe **aucune numérotation réservée** : l'AOT maintient la co
 - **Toutes les frames ont la même durée.**
 - **Toute animation mono-directionnelle destinée au runtime est normalisée AOT sur les quatre directions canoniques par référencement de la même `FrameSequence`, y compris le cas des créatures à animation unique.**
 - Tenir une pose = **répéter la frame** dans la séquence.
+
+**Portée de l'invariant de timing** : l'uniformité de durée est une règle du paradigme ; la **valeur numérique de cette durée** et sa configuration concrète sont hors-scope de cette version.
 
 ### Politique de boucle — résolue AOT
 
@@ -859,6 +901,7 @@ Invariant calibré pour le gameplay (séquences ≤ 13 frames). Cinématiques lo
 | `watering` | `thrust` | `[0,1,4,4,4,4,5]` |
 | `tool_whip` | `slash` | `[0,1,2,3,4,5]` |
 | `tool_axe` | `slash` | `[5,5,4,4,3,1,0,0,0,0]` |
+| `tool_hammer` | `slash` | `[5,5,4,4,1,0,0,0,0]` |
 | `slash_reverse` | `slash` | `[5,4,3,2,1,0]` |
 | `tool_hoe` | `slash` | à préciser (YAML) |
 | `tool_shovel` | `slash` | à préciser (YAML) |
@@ -876,7 +919,7 @@ Invariant calibré pour le gameplay (séquences ≤ 13 frames). Cinématiques lo
 | `thrust` | `thrust` | — | `thrust_192` |
 | `slash` | `slash` | `slash_128` | `slash_192` |
 
-### Rows LPC canoniques (0-based) — région Small historique
+### Rows LPC canoniques (0-based) — grille de base Small
 
 | ExtractionProfile | rows (logiques) | Nb rows |
 |---|---|---|
@@ -896,7 +939,7 @@ Invariant calibré pour le gameplay (séquences ≤ 13 frames). Cinématiques lo
 | `1h_slash` | 46–49 | 4 (écarté) |
 | `1h_backslash` | 50–53 | 4 (écarté) |
 
-### Blocs / réalisations physiques — exemples trident et Longsword
+### Blocs / réalisations physiques — exemples trident, Longsword et Bow Recurve
 
 | Réalisation physique | PNG | grid_y observés | frame_size (déduit) |
 |---|---|---|---|
@@ -905,8 +948,9 @@ Invariant calibré pour le gameplay (séquences ≤ 13 frames). Cinématiques lo
 | `slash_192` | longsword | 54–65 | 192×192 |
 | `slash_reverse_192` | longsword | 66–77 | 192×192 |
 | `thrust_192` | longsword | 78–89 | 192×192 |
+| `walk_128` | bow_recurve | 54–61 | 128×128 |
 
-**Note critique** : **dans le layout LPC Character**, la **région Small (`grid_y` 0–53) est commune comme région physique et repère**. Son contenu peut toutefois varier selon l'asset, y compris être entièrement transparent. **La zone des réalisations oversized commence au `grid_y` 54.** Ces valeurs sont **spécifiques à ce layout**, pas des invariantes générales du pipeline AOT.
+**Note critique** : **dans le layout LPC Character**, la **grille de base Small (`grid_y` 0–53) est commune comme région physique et repère**. Son contenu peut toutefois varier selon l'asset, y compris être entièrement transparent. Des réalisations Medium ou Large de profils déjà présents dans cette grille de base peuvent également apparaître dans le même PNG, comme `walk_128` sur `bow_recurve`. **La zone des réalisations oversized commence au `grid_y 54`** dans ce layout. Ces valeurs sont **spécifiques à ce layout**, pas des invariantes générales du pipeline AOT.
 
 ### Profils écartés
 
@@ -942,16 +986,16 @@ AnimationAction
 ├── (au plus un axe de sélection parmi :)
 │   ├── by_equipment
 │   └── by_bucket
-└── default (repli)
+└── default (résolution par défaut)
 ```
 
-**Invariant d'axe de résolution** : pour une `AnimationAction` donnée, la résolution déclare **au plus un axe de sélection** parmi `by_equipment` et `by_bucket`. La présence simultanée des deux axes constitue une **erreur de build**. `default` n'est pas un axe de variation : il constitue la résolution par défaut.
+**Invariant d'axe de résolution** : pour une `AnimationAction` donnée, la résolution déclare **au plus un axe de sélection** parmi `by_equipment` et `by_bucket`. La présence simultanée des deux axes constitue une **erreur de build**. `default` n'est pas un axe de variation : il constitue la résolution par défaut. Lorsque `DriverEquipmentId = none` et qu'aucune entrée `by_equipment` ne correspond, la résolution tombe sur `default`. Un `DriverEquipmentId` inconnu du catalogue constitue en revanche une incohérence de déclaration et ne doit pas être silencieusement assimilé à `none`.
 
 **Résolution sémantique** : une entrée `AnimationAction` résout le `Profile` demandé à partir du `ResolutionContext`. Le paradigme n'introduit pas de qualification spécialisée propre à `attack`. Une pluralité de cinématiques est représentée, lorsque le gameplay en a besoin, par plusieurs `AnimationAction` sémantiquement distinctes.
 
 **Rôle de `by_equipment`** : `by_equipment` permet de faire dépendre le `Profile` de `DriverEquipmentId`. Il peut donc participer à l'établissement de la résolution sémantique du contexte.
 
-**Rôle de `by_bucket`** : `by_bucket` reste un mécanisme sémantique dérivé. Il sélectionne un `Profile` à partir d'un `TargetBucket` **déjà établi indépendamment**. Il ne sélectionne jamais une `PhysicalRealization` et ne référence jamais `walk_128`, `walk_192`, `slash_192`, etc.
+**Rôle de `by_bucket`** : `by_bucket` est un mécanisme **expérimental et réservé**. Il sélectionne un `Profile` à partir d'un `TargetBucket` **déjà établi indépendamment**. Il ne sélectionne jamais une `PhysicalRealization` et ne référence jamais `walk_128`, `walk_192`, `slash_192`, etc. **Il n'est pas instancié dans le corpus YAML de référence courant.**
 
 ### Résolution en deux étapes
 
@@ -1013,7 +1057,7 @@ La règle est :
 >1 candidate → erreur de build
 ```
 
-Une implémentation peut naturellement indexer cette sélection via le build manifest / asset registry ; le paradigme n'impose pas de structure logicielle particulière.
+Une implémentation peut naturellement indexer cette sélection via l'`AssetRegistry` ; le paradigme n'impose pas de structure logicielle particulière.
 
 ### Note terminologique
 
@@ -1162,11 +1206,11 @@ TargetBucket → PhysicalRealization → TargetBucket
 
 Le cas nominal des actions utilisant `default` ou `by_equipment` ne présente pas cette circularité : le `Profile` est d’abord résolu à partir du `ResolutionContext`, puis les réalisations physiques sont sélectionnées, puis le `TargetBucket` est calculé.
 
-`by_bucket` reste un mécanisme de résolution sémantique, mais il est **dérivé** et non fondateur du contexte : il n’est valide que lorsque le `TargetBucket` dont il dépend a déjà été établi indépendamment.
+`by_bucket` reste donc un mécanisme de résolution **réservé à une extension future** : aucun cas métier canonique du corpus actuel n'en dépend.
 
 ### Test de non-régression — `walk + longsword`
 
-Le cas concret qui motive v1.3.2 doit désormais produire :
+Le cas concret historique qui a motivé la dérivation du `TargetBucket` doit désormais produire :
 
 ```text
 AnimationAction = walk
@@ -1250,7 +1294,7 @@ Un effet visuel peut être traité de **deux manières** :
 - **Layer séparé** : l'asset constitue un `LayerId` distinct et est généré indépendamment.
 - **Variante d'un layer existant** : l'asset constitue une réalisation alternative d'un `LayerId` existant et reste dans le scope de génération et de déduplication de ce layer.
 
-**Règle de classification** : la distinction `overlay` / `variant` est une **propriété déclarative du build manifest / asset registry**. Elle n'est **pas déduite du contenu des pixels du PNG**.
+**Règle de classification** : la distinction `overlay` / `variant` est une **propriété déclarative du `build_manifest.yaml`** ; l’`AssetRegistry` en porte la représentation normalisée au build. Elle n'est **pas déduite du contenu des pixels du PNG**.
 
 ### Déduplication et génération — quatre notions distinctes
 
@@ -1260,6 +1304,8 @@ Un effet visuel peut être traité de **deux manières** :
 | **Clé de génération AOT** | `(LayerId, TargetBucket, AnimationAction, Direction, DriverEquipmentId)` — limitée aux couples valides. |
 | **Identité de déduplication** | `(contenu ordonné des frames, next_sequence_id)`. |
 | **Clé d'adressage runtime** | La matrice finale `[LayerId][TargetBucket][AnimationAction][Direction][DriverEquipmentId] → SequenceId`. |
+
+Pour une absence d'équipement conducteur, `DriverEquipmentId = none` dans la clé AOT finale. Il n'existe pas de clé `null` dans l'espace généré.
 
 **Anti-explosion combinatoire** : l'AOT **n'itère pas** sur les combinaisons de layers. Chaque layer est traité indépendamment.
 
@@ -1336,7 +1382,7 @@ L'AOT fige la topologie spatiale, ordinale et structurelle. Le runtime reste ma�
 
 ### Contextualisation des contrats
 - L'AOT **ne fusionne jamais** les contrats. §4
-- Un même `Profile` peut apparaître dans plusieurs réalisations physiques et plusieurs contrats, avec des `rows` propres à chaque `RealizationBucket`. §4
+- Un même `Profile` peut apparaître dans plusieurs réalisations physiques et plusieurs contrats, avec des `grid_y_starts` propres à chaque `RealizationBucket`. §4
 - Un `CompositionProfile` ne porte **pas** de coordonnées physiques intrinsèques ; une réalisation physique de ce profil peut être localisée indépendamment du `source_extraction`. §2, §4
 - 0 contrat applicable → erreur ; 1 contrat → résolution normale ; >1 → erreur d'ambiguïté. §4
 
@@ -1365,7 +1411,7 @@ L'AOT fige la topologie spatiale, ordinale et structurelle. Le runtime reste ma�
 - `source_size` désigne la dimension intrinsèque de la réalisation physique ; `TargetBucketSize` la dimension de la frame finale ; `frame_size` dérive du `RealizationBucket`. §9
 - **Origine physique par défaut : `x = 0`.** §3
 - **Position horizontale** : pour l'indice local `i`, `x(i) = i × frame_size`, sans padding horizontal. §3, §4
-- **Correspondance positionnelle** : `rows[i] ↔ directions[i]`. §4
+- **Correspondance positionnelle** : `grid_y_starts[i] ↔ directions[i]`. §4
 
 ### Composition dans le bucket
 - Un layer n'est **jamais redimensionné** pour le bucket. §3, §9
@@ -1379,19 +1425,19 @@ L'AOT fige la topologie spatiale, ordinale et structurelle. Le runtime reste ma�
 
 ### Équipement
 - `DriverEquipmentId` identifie l’équipement actif — arme ou outil — qui peut piloter le contexte cinématique ; il ne détermine pas directement le `TargetBucket`, lequel est dérivé des réalisations effectivement sélectionnées. §4
-- Le build manifest / asset registry associe `DriverEquipmentId` aux réalisations physiques d'équipement et à leurs `RealizationBucket` disponibles ; le YAML d'équipement reste scopé à la localisation physique. §4
+- Le `build_manifest.yaml` associe `DriverEquipmentId` aux réalisations physiques d'équipement et à leurs `RealizationBucket` disponibles ; l’`AssetRegistry` en porte la représentation normalisée, tandis que le YAML d’équipement reste scopé à la localisation physique. §4
 - Le `DriverEquipmentId` peut établir le contexte cinématique commun ; chaque layer peut utiliser une réalisation physique distincte du `Profile` résolu. Le `TargetBucket` est ensuite dérivé des réalisations effectivement sélectionnées. §4, §8, §9
 - Le bouclier est un équipement visuel auxiliaire, sans impact sur la cinématique ni sur le `TargetBucket`. §3
-- Les assets de bouclier observés restent au format Small du layout historique. §3
+- Les assets de bouclier observés restent au format Small de la grille de base. §3
 - Jamais de dual wield. §3
-- Bouclier : position variable selon direction. §11 (voir ci-dessous)
+- Bouclier : position variable selon direction. §11
 
 ### YAML et validation
-- **Trois YAML distincts** : canonique + équipement + résolution. §4
+- **Trois catégories fonctionnelles de déclarations YAML** : canonique + contrats d’équipement/localisation + résolution ; `build_manifest.yaml` porte la déclaration globale des réalisations physiques. §4
 - `frame_size` déduit du `RealizationBucket`. §4
 - CompositionProfiles héritent `frame_count` et `directions` de leur `source_extraction`. §4
 - `RealizationId` manquant ou inconnu → erreur. Cible de résolution inexistante → erreur. Ambiguïté de contrat ou de sélection physique → erreur. `by_equipment` et `by_bucket` simultanément dans une même action → erreur. Le YAML de résolution constitue la déclaration du vocabulaire `AnimationAction`. §4, §8
-- `tool_whip` et `tool_axe` dérivent de `slash`. §4
+- `tool_whip`, `tool_axe` et `tool_hammer` dérivent de `slash`. §4
 - Le YAML canonique est une **déclaration d'intentions**, pas une description physique. §12
 
 ### Politique de boucle
@@ -1460,7 +1506,7 @@ L'AOT fige la topologie spatiale, ordinale et structurelle. Le runtime reste ma�
 | `left` | Devant |
 | `right` | Devant |
 
-**Note** : l'exception bouclier est **codée en dur** dans le pipeline AOT.
+**Note** : la règle directionnelle du bouclier est une **constante de la topologie de rendu LPC**. Elle est normative et explicite dans le paradigme, mais ne constitue pas une donnée de contrat d'animation et n'a pas vocation à être répétée dans chaque YAML.
 
 ---
 
@@ -1472,13 +1518,14 @@ L'AOT fige la topologie spatiale, ordinale et structurelle. Le runtime reste ma�
 |---|---|---|
 | **PNG** | Vérité des pixels, canvas, `grid_y`, frames | **Autoritaire absolue** |
 | **YAML canonique** | Déclaration d'intentions d'animation (`Profile`) | Autoritaire pour nos intentions |
-| **Build manifest / asset registry** | Existence, identité et topologie des `PhysicalRealization` | Autoritaire |
+| **`build_manifest.yaml`** | Déclaration de l'existence, de l'identité et de la topologie des `PhysicalRealization` | Autoritaire |
+| **`AssetRegistry`** | Représentation logique normalisée du build manifest pour les étapes AOT | Dérivée du manifest |
 | **YAML d'équipement** | Localisation physique des `RealizationId` dans les assets | Autoritaire pour nos intentions |
 | **YAML de résolution** | Mapping `AnimationAction` ↔ `Profile` | Autoritaire pour nos intentions |
 
 Règle : `Asset utilisé = déclaré au build ∩ présent sur disque ∩ correctement localisé par le YAML applicable`. Toute divergence = **erreur de build**.
 
-Le **build manifest / asset registry** porte les relations globales qui ne relèvent pas de la localisation physique des PNG :
+Le **`build_manifest.yaml`** porte les relations globales qui ne relèvent pas de la localisation physique des PNG ; l'**`AssetRegistry`** en constitue ensuite la représentation normalisée :
 
 ```text
 DriverEquipmentId
@@ -1497,8 +1544,8 @@ Il porte également la classification `overlay` / `variant`.
 **Précision sur la portée PNG vs YAML** :
 - Le PNG fixe le **canvas physique et les pixels qu'il contient** (`grid_x`, `grid_y`, `grid_cells`). Une zone transparente reste physiquement présente sans constituer automatiquement une réalisation exploitable.
 - Le YAML canonique dit **ce que nous voulons** que les animations soient.
-- Le build manifest / asset registry dit **quelles réalisations physiques existent dans le modèle de build**.
-- Le YAML d'équipement dit **où chercher physiquement une réalisation donnée** (en `rows` / `grid_y`) ; il ne définit ni le `RealizationBucket` ni le `TargetBucket`.
+- Le `build_manifest.yaml` dit **quelles réalisations physiques existent dans le modèle de build** ; l'`AssetRegistry` reprend cette déclaration sous une forme normalisée.
+- Le YAML d'équipement dit **où chercher physiquement une réalisation donnée** (via `grid_y_starts`) ; il ne définit ni le `RealizationBucket` ni le `TargetBucket`.
 - Le YAML de résolution ne choisit jamais une réalisation physique.
 - Si le YAML de localisation contredit le PNG, **erreur de build**.
 
@@ -1550,12 +1597,13 @@ est donc normative. L'absence est déterminée par la déclaration/topologie de 
 - ✔ La réalisation Medium observée de `walk` sur le Trident contient 9 frames source (héritées du `ExtractionProfile` `walk`).
 - ✔ PNG trident : `grid_y 0–53` présent physiquement mais transparent ; réalisation Medium `54–61` ; réalisation Large `62–73`.
 - ✔ PNG longsword : réalisation Small `walk` `8–11`, réalisation Small `hurt` `20`, réalisation Large `slash` `54–65`, réalisation Large `slash_reverse` `66–77`, réalisation Large `thrust` `78–89`.
+- ✔ PNG bow_recurve : réalisation Medium `walk` `54–61`, contenant 9 frames source et utilisant la séquence `[1, 2, 3, 4, 5, 6, 7, 8]` du `Profile` canonique `walk`.
 - ✔ Les blocs Longsword `slash`, `slash_reverse` et `thrust` sont contigus ; il n'y a **pas** de padding `grid_y 78–80`.
-- ✔ Les assets de bouclier observés restent au format Small du layout historique.
-- ✔ `tool_whip` et `tool_axe` dérivent de `slash`.
+- ✔ Les assets de bouclier observés restent au format Small de la grille de base.
+- ✔ `tool_whip`, `tool_axe` et `tool_hammer` dérivent de `slash`.
 - ✔ Alignement par centre géométrique, validé visuellement.
 - ✔ Ordre d'empilement canonique, validé visuellement.
-- ✔ Exception bouclier selon direction, validée visuellement.
+- ✔ Exception de profondeur du bouclier selon direction, validée visuellement ; règle portée par la topologie de rendu LPC.
 
 ### Décidé (design)
 
@@ -1575,33 +1623,33 @@ est donc normative. L'absence est déterminée par la déclaration/topologie de 
 - ✔ Pivot d'ancrage gameplay hors-scope AOT.
 - ✔ Nomenclature `_128` / `_192` réservée aux désignations descriptives de réalisations physiques ; jamais identités de `Profile`.
 - ✔ Écartés : `1h_*`, `backslash`, `halfslash`, + héritage.
-- ✔ Trois familles de layers.
 - ✔ **`TargetBucket` dérivé du maximum des `RealizationBucket` effectivement sélectionnés dans le contexte courant ; il ne provient pas du catalogue global de l’équipement.**
 - ✔ Politique de boucle par graphe de succession.
 - ✔ Déduplication par layer.
 - ✔ Identité de déduplication d'une `FrameSequence` = contenu ordonné des frames + `next_sequence_id`.
-- ✔ Trois YAML distincts.
+- ✔ Trois catégories fonctionnelles de déclarations YAML : canonique + contrats d'équipement/localisation + résolution ; `build_manifest.yaml` porte la déclaration globale des réalisations physiques.
 - ✔ `frame_size` déduit du `RealizationBucket`.
 - ✔ PNG source de vérité physique unique.
 - ✔ Terme générique « Oversized Equipment ».
 - ✔ Contextualisation des contrats : sélection, jamais fusion.
-- ✔ `aliases` non utilisé pour `hurt`.
+- ✔ La notion d'`aliases` est supprimée du schéma ; aucune identité secondaire de `Profile` n'est autorisée.
 - ✔ Composition dans le bucket cible : pas de scaling.
 - ✔ Layout LPC Character qualifié comme spécifique.
 - ✔ Origine `x = 0` : par défaut, sans mécanisme de surcharge.
 - ✔ Position horizontale des frames : `x(i) = i × frame_size`, frames contiguës sans padding horizontal.
 - ✔ Couples `(DriverEquipmentId, TargetBucket)` : valides uniquement.
-- ✔ Relation globale équipement : le build manifest / asset registry associe `DriverEquipmentId` aux `PhysicalRealization` et buckets disponibles ; le YAML d'équipement reste scopé à la localisation physique.
-- ✔ Résolution `AnimationAction` : au plus un axe de variation parmi `by_equipment` et `by_bucket` ; `default` est un repli ; `by_bucket` dépend d’un `TargetBucket` déjà établi indépendamment ; `fallback` reste réservé.
+- ✔ Relation globale équipement : le `build_manifest.yaml` associe `DriverEquipmentId` aux `PhysicalRealization` et buckets disponibles ; l’`AssetRegistry` en porte la représentation normalisée, tandis que le YAML d’équipement reste scopé à la localisation physique.
+- ✔ Résolution `AnimationAction` : au plus un axe de variation parmi `by_equipment` et `by_bucket` ; `default` est la résolution par défaut ; `by_bucket` est expérimental/réservé et dépend d’un `TargetBucket` déjà établi indépendamment. Lorsque `DriverEquipmentId = none` et qu’aucune entrée `by_equipment` ne correspond, la résolution utilise `default`.
 - ✔ **Déclaration des `AnimationAction` : le YAML de résolution constitue le vocabulaire déclaré ; le nombre de cinématiques d’un asset ne détermine pas le nombre d’actions.**
-- ✔ Correspondance `rows` ↔ `directions` : les listes sont parallèles, avec cardinalité identique.
+- ✔ Correspondance `grid_y_starts` ↔ `directions` : les listes sont parallèles, avec cardinalité identique.
 - ✔ Profils mono-directionnels : normalisation AOT sur les quatre directions canoniques par référencement de la même `FrameSequence`.
 - ✔ **Optionalité portée par `RealizationId` dans le contrat de localisation.**
 - ✔ **Sélection physique déclarative : 0 = absence de sélection, 1 = sélection, >1 = ambiguïté de build ; l’absence physique d’une réalisation est traitée séparément selon l’optionalité du contrat.**
+- ✔ **Empreintes physiques d’extraction : disjointes ou exactement congruentes ; toute intersection partielle est une erreur de build.**
 - ✔ **`TargetBucket` n'intervient pas dans l'identité de la réalisation ; il sert de contexte de composition et de validation de compatibilité.**
 - ✔ **Les réalisations de `CompositionProfile` possèdent leur propre localisation physique.**
 - ✔ **Les contrats de localisation utilisent `realizations[]` et référencent des `RealizationId`.**
-- ✔ Classification `overlay` / `variant` au build manifest / asset registry, jamais inférée des pixels.
+- ✔ Classification `overlay` / `variant` au `build_manifest.yaml`, jamais inférée des pixels ; l'`AssetRegistry` en porte la représentation normalisée au build.
 - ✔ Absence optionnelle : matérialisation AOT d'une `FrameSequence` transparente, avec substitution de topologie AOT.
 - ✔ Frame transparente canonique : une par `TargetBucket`.
 - ✔ Séquences transparentes : partagent la frame physique du `TargetBucket` mais restent dans le scope de déduplication du layer.
@@ -1611,6 +1659,8 @@ est donc normative. L'absence est déterminée par la déclaration/topologie de 
 - **B11 — CompositionProfiles multi-source** : non retenu. À reconsidérer si besoin concret.
 - **`swim`** : CompositionProfile dérivé de `spellcast`, marqué **provisoire**.
 - **`fallback`** : clé réservée dans le YAML de résolution ; sémantique à définir si elle est activée ultérieurement.
+- **`schema_version`** : à introduire lorsque le schéma YAML lui-même sera stabilisé. Pendant toute la conception et la R&D, le champ **`version` reste fixé à `1`** et ne suit pas les révisions du document. À terme, `schema_version` remplacera `version` et portera le versionnement du schéma ; `version` disparaîtra alors du format.
+- **Validation visuelle des réalisations oversized** : avant le gel définitif du corpus, conserver des fixtures visuelles par direction pour vérifier l'alignement centré sur chaque réalisation Medium/Large. Cette validation ne constitue pas une nouvelle règle de géométrie.
 - **B4 — Extensibilité de l'alignement** : la règle `offset = (BucketSize - source_size) / 2` suppose une différence paire. Les valeurs LPC actuelles (`64`, `128`, `192`) satisfont cette propriété.
 
 ### Tickets conceptuels
@@ -1651,12 +1701,12 @@ est donc normative. L'absence est déterminée par la déclaration/topologie de 
 
 ## 15. Synthèse en une phrase
 
-> **Le pipeline fournit au moteur un contrat strict : les PNG LPC fixent le canvas et la vérité physique des pixels ; le build manifest / asset registry définit les `PhysicalRealization` et relie les équipements conducteurs à leurs `RealizationBucket` disponibles ; les `Profile` fixent la sémantique ; le YAML de résolution relie les `AnimationAction` au `Profile` approprié ; les contrats localisent les `RealizationId` ; l’AOT résout le `ResolutionContext → Profile`, puis `Profile → PhysicalRealization`, dérive le `TargetBucket` depuis les réalisations effectivement sélectionnées, valide `RealizationBucket ≤ TargetBucket`, compose au centre du canvas cible et produit les `FrameSequence`.**
+> **Le pipeline fournit au moteur un contrat strict : les PNG LPC fixent le canvas et la vérité physique des pixels ; le `build_manifest.yaml` définit les `PhysicalRealization` et l’`AssetRegistry` en porte la représentation normalisée et relie les équipements conducteurs à leurs `RealizationBucket` disponibles ; les `Profile` fixent la sémantique ; le YAML de résolution relie les `AnimationAction` au `Profile` approprié ; les contrats localisent les `RealizationId` ; l’AOT résout le `ResolutionContext → Profile`, puis `Profile → PhysicalRealization`, dérive le `TargetBucket` depuis les réalisations effectivement sélectionnées, valide `RealizationBucket ≤ TargetBucket`, compose au centre du canvas cible et produit les `FrameSequence`.**
 
 
 ## Annexe A — Représentations ASCII de ressources PNG LPC
 
-Cette annexe documente trois **PNG sources physiques** représentatifs du corpus LPC Character. Ils ne représentent **pas** des sorties AOT reconstruites. Ils servent d'étalons physiques pour distinguer le canvas présent, les zones transparentes et les réalisations physiques exploitées. Les symboles décrivent l’occupation graphique utile de la grille ; une zone transparente peut donc être physiquement présente dans le PNG sans contenir de contenu exploitable.
+Cette annexe documente quatre **PNG sources physiques** représentatifs du corpus LPC Character. Ils ne représentent **pas** des sorties AOT reconstruites. Ils servent d'étalons physiques pour distinguer le canvas présent, les zones transparentes et les réalisations physiques exploitées. Les symboles décrivent l’occupation graphique utile de la grille ; une zone transparente peut donc être physiquement présente dans le PNG sans contenir de contenu exploitable.
 
 ### Légende
 
@@ -1669,7 +1719,7 @@ Cette annexe documente trois **PNG sources physiques** représentatifs du corpus
 
 **Conventions de lecture** : chaque ligne représente une `grid_y` ; chaque colonne une `grid_x`. Une frame Small consomme 1 `grid_y` par direction, une frame Medium 2, une frame Large 3. Les frames sont contiguës horizontalement, sans padding, avec origine `x = 0`.
 
-### A.1 — PNG de base historique
+### A.1 — PNG de base
 
 ```text
        0         1         2
@@ -1720,14 +1770,14 @@ Cette annexe documente trois **PNG sources physiques** représentatifs du corpus
  43    ○○○○....................  combat_idle (left)    [écarté]
  44    ○○○○....................  combat_idle (down)    [écarté]
  45    ○○○○....................  combat_idle (right)   [écarté]
- 46    ○○○○....................  1h_slash (top)        [hors-scope]
- 47    ○○○○....................  1h_slash (left)       [hors-scope]
- 48    ○○○○....................  1h_slash (down)       [hors-scope]
- 49    ○○○○....................  1h_slash (right)      [hors-scope]
- 50    ○○○○....................  1h_backslash (top)    [hors-scope]
- 51    ○○○○....................  1h_backslash (left)   [hors-scope]
- 52    ○○○○....................  1h_backslash (down)   [hors-scope]
- 53    ○○○○....................  1h_backslash (right)  [hors-scope]
+ 46    ○○○○....................  1h_slash (top)        [écarté]
+ 47    ○○○○....................  1h_slash (left)       [écarté]
+ 48    ○○○○....................  1h_slash (down)       [écarté]
+ 49    ○○○○....................  1h_slash (right)      [écarté]
+ 50    ○○○○....................  1h_backslash (top)    [écarté]
+ 51    ○○○○....................  1h_backslash (left)   [écarté]
+ 52    ○○○○....................  1h_backslash (down)   [écarté]
+ 53    ○○○○....................  1h_backslash (right)  [écarté]
 ```
 
 ### A.2 — PNG trident
@@ -1741,7 +1791,7 @@ Cette annexe documente trois **PNG sources physiques** représentatifs du corpus
   1    ........................  [transparent]
   ...  ........................  [transparent]
  53    ........................  [transparent]
-       ─────── fin de la région Small historique (contenu transparent) ───────
+       ─────── fin de la grille de base Small (contenu transparent) ───────
  54    ◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎......  walk_128 (top, 1/2)
  55    ◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎......  walk_128 (top, 2/2)
  56    ◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎......  walk_128 (left, 1/2)
@@ -1796,7 +1846,7 @@ Cette annexe documente trois **PNG sources physiques** représentatifs du corpus
  21    ........................  [transparent]
  ...    ........................  [zone transparente — grid_y 21 à 53]
  53    ........................  [transparent]
-       ─────── fin de la région Small historique (grid_y 0–53) ───────
+       ─────── fin de la grille de base Small (grid_y 0–53) ───────
  54    ●●●●●●●●●●●●●●●●●●......  slash_192 (top, 1/3)
  55    ●●●●●●●●●●●●●●●●●●......  slash_192 (top, 2/3)
  56    ●●●●●●●●●●●●●●●●●●......  slash_192 (top, 3/3)
@@ -1836,12 +1886,130 @@ Cette annexe documente trois **PNG sources physiques** représentatifs du corpus
  89    ●●●●●●●●●●●●●●●●●●●●●●●●  thrust_192 (right, 3/3)
 ```
 
-### A.4 — Lecture croisée et invariants physiques illustrés
+### A.4 — PNG Hammer
 
-Les trois PNG ne constituent pas une définition exhaustive du corpus. Ils illustrent néanmoins les invariants et distinctions désormais retenus :
+Le PNG **Hammer** illustre deux utilisations du même équipement conducteur : une
+réalisation `walk` Small et une réalisation Medium correspondant à la cinématique
+dénommée **« Tool Hammer »** par le générateur LPC. Cette seconde cinématique
+utilise le pool `slash` et la séquence : `[5, 5, 4, 4, 1, 0, 0, 0, 0]`.
+
+```text
+       0         1         2
+       012345678901234567890123
+  0    ........................  spellcast (top)
+  1    ........................  spellcast (left)
+  2    ........................  spellcast (down)
+  3    ........................  spellcast (right)
+  4    ........................  thrust (top)
+  5    ........................  thrust (left)
+  6    ........................  thrust (down)
+  7    ........................  thrust (right)
+  8    ○○○○○○○○○...............  walk (top)
+  9    ○○○○○○○○○...............  walk (left)
+ 10    ○○○○○○○○○...............  walk (down)
+ 11    ○○○○○○○○○...............  walk (right)
+ 12    ........................  slash (top)
+ 13    ........................  slash (left)
+ 14    ........................  slash (down)
+ 15    ........................  slash (right)
+ 16    ........................  shoot (top)
+ 17    ........................  shoot (left)
+ 18    ........................  shoot (down)
+ 19    ........................  shoot (right)
+ 20    ........................  hurt (down)
+ 21    ........................  climb (top)
+ 22    ........................  idle (top)
+ 23    ........................  idle (left)
+ 24    ........................  idle (down)
+ 25    ........................  idle (right)
+ 26    ........................  jump (top)
+ 27    ........................  jump (left)
+ 28    ........................  jump (down)
+ 29    ........................  jump (right)
+ 30    ........................  sit (top)
+ 31    ........................  sit (left)
+ 32    ........................  sit (down)
+ 33    ........................  sit (right)
+ 34    ........................  emote (top)
+ 35    ........................  emote (left)
+ 36    ........................  emote (down)
+ 37    ........................  emote (right)
+ 38    ........................  run (top)
+ 39    ........................  run (left)
+ 40    ........................  run (down)
+ 41    ........................  run (right)
+ 42    ........................  combat_idle (top)      [écarté]
+ 43    ........................  combat_idle (left)     [écarté]
+ 44    ........................  combat_idle (down)     [écarté]
+ 45    ........................  combat_idle (right)    [écarté]
+ 46    ........................  1h_slash (top)         [écarté]
+ 47    ........................  1h_slash (left)        [écarté]
+ 48    ........................  1h_slash (down)        [écarté]
+ 49    ........................  1h_slash (right)       [écarté]
+ 50    ........................  1h_backslash (top)     [écarté]
+ 51    ........................  1h_backslash (left)    [écarté]
+ 52    ........................  1h_backslash (down)    [écarté]
+ 53    ........................  1h_backslash (right)   [écarté]
+ 54    ◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎......  Tool Hammer (top, 1/2)
+ 55    ◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎......  Tool Hammer (top, 2/2)
+ 56    ◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎......  Tool Hammer (left, 1/2)
+ 57    ◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎......  Tool Hammer (left, 2/2)
+ 58    ◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎......  Tool Hammer (down, 1/2)
+ 59    ◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎......  Tool Hammer (down, 2/2)
+ 60    ◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎......  Tool Hammer (right, 1/2)
+ 61    ◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎◎......  Tool Hammer (right, 2/2)
+```
+
+La réalisation `walk` utilise `frame_count = 9` et `RealizationBucket = Small`.
+La réalisation `tool_hammer` utilise le `source_extraction = slash`, donc
+`frame_count = 6` et quatre directions ; son `RealizationBucket = Medium`. Les
+neuf frames de la séquence jouée peuvent donc réutiliser les six frames du pool
+source sans créer un nouveau `ExtractionProfile`.
+
+### A.5 — PNG Gnarled Staff
+
+Le PNG **Gnarled Staff** appartient à la famille des armes conductrices du
+corpus. Son utilisation principale observée repose sur le Profile `thrust`,
+avec une réalisation physique Large dénommée **« Thrust Oversize »** par le
+générateur LPC. Le même asset possède également des réalisations `walk` et
+`hurt` Small.
+
+La région oversized utile est :
+
+```text
+thrust_192
+grid_y 54–65
+`grid_y_starts` = [54, 57, 60, 63]
+frame_size = 192×192
+```
+
+Le bloc est composé de quatre directions, chacune consommant trois
+`grid_y` successifs. Horizontalement, chaque direction contient huit frames
+issues du pool `thrust` (`frame_count = 8`).
+
+Sémantiquement, le scénario de l'action principale peut donc être représenté
+ainsi lorsque le gameplay aura déclaré cette correspondance :
+
+```text
+AnimationAction   = <action gameplay déclarée>
+DriverEquipmentId = gnarled_staff
+Profile           = thrust
+```
+
+La réalisation physique du Gnarled Staff est Large tandis que les layers
+non conducteurs peuvent conserver leurs réalisations Small et être composés
+au centre du canvas Large.
+
+Le fait que le générateur appelle ce bloc **« Thrust Oversize »** ne crée ni
+`AnimationAction` supplémentaire ni nouvelle abstraction de variante : il
+décrit une réalisation physique du Profile `thrust`.
+
+### A.6 — Lecture croisée et invariants physiques illustrés
+
+Les cinq PNG utilisés dans ces annexes ne constituent pas une définition exhaustive du corpus. Ils illustrent néanmoins les invariants et distinctions désormais retenus :
 
 1. **Le canvas physique d’un PNG peut contenir des zones entièrement transparentes ; présence physique et contenu exploitable sont distincts.**
-2. **La région Small historique `0–53` est une région physique du layout LPC Character ; son contenu dépend de l’asset.**
+2. **La grille de base Small `0–53` est une région physique du layout LPC Character ; son contenu dépend de l’asset.**
 3. **Les réalisations oversized observées commencent à `54` dans ce layout.**
 4. **Un même PNG peut contenir plusieurs réalisations physiques et plusieurs buckets.**
 5. **L’absence de contenu dans une zone du PNG n’est pas une absence du canvas ; l’exploitation de cette zone relève du contrat AOT.**
@@ -1849,7 +2017,7 @@ Les trois PNG ne constituent pas une définition exhaustive du corpus. Ils illus
 7. **Pour `attack + longsword`, le contexte sémantique est `slash` et le `TargetBucket` est Large ; `slash_192` réalise le layer d’équipement, tandis que la réalisation `slash` Small fournit les layers de personnage, composée dans le canvas Large.**
 8. **Le même `source_extraction` peut alimenter des réalisations physiques distinctes et des `FrameSequence` distinctes.**
 
-## Annexe B — Scénarios de validation S1 à S4
+## Annexe B — Scénarios de validation S1 à S9
 
 Cette annexe transforme les scénarios concrets utilisés pendant les arbitrages en **tests de cohérence du pipeline AOT**. Ils ne constituent pas une spécification YAML complète ; ils vérifient que le paradigme sait absorber les contextes représentatifs sans introduire de résolution runtime.
 
@@ -1908,7 +2076,7 @@ La réalisation `longsword-thrust` est Large et occupe sans padding :
 ```text
 grid_y 78–89
 
-rows de départ : [78, 81, 84, 87]
+`grid_y_starts` : [78, 81, 84, 87]
 ```
 
 Le bloc est immédiatement contigu au bloc `slash_reverse` (`66–77`).
@@ -1946,7 +2114,237 @@ La réalisation du Longsword est localisée sur `grid_y 20`. Aucune des réalisa
 
 **Remarque corpus** : la fixture représentative actuelle ne matérialise pas encore toutes les couches du personnage complet ; cela relève de la couverture YAML, pas d'une restriction du paradigme.
 
-### B.5 — Synthèse
+### B.5 — S5 : `walk` avec `hammer`
+
+```text
+AnimationAction   = walk
+DriverEquipmentId = hammer
+Profile           = walk
+```
+
+Le Hammer possède une réalisation `walk` Small (`grid_y_starts = [8, 9, 10, 11]`).
+Les six autres layers constitutifs du personnage restent sur leurs réalisations
+Small correspondantes.
+
+```text
+Hammer / walk     → Small
+Autres layers      → Small
+
+TargetBucket      = Small
+Target canvas      = 64×64
+```
+
+La présence éventuelle d'une réalisation Medium du Hammer dans le même asset ne
+provoque aucune promotion : elle appartient à un autre contexte cinématique.
+
+**Verdict paradigme : absorbé.**
+
+### B.6 — S6 : cinématique de travail `tool_hammer` avec `hammer`
+
+La cinématique dénommée **« Tool Hammer »** par le générateur LPC est modélisée
+comme un `CompositionProfile` :
+
+```text
+AnimationAction   = <action gameplay qui sera déclarée pour cette cinématique>
+DriverEquipmentId = hammer
+Profile           = tool_hammer
+```
+
+Le profil est :
+
+```text
+tool_hammer
+    type              = CompositionProfile
+    source_extraction = slash
+    sequence          = [5, 5, 4, 4, 1, 0, 0, 0, 0]
+```
+
+Pour le layer du Hammer, une réalisation physique Medium dédiée est sélectionnée :
+
+```text
+hammer-tool-hammer
+    RealizationBucket = Medium
+    grid_y_starts     = [54, 56, 58, 60]
+```
+
+Pour le body, le pool physique `slash` Small peut être réutilisé explicitement
+sous une `PhysicalRealization` distincte de `tool_hammer`, avec une empreinte
+exactement congruente à `base-slash`. Il ne s'agit pas d'un héritage implicite de
+localisation : la réutilisation est déclarée AOT. Le même principe s'appliquera aux
+autres layers non conducteurs dès que leurs contrats physiques seront matérialisés.
+
+```text
+Body / tool_hammer → Small
+Hammer / tool_hammer → Medium
+Autres layers      → Small
+
+TargetBucket       = Medium
+Target canvas       = 128×128
+```
+
+Le séquencement est entièrement AOT : la séquence de neuf frames indexe le pool
+`slash` de six frames (`0..5`). Aucun nouveau pool de pixels n'est requis et aucun
+calcul de séquence n'est laissé au runtime.
+
+Le nom final de l'`AnimationAction` n'est pas fixé par l'asset. Si le gameplay décide
+que cette cinématique appartient à l'action générique `attack`, la résolution pourra
+être déclarée par `by_equipment` (`hammer → tool_hammer`) sans introduire une variante
+spécialisée. Le paradigme n'anticipe pas cette décision de gameplay.
+
+**Verdict paradigme : absorbé.**
+
+**Remarque corpus** : la structure du scénario implique les six autres layers du
+personnage, mais la fixture YAML courante ne possède pas encore les contrats de
+localisation de toutes ces couches. Leur absence relève de la couverture du corpus,
+pas d'une limitation du modèle.
+
+### B.7 — S7 : `walk` avec `gnarled_staff`
+
+```text
+AnimationAction   = walk
+DriverEquipmentId = gnarled_staff
+Profile           = walk
+```
+
+Le Gnarled Staff possède une réalisation `walk` Small localisée sur
+`grid_y_starts = [8, 9, 10, 11]`. Les autres layers constitutifs du personnage
+restent eux aussi sur leurs réalisations Small.
+
+```text
+Gnarled Staff / walk → Small
+Autres layers        → Small
+
+TargetBucket         = Small
+Target canvas        = 64×64
+```
+
+La présence d'une réalisation Large `thrust` dans le même asset ne provoque
+aucune promotion de ce contexte : elle appartient à une autre résolution
+sémantique.
+
+**Verdict paradigme : absorbé.**
+
+### B.8 — S8 : action principale avec `gnarled_staff` → `thrust`
+
+Le cas métier visé par le générateur est la cinématique **« Thrust Oversize »**.
+Le gameplay devra déterminer le nom de l'`AnimationAction`; le paradigme ne
+le déduit pas du nom de l'asset. Le contexte peut donc être exprimé :
+
+```text
+AnimationAction   = <action gameplay déclarée>
+DriverEquipmentId = gnarled_staff
+Profile           = thrust
+```
+
+Le Gnarled Staff fournit une réalisation physique Large de `thrust` :
+
+```text
+gnarled-staff-thrust
+RealizationBucket = Large
+grid_y_starts     = [54, 57, 60, 63]
+source_size      = 192×192
+```
+
+Les layers non conducteurs peuvent utiliser leur réalisation Small de `thrust`
+et sont composés dans le canvas Large. Pour un layer Small :
+
+```text
+offset = (192 - 64) / 2
+       = 64
+```
+
+Le Gnarled Staff est déjà de taille cible :
+
+```text
+offset = (192 - 192) / 2
+       = 0
+```
+
+La résolution produit donc :
+
+```text
+Gnarled Staff / thrust → Large
+Autres layers         → Small
+
+TargetBucket          = Large
+Target canvas         = 192×192
+```
+
+Aucune `CompositionProfile` n'est nécessaire ici : `thrust` est directement
+un `ExtractionProfile` canonique. La séquence jouée est celle du Profile
+`thrust`; aucune séquence spécifique du Gnarled Staff n'est inventée par
+l'asset dans le modèle.
+
+**Verdict paradigme : absorbé.**
+
+### B.9 — S9 : `walk` avec `bow_recurve`
+
+Le `Bow, Recurve` fournit une réalisation physique Medium de l’animation `walk` dans une zone oversized du même PNG.
+Le contexte est :
+
+```text
+AnimationAction   = walk
+DriverEquipmentId = bow_recurve
+Profile           = walk
+```
+
+La réalisation utilise le même `ExtractionProfile` canonique `walk`. Le pool source
+contient `frame_count = 9` frames et la séquence canonique est `[1, 2, 3, 4, 5, 6, 7, 8]` :
+le frame local `0` existe physiquement mais n’est pas joué. Il ne s’agit donc pas d’une
+origine physique décalée.
+
+Le bloc `walk_128` correspond à une réalisation Medium de `walk` :
+
+```text
+RealizationBucket = Medium
+grid_y_starts     = [54, 56, 58, 60]
+source_size       = 128×128
+```
+
+Les six autres layers du personnage restent sur leurs réalisations Small et sont
+composés dans le canvas Medium :
+
+```text
+Bow / walk        → Medium
+Autres layers     → Small
+
+TargetBucket      = Medium
+Target canvas     = 128×128
+```
+
+Pour chaque source Small :
+
+```text
+offset = (128 - 64) / 2
+       = 32 px
+```
+
+Ce scénario confirme une propriété supplémentaire importante : **un `Profile` canonique
+déjà présent dans la grille de base Small peut posséder, dans un asset conducteur,
+une réalisation Medium pour une action donnée.** La réalisation physique ne modifie
+pas l’identité sémantique de `walk`.
+
+### Distinction `grid_x` / index de frame
+
+L’observation du `Bow, Recurve` ne remet pas en cause la règle `x(i) = i × frame_size`.
+Le bloc `walk_128` contient 9 frames source de 128 pixels, soit 18 `grid_cell` :
+
+```text
+9 × 128 = 1152 px = 18 × 64 px
+```
+
+La séquence `[1, 2, 3, 4, 5, 6, 7, 8]` commence simplement au **frame local 1**.
+Le frame local `0` est présent dans le pool physique, à `x = 0`, mais est volontairement
+ignoré par la séquence jouée. Il ne faut donc pas confondre **frame 0 non joué** et
+**absence de `grid_x = 0`**.
+
+**Remarque sur l’ASCII fourni** : les numéros `56`, `59` et `61` manquent dans la
+transcription. La géométrie d’un bloc Medium de huit `grid_y` impose ici les départs
+`[54, 56, 58, 60]`, que le contrat de référence matérialise.
+
+**Verdict paradigme : absorbé.**
+
+### B.10 — Synthèse
 
 | Scénario | Profil résolu | RealizationBucket conducteur | TargetBucket | Canvas | Paradigme |
 |---|---|---:|---:|---:|---|
@@ -1954,17 +2352,25 @@ La réalisation du Longsword est localisée sur `grid_y 20`. Aucune des réalisa
 | S2 — première action d'attaque `longsword` | `slash` | Large | Large | 192×192 | **Absorbé** |
 | S3 — autre action d'attaque `longsword` | `thrust` | Large | Large | 192×192 | **Absorbé** |
 | S4 — `hurt + longsword` | `hurt` | Small | Small | 64×64 | **Absorbé** |
+| S5 — `walk + hammer` | `walk` | Small | Small | 64×64 | **Absorbé** |
+| S6 — `tool_hammer + hammer` | `tool_hammer` | Medium | Medium | 128×128 | **Absorbé** |
+| S7 — `walk + gnarled_staff` | `walk` | Small | Small | 64×64 | **Absorbé** |
+| S8 — action principale + `gnarled_staff` | `thrust` | Large | Large | 192×192 | **Absorbé** |
+| S9 — `walk + bow_recurve` | `walk` | Medium | Medium | 128×128 | **Absorbé** |
 
-Ces quatre scénarios couvrent les propriétés structurantes recherchées :
+Ces neuf scénarios couvrent désormais les propriétés structurantes recherchées :
 
 ```text
 1. équipement conducteur sans promotion globale ;
 2. composition Small → Large ;
 3. plusieurs cinématiques accessibles par le vocabulaire `AnimationAction` sans mécanisme spécialisé de variante ;
 4. retour à une animation Small malgré la conservation de l’équipement conducteur ;
-5. participation de toutes les couches sans confusion entre présence visuelle et rôle conducteur.
+5. participation de toutes les couches sans confusion entre présence visuelle et rôle conducteur ;
+6. composition d'un pool `slash` avec une séquence plus longue que le pool extrait ;
+7. réutilisation physique explicitement congruente d'une région `slash` pour un `CompositionProfile`,
+   tout en conservant une réalisation Medium dédiée pour l'équipement conducteur.
 ```
 
 Ils constituent une base appropriée pour une annexe de non-régression et pour la prochaine phase de matérialisation YAML.
 
-_Document révisé le 24 septembre 2026 — v1.3.5 (socle normatif v1.3)_
+_Document révisé le 25 septembre 2026 — version 1 (conception / R&D)_

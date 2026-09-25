@@ -1,0 +1,36 @@
+# gnarled_staff.contract.yaml
+# Contrat de localisation pour la fixture ASCII empirique du Gnarled Staff.
+# Aligné sur LPC-Paradigm.md.
+#
+# Blocs physiques confirmés :
+#   walk / Small   -> grid_y 8–11
+#   hurt / Small   -> grid_y 20
+#   thrust / Large -> grid_y 54–65
+#
+# Le bloc Large de `thrust` occupe 3 grid_y successifs par direction.
+# `grid_y_starts[i]` correspond à `directions[i]` du Profile référencé.
+
+schema:
+  paradigm: lpc
+  version: 1
+  fixture_role: representative_poc
+
+contract_id: gnarled_staff
+
+applies_to:
+  asset_ids:
+    - gnarled_staff
+
+realizations:
+
+  - realization_id: gnarled-staff-walk
+    optional: false
+    grid_y_starts: [8, 9, 10, 11]
+
+  - realization_id: gnarled-staff-hurt
+    optional: false
+    grid_y_starts: [20]
+
+  - realization_id: gnarled-staff-thrust
+    optional: false
+    grid_y_starts: [54, 57, 60, 63]

@@ -1,24 +1,30 @@
 # longsword.contract.yaml
-# Localization contract for the empirical Longsword ASCII fixture.
-# Aligned with LPC-Paradigm-v1.3.5.
+# Contrat de localisation pour la fixture ASCII empirique du Longsword.
+# Aligné sur LPC-Paradigm.md.
 #
-# Confirmed physical blocks:
-#   walk / Small        -> grid_y 8–11
-#   hurt / Small        -> grid_y 20
-#   slash / Large       -> grid_y 54–65
-#   slash_reverse/Large -> grid_y 66–77
-#   thrust / Large      -> grid_y 78–89
+# Blocs physiques confirmés :
+#   walk / Small         -> grid_y 8–11
+#   hurt / Small         -> grid_y 20
+#   slash / Large        -> grid_y 54–65
+#   slash_reverse / Large -> grid_y 66–77
+#   thrust / Large       -> grid_y 78–89
 #
-# The three Large blocks are contiguous. There is NO padding at grid_y 78–80.
-# A 192x192 realization consumes 3 grid_y per direction.
+# Les trois blocs Large sont contigus. Il n'existe AUCUN padding en
+# grid_y 78–80.
+# Une réalisation 192×192 consomme 3 grid_y par direction.
+#
+# grid_y_starts[i] correspond à directions[i] du Profile référencé.
 
 schema:
   paradigm: lpc
-  paradigm_version: "1.3.5"
+  version: 1
   fixture_role: representative_poc
 
 contract_id: longsword
 
+# Un seul contrat doit être applicable à un asset donné.
+# Zéro contrat applicable ou plusieurs contrats applicables constituent une
+# erreur de build ; aucune règle implicite de priorité n'est utilisée.
 applies_to:
   asset_ids:
     - longsword
@@ -27,20 +33,20 @@ realizations:
 
   - realization_id: longsword-walk
     optional: false
-    rows: [8, 9, 10, 11]
+    grid_y_starts: [8, 9, 10, 11]
 
   - realization_id: longsword-hurt
     optional: false
-    rows: [20]
+    grid_y_starts: [20]
 
   - realization_id: longsword-slash
     optional: false
-    rows: [54, 57, 60, 63]
+    grid_y_starts: [54, 57, 60, 63]
 
   - realization_id: longsword-slash-reverse
     optional: false
-    rows: [66, 69, 72, 75]
+    grid_y_starts: [66, 69, 72, 75]
 
   - realization_id: longsword-thrust
     optional: false
-    rows: [78, 81, 84, 87]
+    grid_y_starts: [78, 81, 84, 87]

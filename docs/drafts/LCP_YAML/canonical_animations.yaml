@@ -1,22 +1,25 @@
 # canonical_animations.yaml
-# LPC AOT PoC reference fixture, aligned with LPC-Paradigm-v1.3.5.
+# Fixture sémantique de référence LPC pour le pipeline AOT,
+# alignée sur LPC-Paradigm.md.
 #
-# This is a representative semantic corpus, not an exhaustive LPC corpus.
-# Physical facts (asset, bucket, rows) do NOT belong here.
+# Il s'agit d'un corpus représentatif et non d'un corpus LPC exhaustif.
+# Les faits physiques (asset, bucket, localisation) n'appartiennent pas à ce
+# fichier.
 #
-# frame_count = extraction-pool size.
-# sequence = local indices actually played.
-# CompositionProfile inherits frame_count and directions from source_extraction.
+# frame_count = taille du pool d'extraction.
+# sequence = indices locaux effectivement joués.
+# Un CompositionProfile hérite de frame_count et de directions depuis son
+# source_extraction et possède sa propre séquence.
 
 schema:
   paradigm: lpc
-  paradigm_version: "1.3.5"
+  version: 1
   fixture_role: representative_poc
 
 profiles:
 
   # ============================================================
-  # ExtractionProfiles — canonical LPC Character examples
+  # ExtractionProfiles — exemples canoniques issus du LPC Character
   # ============================================================
 
   - name: spellcast
@@ -33,7 +36,7 @@ profiles:
     type: ExtractionProfile
     frame_count: 9
     directions: [top, left, down, right]
-    # Frame 0 exists in the source pool but is not played.
+    # Le frame 0 existe dans le pool source mais n'est pas joué.
     sequence: [1, 2, 3, 4, 5, 6, 7, 8]
 
   - name: slash
@@ -86,7 +89,7 @@ profiles:
     directions: [top, left, down, right]
 
   # ============================================================
-  # CompositionProfiles — semantic reuse
+  # CompositionProfiles — réutilisation sémantique
   # ============================================================
 
   - name: slash_reverse
@@ -109,5 +112,11 @@ profiles:
     source_extraction: slash
     sequence: [5, 5, 4, 4, 3, 1, 0, 0, 0, 0]
 
-# tool_hoe, tool_shovel and swim are intentionally not declared here:
-# their concrete semantic definitions remain open in the current corpus.
+  - name: tool_hammer
+    type: CompositionProfile
+    source_extraction: slash
+    sequence: [5, 5, 4, 4, 1, 0, 0, 0, 0]
+
+# `tool_hoe`, `tool_shovel` et `swim` ne sont volontairement pas déclarés :
+# leurs définitions sémantiques concrètes restent ouvertes dans le corpus.
+# Aucun Profile n'est inventé uniquement pour compléter la fixture.

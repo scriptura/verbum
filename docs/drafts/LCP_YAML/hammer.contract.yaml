@@ -1,0 +1,34 @@
+# hammer.contract.yaml
+# Contrat de localisation pour la fixture ASCII empirique du Hammer.
+# Aligné sur LPC-Paradigm.md.
+#
+# Blocs physiques confirmés :
+#   walk / Small          -> grid_y 8–11
+#   Tool Hammer / Medium  -> grid_y 54–61
+#
+# Le bloc Medium contient 9 frames par direction et 2 grid_y par direction.
+# La cinématique `tool_hammer` est une composition du pool `slash`, avec sa
+# propre séquence sémantique déclarée dans canonical_animations.yaml.
+#
+# grid_y_starts[i] correspond à directions[i] du Profile référencé.
+
+schema:
+  paradigm: lpc
+  version: 1
+  fixture_role: representative_poc
+
+contract_id: hammer
+
+applies_to:
+  asset_ids:
+    - hammer
+
+realizations:
+
+  - realization_id: hammer-walk
+    optional: false
+    grid_y_starts: [8, 9, 10, 11]
+
+  - realization_id: hammer-tool-hammer
+    optional: false
+    grid_y_starts: [54, 56, 58, 60]

@@ -1,17 +1,23 @@
 # base_character.contract.yaml
-# Localization contract for the LPC Character base ASCII fixture.
-# Aligned with LPC-Paradigm-v1.3.5.
+# Contrat de localisation pour la fixture ASCII du LPC Character.
+# Aligné sur LPC-Paradigm.md.
 #
-# The contract references PhysicalRealization identities only.
-# RealizationBucket and TargetBucket are not declared here.
+# Le contrat ne référence que les identités de PhysicalRealization.
+# RealizationBucket et TargetBucket ne sont pas déclarés ici.
+#
+# grid_y_starts[i] correspond à directions[i] du Profile référencé.
+# Les valeurs sont des coordonnées physiques verticales dans la grille.
 
 schema:
   paradigm: lpc
-  paradigm_version: "1.3.5"
+  version: 1
   fixture_role: representative_poc
 
 contract_id: base_character_small
 
+# Un seul contrat doit être applicable à un asset donné.
+# Zéro contrat applicable ou plusieurs contrats applicables constituent une
+# erreur de build ; aucune règle implicite de priorité n'est utilisée.
 applies_to:
   asset_ids:
     - base_character
@@ -20,51 +26,59 @@ realizations:
 
   - realization_id: base-spellcast
     optional: false
-    rows: [0, 1, 2, 3]
+    grid_y_starts: [0, 1, 2, 3]
 
   - realization_id: base-thrust
     optional: false
-    rows: [4, 5, 6, 7]
+    grid_y_starts: [4, 5, 6, 7]
 
   - realization_id: base-walk
     optional: false
-    rows: [8, 9, 10, 11]
+    grid_y_starts: [8, 9, 10, 11]
 
   - realization_id: base-slash
     optional: false
-    rows: [12, 13, 14, 15]
+    grid_y_starts: [12, 13, 14, 15]
+
+  # Même région physique que `base-slash`, mais matérialisée sous l'identité
+  # du CompositionProfile `tool_hammer`. Cette réutilisation exacte est
+  # autorisée par la règle de congruence des empreintes physiques.
+  - realization_id: base-tool-hammer
+    optional: false
+    grid_y_starts: [12, 13, 14, 15]
 
   - realization_id: base-shoot
     optional: false
-    rows: [16, 17, 18, 19]
+    grid_y_starts: [16, 17, 18, 19]
 
   - realization_id: base-hurt
     optional: false
-    rows: [20]
+    grid_y_starts: [20]
 
   - realization_id: base-climb
     optional: false
-    rows: [21]
+    grid_y_starts: [21]
 
   - realization_id: base-idle
     optional: false
-    rows: [22, 23, 24, 25]
+    grid_y_starts: [22, 23, 24, 25]
 
   - realization_id: base-jump
     optional: false
-    rows: [26, 27, 28, 29]
+    grid_y_starts: [26, 27, 28, 29]
 
   - realization_id: base-sit
     optional: false
-    rows: [30, 31, 32, 33]
+    grid_y_starts: [30, 31, 32, 33]
 
   - realization_id: base-emote
     optional: false
-    rows: [34, 35, 36, 37]
+    grid_y_starts: [34, 35, 36, 37]
 
   - realization_id: base-run
     optional: false
-    rows: [38, 39, 40, 41]
+    grid_y_starts: [38, 39, 40, 41]
 
-# Rows 42–53 correspond to profiles explicitly excluded by the paradigm.
-# They therefore have no PhysicalRealization entries here.
+# Les lignes 42–53 correspondent à des profils historiques explicitement
+# écartés par le paradigme. Elles ne possèdent donc aucune
+# PhysicalRealization dans ce contrat.

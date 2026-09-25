@@ -1,22 +1,28 @@
 # trident.contract.yaml
-# Localization contract for the empirical Trident ASCII fixture.
-# Aligned with LPC-Paradigm-v1.3.5.
+# Contrat de localisation pour la fixture ASCII empirique du Trident.
+# Aligné sur LPC-Paradigm.md.
 #
-# Confirmed physical blocks:
-#   grid_y 0–53     -> physically present but entirely transparent in the asset
-#   walk / Medium   -> grid_y 54–61
-#   thrust / Large  -> grid_y 62–73
+# Blocs physiques confirmés :
+#   grid_y 0–53       -> présent physiquement mais entièrement transparent
+#   walk / Medium     -> grid_y 54–61
+#   thrust / Large    -> grid_y 62–73
 #
-# The Large thrust realization is contractually optional while remaining
-# physically present in this fixture. Optionality is orthogonal to presence.
+# La réalisation Large `thrust` est optionnelle dans le contrat tout en étant
+# physiquement présente dans cette fixture. L'optionalité est indépendante de
+# la présence physique.
+#
+# grid_y_starts[i] correspond à directions[i] du Profile référencé.
 
 schema:
   paradigm: lpc
-  paradigm_version: "1.3.5"
+  version: 1
   fixture_role: representative_poc
 
 contract_id: trident
 
+# Un seul contrat doit être applicable à un asset donné.
+# Zéro contrat applicable ou plusieurs contrats applicables constituent une
+# erreur de build ; aucune règle implicite de priorité n'est utilisée.
 applies_to:
   asset_ids:
     - trident
@@ -25,12 +31,13 @@ realizations:
 
   - realization_id: trident-walk
     optional: false
-    rows: [54, 56, 58, 60]
+    grid_y_starts: [54, 56, 58, 60]
 
   - realization_id: trident-thrust
     optional: true
-    rows: [62, 65, 68, 71]
+    grid_y_starts: [62, 65, 68, 71]
 
-# There is deliberately NO Small realization for this asset.
-# The physically present 0–53 region is transparent; physical canvas presence
-# is therefore not confused with an exploitable PhysicalRealization.
+# Aucune réalisation Small n'est déclarée pour cet asset.
+# La région physiquement présente 0–53 est transparente ; la présence d'une
+# zone physique n'est donc pas confondue avec l'existence d'une
+# PhysicalRealization exploitable.
