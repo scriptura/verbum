@@ -22,11 +22,11 @@ schema:
 actions:
 
   # Attaque générique principale.
-  # Le DriverEquipmentId actif peut modifier le Profile sémantique.
+  # L’AnimationDriverId actif peut modifier le Profile sémantique.
   - animation_action: attack
     resolution:
       default: slash
-      by_equipment:
+      by_driver:
         longsword: slash
         trident: thrust
 
@@ -97,4 +97,4 @@ actions:
 # possède ses réalisations physiques. Son rattachement à une AnimationAction
 # gameplay n'est pas inventé tant que le vocabulaire gameplay n'a pas arrêté
 # cette correspondance. Une fois décidée, une action existante telle que
-# `attack` pourra, par exemple, utiliser `by_equipment: {hammer: tool_hammer}`.
+# `attack` pourra, par exemple, utiliser `by_driver: {hammer: tool_hammer}`.

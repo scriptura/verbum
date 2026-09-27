@@ -1,0 +1,34 @@
+# bow_recurve.contract.yaml
+# Contrat de localisation pour la fixture ASCII empirique du Bow, Recurve.
+# Aligné sur LPC-Paradigm.md.
+#
+# Blocs physiques confirmés :
+#   walk / Medium -> grid_y 54–61
+#   hurt / Small  -> grid_y 20
+#
+# Le bloc Medium de `walk` contient 9 frames source de 128×128.
+# Le frame local 0 appartient au pool physique mais n'est pas joué par la
+# séquence canonique `walk`, qui utilise [1, 2, 3, 4, 5, 6, 7, 8].
+#
+# grid_y_starts[i] correspond à directions[i] du Profile référencé.
+
+schema:
+  paradigm: lpc
+  version: 1
+  fixture_role: representative_poc
+
+contract_id: bow_recurve
+
+applies_to:
+  asset_ids:
+    - bow_recurve
+
+realizations:
+
+  - realization_id: bow-recurve-walk
+    optional: false
+    grid_y_starts: [54, 56, 58, 60]
+
+  - realization_id: bow-recurve-hurt
+    optional: false
+    grid_y_starts: [20]
