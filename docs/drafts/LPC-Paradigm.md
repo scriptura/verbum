@@ -446,7 +446,7 @@ La présence d’une réalisation Large dans le même équipement ne provoque do
 - La règle s’applique identiquement aux armes et aux outils.
 - La dérivation est une **déduction de contexte**, pas une transformation physique des assets.
 
-**Invariant fondamental** : le `TargetBucket` dépend du **contexte d’animation courant**, jamais du catalogue complet des capacités physiques d’un équipement.
+**Invariant fondamental** : le `TargetBucket` dépend du **contexte d’animation courant**, jamais du catalogue complet des capacités physiques associées à un driver.
 
 ### Alignement des frames hétérogènes
 
@@ -607,12 +607,14 @@ PhysicalRealization
 └── realization_bucket
 ```
 
-Il porte également les relations déjà décidées :
+Il peut également porter une section conceptuelle `animation_drivers` décrivant les `AnimationDriverId` connus du build et, lorsqu'ils existent, leurs associations aux `PhysicalRealization` et `RealizationBucket` disponibles. Cette association peut être vide pour un driver purement sémantique.
+
+La relation est donc :
 
 ```text
 AnimationDriverId
-    → réalisations physiques d'équipement disponibles
-    → RealizationBucket disponibles
+    → (PhysicalRealization éventuellement associées)
+    → (RealizationBucket éventuellement disponibles)
 ```
 
 **Invariant** : une `RealizationId` identifie une seule **occurrence déclarative** d'un `Profile` pour un `source asset`, un `LayerId` / une topologie et un `RealizationBucket` donnés. Les coordonnées de localisation n'entrent pas dans l'identité sémantique du `Profile` ; elles appartiennent au contrat de localisation.
@@ -623,7 +625,7 @@ Le manifeste **ne porte pas les `grid_y_starts`** et **ne porte pas l'optionalit
 
 ### Séparation des responsabilités
 
-**Principe de responsabilité** : le `build_manifest.yaml` ne connaît pas un `TargetBucket` final par équipement ; il fournit les réalisations physiques et leurs `RealizationBucket`, que l'`AssetRegistry` normalise pour permettre à l'AOT de dériver le `TargetBucket` pour chaque `ResolutionContext` effectivement matérialisé.
+**Principe de responsabilité** : le `build_manifest.yaml` ne connaît pas un `TargetBucket` final par contexte ; il fournit les réalisations physiques et, lorsqu'elles existent, leurs associations aux `AnimationDriverId`, que l'`AssetRegistry` normalise pour permettre à l'AOT de dériver le `TargetBucket` pour chaque `ResolutionContext` effectivement matérialisé.
 
 | Information | Profile canonique | Build manifest | Contrat d'équipement | YAML de résolution |
 |---|---:|---:|---:|---:|
@@ -1425,9 +1427,9 @@ L'AOT fige la topologie spatiale, ordinale et structurelle. Le runtime reste ma�
 - Promotion contextuelle du `TargetBucket` lorsqu’une réalisation Medium ou Large est effectivement sélectionnée. §3
 - **Dans le corpus LPC visé, l’absence de `AnimationDriverId` conduit actuellement à `TargetBucket = Small` lorsque les réalisations sélectionnées sont toutes Small.** §3
 
-### Drivers et équipements
-- `AnimationDriverId` identifie le facteur actif qui peut piloter le contexte cinématique ; dans le corpus actuel, ce facteur est une arme ou un outil. Il ne détermine pas directement le `TargetBucket`, lequel est dérivé des réalisations effectivement sélectionnées. §4
-- Le `build_manifest.yaml` associe les `AnimationDriverId` aux `PhysicalRealization` et `RealizationBucket` disponibles lorsqu’ils existent ; l’`AssetRegistry` en porte la représentation normalisée, tandis que les contrats de localisation restent scopés à la localisation physique. §4
+### Drivers d'animation et couches associées
+- `AnimationDriverId` identifie le facteur actif qui peut piloter le contexte cinématique ; dans le corpus actuel, les drivers observés sont des armes et des outils. Il ne détermine pas directement le `TargetBucket`, lequel est dérivé des réalisations effectivement sélectionnées. §4
+- Le `build_manifest.yaml` peut porter une section `animation_drivers` associant les `AnimationDriverId` aux `PhysicalRealization` et `RealizationBucket` disponibles lorsqu’ils existent ; cette association peut être vide pour un driver purement sémantique. L’`AssetRegistry` en porte la représentation normalisée, tandis que les contrats de localisation restent scopés à la localisation physique. §4
 - Le `AnimationDriverId` peut établir le contexte cinématique commun ; chaque layer peut utiliser une réalisation physique distincte du `Profile` résolu. Le `TargetBucket` est ensuite dérivé des réalisations effectivement sélectionnées. §4, §8, §9
 - Le bouclier est un élément visuel auxiliaire, sans impact sur la cinématique ni sur le `TargetBucket`. §3
 - Les assets de bouclier observés restent au format Small de la grille de base. §3
@@ -1435,7 +1437,7 @@ L'AOT fige la topologie spatiale, ordinale et structurelle. Le runtime reste ma�
 - Bouclier : position variable selon direction. §11
 
 ### YAML et validation
-- **Trois catégories fonctionnelles de déclarations YAML** : canonique + contrats d’équipement/localisation + résolution ; `build_manifest.yaml` porte la déclaration globale des réalisations physiques. §4
+- **Trois catégories fonctionnelles de déclarations YAML** : canonique + contrats de localisation + résolution ; `build_manifest.yaml` porte la déclaration globale des réalisations physiques. §4
 - `frame_size` déduit du `RealizationBucket`. §4
 - CompositionProfiles héritent `frame_count` et `directions` de leur `source_extraction`. §4
 - `RealizationId` manquant ou inconnu → erreur. Cible de résolution inexistante → erreur. Ambiguïté de contrat ou de sélection physique → erreur. `by_driver` et `by_bucket` simultanément dans une même action → erreur. Le YAML de résolution constitue la déclaration du vocabulaire `AnimationAction`. §4, §8
@@ -1621,15 +1623,15 @@ est donc normative. L'absence est déterminée par la déclaration/topologie de 
 - ✔ Préfixes interdits pour `AnimationAction`, tolérés pour profils.
 - ✔ **`AnimationDriverId` identifie le facteur actif qui peut piloter le contexte cinématique ; dans le corpus LPC actuel, les drivers observés sont des armes et des outils. Le `TargetBucket` est ensuite dérivé des réalisations effectivement sélectionnées.** Le bouclier est hors de cette dimension.
 - ✔ **Les couches non conductrices participent toutes à la composition de l'animation, mais n'influencent ni le `Profile` ni le `TargetBucket` ; dans le corpus visé, leurs réalisations physiques restent Small.**
-- ✔ `by_driver` partout.
+- ✔ `by_driver` constitue l’axe de résolution lorsque le `Profile` dépend d’un `AnimationDriverId` ; `default` reste la résolution par défaut ; `by_bucket` demeure expérimental/réservé.
 - ✔ Pivot d'ancrage gameplay hors-scope AOT.
 - ✔ Nomenclature `_128` / `_192` réservée aux désignations descriptives de réalisations physiques ; jamais identités de `Profile`.
 - ✔ Écartés : `1h_*`, `backslash`, `halfslash`, + héritage.
-- ✔ **`TargetBucket` dérivé du maximum des `RealizationBucket` effectivement sélectionnés dans le contexte courant ; il ne provient pas du catalogue global de l’équipement.**
+- ✔ **`TargetBucket` dérivé du maximum des `RealizationBucket` effectivement sélectionnés dans le contexte courant ; il ne provient pas d’un catalogue global de capacités du driver.**
 - ✔ Politique de boucle par graphe de succession.
 - ✔ Déduplication par layer.
 - ✔ Identité de déduplication d'une `FrameSequence` = contenu ordonné des frames + `next_sequence_id`.
-- ✔ Trois catégories fonctionnelles de déclarations YAML : canonique + contrats d'équipement/localisation + résolution ; `build_manifest.yaml` porte la déclaration globale des réalisations physiques.
+- ✔ Trois catégories fonctionnelles de déclarations YAML : canonique + contrats de localisation + résolution ; `build_manifest.yaml` porte la déclaration globale des réalisations physiques.
 - ✔ `frame_size` déduit du `RealizationBucket`.
 - ✔ PNG source de vérité physique unique.
 - ✔ Terme générique « Oversized Equipment ».
@@ -1640,8 +1642,9 @@ est donc normative. L'absence est déterminée par la déclaration/topologie de 
 - ✔ Origine `x = 0` : par défaut, sans mécanisme de surcharge.
 - ✔ Position horizontale des frames : `x(i) = i × frame_size`, frames contiguës sans padding horizontal.
 - ✔ Couples `(AnimationDriverId, TargetBucket)` : valides uniquement.
-- ✔ Relation globale des drivers : le `build_manifest.yaml` associe les `AnimationDriverId` aux `PhysicalRealization` et `RealizationBucket` disponibles lorsqu’ils existent ; l’`AssetRegistry` en porte la représentation normalisée, tandis que les contrats de localisation restent scopés à la localisation physique.
+- ✔ Relation globale des drivers : le `build_manifest.yaml` peut porter une section `animation_drivers` associant les `AnimationDriverId` aux `PhysicalRealization` et `RealizationBucket` disponibles lorsqu’ils existent ; cette association peut être vide pour un driver purement sémantique. L’`AssetRegistry` en porte la représentation normalisée, tandis que les contrats de localisation restent scopés à la localisation physique.
 - ✔ Résolution `AnimationAction` : au plus un axe de variation parmi `by_driver` et `by_bucket` ; `default` est la résolution par défaut ; `by_bucket` est expérimental/réservé et dépend d’un `TargetBucket` déjà établi indépendamment. Lorsque `AnimationDriverId = none` et qu’aucune entrée `by_driver` ne correspond, la résolution utilise `default`.
+- ✔ **Un `AnimationDriverId` peut être purement sémantique et ne posséder aucune `PhysicalRealization` propre ; aucun `DriverKind` ni catégorie supplémentaire n’est introduit pour cela.**
 - ✔ **Déclaration des `AnimationAction` : le YAML de résolution constitue le vocabulaire déclaré ; le nombre de cinématiques d’un asset ne détermine pas le nombre d’actions.**
 - ✔ Correspondance `grid_y_starts` ↔ `directions` : les listes sont parallèles, avec cardinalité identique.
 - ✔ Profils mono-directionnels : normalisation AOT sur les quatre directions canoniques par référencement de la même `FrameSequence`.
