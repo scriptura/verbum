@@ -1,0 +1,17 @@
+[package]
+name = "verbum"
+description = "A strict ECS and data-oriented game engine, designed around deterministic simulation, allocation-free hot paths and ahead-of-time compilation."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+verbum-ecs.workspace = true
+
+[lints]
+workspace = true

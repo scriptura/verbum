@@ -1,14 +1,19 @@
-[package]
-name = "verbum"
+[workspace]
+resolver = "3"
+members = ["crates/verbum-ecs", "crates/verbum"]
+
+[workspace.package]
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
+rust-version = "1.85"
 authors = ["Olivier Chavarin"]
-description = "A strict ECS and Data-Oriented 2D game engine built for absolute determinism, zero-allocation hot paths, and Ahead-Of-Time compilation."
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/scriptura/verbum"
-readme = "README.md"
-license = "MIT OR Apache-2.0"                                                                                                                           # Double licence standard de l'écosystème Rust
 keywords = ["ecs", "game-engine", "dod", "aot", "deterministic"]
 categories = ["game-engines", "data-structures"]
 
-# Aucune dépendance pour ce manifeste architectural.
-[dependencies]
+[workspace.dependencies]
+verbum-ecs = { path = "crates/verbum-ecs", version = "0.1.0" }
+
+[workspace.lints.rust]
+unsafe_code = "deny"

@@ -5,3 +5,10 @@ version = 4
 [[package]]
 name = "verbum"
 version = "0.1.0"
+dependencies = [
+ "verbum-ecs",
+]
+
+[[package]]
+name = "verbum-ecs"
+version = "0.1.0"
