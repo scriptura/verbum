@@ -19,11 +19,20 @@ const END_OF_FREE_LIST: u32 = u32::MAX;
 pub struct EntityId(u64);
 
 impl EntityId {
-    fn new(index: u32, generation: u32) -> Self {
-        Self((u64::from(generation) << 32) | u64::from(index))
+    const fn new(index: u32, generation: u32) -> Self {
+        Self(((generation as u64) << 32) | index as u64)
     }
 
-    fn index(self) -> u32 {
+    /// Valeur de remplissage des tampons denses hors de leur préfixe occupé.
+    ///
+    /// Ne peut jamais être émise par une table : son index (`u32::MAX`) dépasse toute
+    /// capacité (bornée sous `END_OF_FREE_LIST`) et sa génération (`u32::MAX`) n'est
+    /// jamais attribuée (marqueur de slot retiré).
+    pub(crate) const VACANT: Self = Self::new(u32::MAX, u32::MAX);
+
+    /// Index d'entité. Seule composante accessible aux stockages : ils n'ont pas à
+    /// lire la génération (ADR-001, point 2).
+    pub(crate) fn index(self) -> u32 {
         // Troncature voulue : les 32 bits bas.
         self.0 as u32
     }
@@ -53,16 +62,11 @@ struct Slot {
 /// Table de génération sur `N` slots : `is_alive(id) == (slots[id.index].generation == id.generation)`.
 ///
 /// Interne au crate jusqu'à la Phase 3 : le `World` la possédera.
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "consommée par le World à partir de la Phase 3")
-)]
 pub(crate) struct GenerationTable<const N: usize> {
     slots: [Slot; N],
     free_head: u32,
 }
 
-#[cfg_attr(not(test), expect(dead_code, reason = "cf. GenerationTable"))]
 impl<const N: usize> GenerationTable<N> {
     /// Les index doivent tenir sous la sentinelle de fin de liste.
     const CAPACITY_FITS_INDEX: () = assert!(N < END_OF_FREE_LIST as usize);
@@ -187,5 +191,19 @@ mod tests {
         assert!(!table.is_alive(last));
         assert_eq!(table.allocate(), Err(CapacityExceeded));
         assert!(!table.is_alive(last));
+    }
+
+    /// `VACANT` ne peut correspondre à aucun handle émis par une table : son index
+    /// (`u32::MAX`) dépasse toute capacité, et sa génération (`u32::MAX`) n'est jamais attribuée.
+    #[test]
+    fn vacant_is_never_issued_nor_alive() {
+        let mut table = GenerationTable::<3>::new();
+        for _ in 0..3 {
+            let id = table.allocate().unwrap();
+            assert_ne!(id, EntityId::VACANT);
+            assert!(!table.is_alive(EntityId::VACANT));
+        }
+        assert_eq!(EntityId::VACANT.index(), u32::MAX);
+        assert_eq!(EntityId::VACANT.generation(), u32::MAX);
     }
 }
