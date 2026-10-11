@@ -27,19 +27,22 @@ pub(crate) enum AddError {
     Insert(InsertError),
 }
 
-/// Monde de `ENTITIES` entités au plus, portant les stockages `S`. La capacité est fixée avant
+/// Monde de `ENTITIES` entités au plus, portant les stockages `S` et les Ressources `R`
+/// (champs `ResourceSlot`, cardinalité 1, sans lien avec les entités). La capacité est fixée avant
 /// la simulation et toute la mémoire est portée par le `World` lui-même : aucune allocation.
 #[cfg_attr(test, derive(Clone, Debug, PartialEq))]
-pub struct World<const ENTITIES: usize, S: ComponentSet = ()> {
+pub struct World<const ENTITIES: usize, S: ComponentSet = (), R = ()> {
     entities: GenerationTable<ENTITIES>,
     components: S,
+    resources: R,
 }
 
-impl<const ENTITIES: usize, S: ComponentSet> World<ENTITIES, S> {
+impl<const ENTITIES: usize, S: ComponentSet, R: Default> World<ENTITIES, S, R> {
     pub fn new() -> Self {
         Self {
             entities: GenerationTable::new(),
             components: S::default(),
+            resources: R::default(),
         }
     }
 
@@ -48,6 +51,18 @@ impl<const ENTITIES: usize, S: ComponentSet> World<ENTITIES, S> {
     /// vérifie la vivacité du handle avec `is_alive`.
     pub fn components(&self) -> &S {
         &self.components
+    }
+
+    /// Ressources en lecture (ADR-005) : accès statique par champ, jamais par clé dynamique.
+    pub fn resources(&self) -> &R {
+        &self.resources
+    }
+
+    /// Ressources en écriture. Ne donne accès qu'à `R` : ni identité, ni stockages. Une
+    /// Ressource n'est liée à aucune entité (ni purge, ni lot) ; le propriétaire unique en
+    /// écriture (ADR-005, point 5) relève des systèmes, pas du `World`.
+    pub fn resources_mut(&mut self) -> &mut R {
+        &mut self.resources
     }
 
     /// Crée une entité. Erreur explicite si la capacité est atteinte, jamais une croissance.
@@ -225,7 +240,7 @@ impl<const ENTITIES: usize, S: ComponentSet> World<ENTITIES, S> {
     }
 }
 
-impl<const ENTITIES: usize, S: ComponentSet> Default for World<ENTITIES, S> {
+impl<const ENTITIES: usize, S: ComponentSet, R: Default> Default for World<ENTITIES, S, R> {
     fn default() -> Self {
         Self::new()
     }
@@ -457,7 +472,13 @@ mod tests {
     /// primitives appliquées dans l'ordre. Couvre doublons, handles périmés et slot retiré.
     #[test]
     fn prevalidation_is_exact_and_atomic_over_all_small_batches() {
+        // Capacité du buffer : longueur maximale des lots, donc couverture complète hors Miri.
         const LEN: usize = 5;
+        // Sous Miri, l'exploration est limitée à 3 commandes (mêmes scénarios, mêmes assertions) :
+        // le coût de l'interpréteur rend les 5 commandes prohibitives. Les chemins de
+        // prévalidation et d'application restent exercés ; les lots de 4 et 5 commandes ne le
+        // sont que par les tests ordinaires.
+        const MAX_LENGTH: usize = if cfg!(miri) { 3 } else { LEN };
 
         // Scénarios : (monde, [a, b, périmé]).
         fn scenarios() -> [(World<3>, [EntityId; 3]); 5] {
@@ -499,7 +520,7 @@ mod tests {
                 Command::Despawn(b),
                 Command::Despawn(stale),
             ];
-            for length in 0..=LEN {
+            for length in 0..=MAX_LENGTH {
                 for code in 0..alphabet.len().pow(length as u32) {
                     let mut sequence = [Command::Spawn; LEN];
                     let mut rest = code;
@@ -915,5 +936,55 @@ mod tests {
                 }
             }
         }
+    }
+
+    // ---- Phase 5 : Ressources -------------------------------------------------------------
+
+    use crate::resource::ResourceSlot;
+
+    #[derive(Clone, Debug, PartialEq, Default)]
+    struct Globals {
+        score: ResourceSlot<u32>,
+        label: ResourceSlot<i8>,
+    }
+
+    /// Deux types de Ressource dans un monde, indépendants ; le monde vide n'en a aucune.
+    #[test]
+    fn world_holds_distinct_resources_by_static_field() {
+        let mut world = World::<1, Kinematics, Globals>::new();
+        assert_eq!(world.resources().score.get(), None);
+
+        world.resources_mut().score.insert(10);
+        world.resources_mut().label.insert(-3);
+        *world.resources_mut().score.get_mut().unwrap() += 1;
+
+        assert_eq!(world.resources().score.get(), Some(&11));
+        assert_eq!(world.resources().label.get(), Some(&-3));
+    }
+
+    /// Une Ressource n'est liée à aucune entité : ni la destruction, ni un lot appliqué, ni un
+    /// lot rejeté ne la modifient (atomicité : le monde rejeté est identique, Ressources
+    /// comprises).
+    #[test]
+    fn resources_are_independent_of_entity_lifecycle_and_batches() {
+        let mut world = World::<1, Kinematics, Globals>::new();
+        world.resources_mut().score.insert(5);
+        let e = world.spawn().unwrap();
+        world.add_component(e, pos(1)).unwrap();
+
+        let mut buffer = CommandBuffer::<2, KinematicsAdd>::new();
+        buffer.spawn().unwrap(); // monde plein : lot rejeté
+        let before = world.clone();
+        assert_eq!(
+            world.apply(&mut buffer),
+            Err(ApplyError::Spawn(CapacityExceeded))
+        );
+        assert_eq!(world, before);
+        buffer.clear();
+
+        buffer.despawn(e).unwrap();
+        assert_eq!(world.apply(&mut buffer), Ok(()));
+        assert_eq!(world.resources().score.get(), Some(&5));
+        assert_eq!(world.components().positions.len(), 0);
     }
 }
