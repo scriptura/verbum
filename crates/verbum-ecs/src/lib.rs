@@ -10,13 +10,17 @@ mod component_set;
 mod entity;
 #[cfg(test)]
 mod fixtures;
+mod query;
 mod resource;
 mod storage;
+mod values;
 mod world;
 
 pub use command::{BufferFull, CommandBuffer};
 pub use component_set::ComponentSet;
 pub use entity::{CapacityExceeded, EntityId, StaleEntity};
+pub use query::ReadWriteQuery;
 pub use resource::ResourceSlot;
 pub use storage::{InsertError, SparseSet};
+pub use values::{ValuesMut, ValuesView};
 pub use world::{ApplyError, World};

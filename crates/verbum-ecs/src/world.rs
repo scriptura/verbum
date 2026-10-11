@@ -65,6 +65,14 @@ impl<const ENTITIES: usize, S: ComponentSet, R: Default> World<ENTITIES, S, R> {
         &mut self.resources
     }
 
+    /// Accès mutable aux **valeurs** des composants, jamais à la structure : `S::Values` est
+    /// composé de `ValuesMut` (type scellé), sans `insert` ni `remove`. Seul le `World` résout
+    /// les mutations structurelles (ADR-006). Une Query en lecture/écriture se construit
+    /// depuis ces vues (`ValuesMut::shared` pour la lecture), sans `world.query()`.
+    pub fn component_values_mut(&mut self) -> S::Values<'_> {
+        self.components.values_mut()
+    }
+
     /// Crée une entité. Erreur explicite si la capacité est atteinte, jamais une croissance.
     pub fn spawn(&mut self) -> Result<EntityId, CapacityExceeded> {
         self.entities.allocate()
@@ -986,5 +994,48 @@ mod tests {
         assert_eq!(world.apply(&mut buffer), Ok(()));
         assert_eq!(world.resources().score.get(), Some(&5));
         assert_eq!(world.components().positions.len(), 0);
+    }
+
+    // ---- Intégration : accès mutable limité aux valeurs --------------------------------------
+
+    /// La vue du `World` écrit les valeurs sans toucher à la structure ; la structure ne change
+    /// que par `apply`, qui purge ensuite normalement ; un lot rejeté laisse intactes les valeurs
+    /// déjà écrites (atomicité avec composants présents).
+    #[test]
+    fn world_values_view_writes_values_while_structure_stays_with_apply() {
+        let mut world = KWorld::<3>::new();
+        let (a, b) = (world.spawn().unwrap(), world.spawn().unwrap());
+        world.add_component(a, pos(1)).unwrap();
+        world.add_component(b, pos(2)).unwrap();
+        world.add_component(a, vel(3)).unwrap();
+
+        {
+            let (mut positions, velocities) = world.component_values_mut();
+            *positions.get_mut(a).unwrap() = position(100);
+            assert_eq!(positions.entities(), [a, b], "ordre dense inchangé");
+            assert_eq!((positions.len(), velocities.len()), (2, 1));
+            assert!(!velocities.contains(b));
+        }
+        assert_eq!(world.components().positions.get(a), Some(&position(100)));
+        assert!(world.is_alive(a) && world.is_alive(b));
+
+        // Lot rejeté (doublon) : valeurs écrites et structure inchangées, buffer intact.
+        let before = world.clone();
+        let mut buffer = KBuffer::<2>::new();
+        buffer.add_component(b, vel(4)).unwrap(); // applicable
+        buffer.add_component(a, pos(5)).unwrap(); // déjà présent
+        assert_eq!(
+            world.apply(&mut buffer),
+            Err(ApplyError::Add(InsertError::AlreadyPresent))
+        );
+        assert_eq!(world, before);
+        assert_eq!(buffer.len(), 2);
+        buffer.clear();
+
+        // La destruction passe par `apply` et purge la valeur modifiée.
+        buffer.despawn(a).unwrap();
+        world.apply(&mut buffer).unwrap();
+        assert_eq!(world.components().positions.entities(), [b]);
+        assert_eq!(world.components().velocities.len(), 0);
     }
 }

@@ -3,8 +3,8 @@
 //! Le Sparse Set est un index de présence, jamais un mécanisme de validation
 //! d'identité : il ne lit jamais la génération d'un `EntityId` (ADR-001, point 2).
 //!
-//! Seul `get` contient du code `unsafe` (lecture d'une entrée dense initialisée) ;
-//! le fondement est l'invariant d'initialisation de `SparseSet`.
+//! Seuls `get` et `get_mut` contiennent du code `unsafe` (accès à une entrée dense
+//! initialisée) ; le fondement est l'invariant d'initialisation de `SparseSet`.
 //!
 //! Aucune allocation. La mémoire est fournie à la construction sous forme de deux
 //! capacités const-génériques distinctes : `SPARSE` (étendue des index d'entité
@@ -42,7 +42,7 @@ pub enum InsertError {
 /// sur les types stockés). `Copy` dispense de tout `Drop` : retirer ou écraser une
 /// entrée n'exige aucune libération.
 ///
-/// # Invariant d'initialisation (seul fondement du seul bloc `unsafe`)
+/// # Invariant d'initialisation (seul fondement des deux blocs `unsafe`, `get` et `get_mut`)
 /// `dense_data[i]` est initialisé **si et seulement si** `i < len`. Chaque valeur
 /// non `ABSENT` de `sparse` est `< len`. Les cases `[len, DENSE)` de `dense_data`
 /// ne sont jamais lues comme des `T` : elles ne sont atteignables ni par `get`
@@ -109,6 +109,31 @@ impl<T: Copy, const SPARSE: usize, const DENSE: usize> SparseSet<T, SPARSE, DENS
         // SAFETY: `position` provient de `sparse` et est donc `< len` (invariant de
         // la structure) ; `dense_data[position]` est alors initialisé.
         Some(unsafe { self.dense_data[position].assume_init_ref() })
+    }
+
+    /// Accès en écriture à la **valeur** d'une entité présente. Non structurel : la présence,
+    /// l'ordre dense et les positions sparse ne changent pas.
+    #[allow(
+        unsafe_code,
+        reason = "second bloc unsafe du stockage ; cf. invariant d'initialisation"
+    )]
+    pub fn get_mut(&mut self, entity: EntityId) -> Option<&mut T> {
+        let position = self.position(entity)?;
+        debug_assert!(position < self.len);
+        // SAFETY: identique à `get` : `position` provient de `sparse`, donc `< len`, et
+        // `dense_data[position]` est initialisé. L'emprunt exclusif de `self` garantit l'unicité.
+        Some(unsafe { self.dense_data[position].assume_init_mut() })
+    }
+
+    /// Entités présentes, dans l'ordre dense (préfixe `[0, len)` sans trou). Ordre déterministe
+    /// pour une même séquence d'opérations ; il change au swap-remove.
+    pub fn entities(&self) -> &[EntityId] {
+        &self.dense_entities[..self.len]
+    }
+
+    /// Vue exclusive sur les seules valeurs : aucune opération structurelle (cf. `values`).
+    pub fn values_mut(&mut self) -> crate::values::ValuesMut<'_, T, SPARSE, DENSE> {
+        crate::values::ValuesMut::new(self)
     }
 
     pub fn insert(&mut self, entity: EntityId, value: T) -> Result<(), InsertError> {
@@ -208,6 +233,40 @@ mod tests {
             *slot = table.allocate().unwrap();
         }
         out
+    }
+
+    #[test]
+    fn get_mut_writes_the_value_without_touching_structure() {
+        let mut table = GenerationTable::<4>::new();
+        let [a, b, c, _] = ids(&mut table, 3);
+        let mut set = SparseSet::<u32, 4, 4>::new();
+        set.insert(a, 10).unwrap();
+        set.insert(b, 20).unwrap();
+
+        *set.get_mut(b).unwrap() += 5;
+
+        assert_eq!(set.get(b), Some(&25));
+        assert_eq!(set.get(a), Some(&10));
+        assert_eq!(set.get_mut(c), None, "absente");
+        assert_eq!(set.get_mut(EntityId::VACANT), None);
+        assert_eq!(set.entities(), [a, b]);
+        assert_eq!(set.len(), 2);
+    }
+
+    /// `entities()` expose exactement le préfixe dense, y compris après swap-remove.
+    #[test]
+    fn entities_lists_the_dense_prefix() {
+        let mut table = GenerationTable::<4>::new();
+        let [a, b, c, _] = ids(&mut table, 3);
+        let mut set = SparseSet::<u32, 4, 4>::new();
+        assert_eq!(set.entities(), []);
+        for (id, v) in [(a, 1), (b, 2), (c, 3)] {
+            set.insert(id, v).unwrap();
+        }
+        assert_eq!(set.entities(), [a, b, c]);
+
+        set.remove(a);
+        assert_eq!(set.entities(), [c, b]);
     }
 
     #[test]

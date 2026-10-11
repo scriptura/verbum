@@ -4,7 +4,7 @@
 
 use verbum_ecs::{
     ApplyError, CapacityExceeded, CommandBuffer, ComponentSet, EntityId, InsertError, SparseSet,
-    World,
+    ValuesMut, World,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -30,6 +30,7 @@ enum StatsAdd {
 impl ComponentSet for Stats {
     type Add = StatsAdd;
     type Counters = [usize; 2];
+    type Values<'a> = (ValuesMut<'a, Health, 4, 2>, ValuesMut<'a, Mana, 2, 2>);
 
     fn kind(add: &StatsAdd) -> usize {
         match add {
@@ -76,6 +77,10 @@ impl ComponentSet for Stats {
     fn remove_all(&mut self, entity: EntityId) {
         self.health.remove(entity);
         self.mana.remove(entity);
+    }
+
+    fn values_mut(&mut self) -> Self::Values<'_> {
+        (self.health.values_mut(), self.mana.values_mut())
     }
 }
 

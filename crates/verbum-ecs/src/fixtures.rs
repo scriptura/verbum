@@ -6,7 +6,7 @@
 //! 2 composants (la capacité dense se sature avant l'étendue sparse) ; `velocities` ne couvre
 //! que 2 index (l'entité d'index 2 est hors étendue).
 
-use crate::{ComponentSet, EntityId, InsertError, SparseSet};
+use crate::{ComponentSet, EntityId, InsertError, SparseSet, ValuesMut};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct Position {
@@ -47,6 +47,7 @@ pub(crate) const fn vel(dx: i32) -> KinematicsAdd {
 impl ComponentSet for Kinematics {
     type Add = KinematicsAdd;
     type Counters = [usize; 2];
+    type Values<'a> = (ValuesMut<'a, Position, 3, 2>, ValuesMut<'a, Velocity, 2, 2>);
 
     fn kind(add: &Self::Add) -> usize {
         match add {
@@ -97,5 +98,9 @@ impl ComponentSet for Kinematics {
     fn remove_all(&mut self, entity: EntityId) {
         self.positions.remove(entity);
         self.velocities.remove(entity);
+    }
+
+    fn values_mut(&mut self) -> Self::Values<'_> {
+        (self.positions.values_mut(), self.velocities.values_mut())
     }
 }
