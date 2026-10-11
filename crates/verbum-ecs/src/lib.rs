@@ -5,6 +5,7 @@
 
 #![no_std]
 
+mod command;
 mod entity;
 
 // Le stockage n'est consommé par aucun code non-test avant la Phase 4b (premier
@@ -18,5 +19,6 @@ mod storage;
 
 mod world;
 
+pub use command::{BufferFull, CommandBuffer};
 pub use entity::{CapacityExceeded, EntityId, StaleEntity};
 pub use world::World;

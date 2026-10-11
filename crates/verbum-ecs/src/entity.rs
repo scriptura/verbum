@@ -50,7 +50,7 @@ pub struct CapacityExceeded;
 #[derive(Debug, PartialEq, Eq)]
 pub struct StaleEntity;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Slot {
     /// Génération courante du slot. `u32::MAX` n'est jamais attribuée : elle
     /// marque un slot retiré.
@@ -62,9 +62,13 @@ struct Slot {
 /// Table de génération sur `N` slots : `is_alive(id) == (slots[id.index].generation == id.generation)`.
 ///
 /// Interne au crate jusqu'à la Phase 3 : le `World` la possédera.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct GenerationTable<const N: usize> {
     slots: [Slot; N],
     free_head: u32,
+    /// Nombre de slots dans la liste libre (les slots retirés n'y figurent pas). Permet de
+    /// prévalider un lot de créations en O(1), sans parcourir la liste.
+    free: usize,
 }
 
 impl<const N: usize> GenerationTable<N> {
@@ -87,6 +91,7 @@ impl<const N: usize> GenerationTable<N> {
         Self {
             slots,
             free_head: if N > 0 { 0 } else { END_OF_FREE_LIST },
+            free: N,
         }
     }
 
@@ -95,6 +100,7 @@ impl<const N: usize> GenerationTable<N> {
         // `END_OF_FREE_LIST` dépasse toute capacité : `get_mut` échoue alors.
         let slot = self.slots.get_mut(index as usize).ok_or(CapacityExceeded)?;
         self.free_head = slot.next_free;
+        self.free -= 1;
         Ok(EntityId::new(index, slot.generation))
     }
 
@@ -110,8 +116,32 @@ impl<const N: usize> GenerationTable<N> {
         if slot.generation != u32::MAX {
             slot.next_free = self.free_head;
             self.free_head = index;
+            self.free += 1;
         }
         Ok(())
+    }
+
+    /// Test seulement : amène un slot libre à une génération donnée (ex. une avant l'épuisement).
+    #[cfg(test)]
+    pub(crate) fn set_generation_for_test(&mut self, index: usize, generation: u32) {
+        self.slots[index].generation = generation;
+    }
+
+    /// Nombre de slots que `allocate` peut encore attribuer.
+    pub(crate) fn free_slots(&self) -> usize {
+        self.free
+    }
+
+    /// Prédit, sans muter, si `release(id)` rendrait un slot à la liste libre : le handle doit
+    /// être vivant, et son slot ne doit pas être retiré par épuisement de génération.
+    pub(crate) fn frees_slot_on_release(&self, id: EntityId) -> bool {
+        self.slots.get(id.index() as usize).is_some_and(|slot| {
+            slot.generation == id.generation()
+                && slot
+                    .generation
+                    .checked_add(1)
+                    .is_some_and(|next| next != u32::MAX)
+        })
     }
 
     pub(crate) fn is_alive(&self, id: EntityId) -> bool {
@@ -191,6 +221,58 @@ mod tests {
         assert!(!table.is_alive(last));
         assert_eq!(table.allocate(), Err(CapacityExceeded));
         assert!(!table.is_alive(last));
+    }
+
+    /// Longueur réelle de la liste libre, par parcours.
+    fn walk_free_list<const N: usize>(table: &GenerationTable<N>) -> usize {
+        let (mut count, mut index) = (0, table.free_head);
+        while (index as usize) < N {
+            count += 1;
+            index = table.slots[index as usize].next_free;
+        }
+        count
+    }
+
+    /// Le compteur de slots libres suit `allocate`/`release` et coïncide avec la liste libre.
+    #[test]
+    fn free_slots_tracks_the_free_list() {
+        let mut table = GenerationTable::<3>::new();
+        assert_eq!((table.free_slots(), walk_free_list(&table)), (3, 3));
+        let a = table.allocate().unwrap();
+        let _b = table.allocate().unwrap();
+        assert_eq!((table.free_slots(), walk_free_list(&table)), (1, 1));
+        table.release(a).unwrap();
+        assert_eq!((table.free_slots(), walk_free_list(&table)), (2, 2));
+        assert_eq!(table.release(a), Err(StaleEntity));
+        assert_eq!((table.free_slots(), walk_free_list(&table)), (2, 2));
+    }
+
+    /// Un slot retiré (génération épuisée) ne revient pas dans le décompte des slots libres.
+    #[test]
+    fn retired_slot_is_not_counted_as_free() {
+        let mut table = GenerationTable::<1>::new();
+        table.slots[0].generation = u32::MAX - 1;
+        let last = table.allocate().unwrap();
+        assert!(!table.frees_slot_on_release(last));
+
+        table.release(last).unwrap();
+        assert_eq!((table.free_slots(), walk_free_list(&table)), (0, 0));
+    }
+
+    /// `frees_slot_on_release` prédit sans muter ce que `release` fera : un handle vivant
+    /// libère un slot ; un handle périmé ou hors de portée n'en libère aucun.
+    #[test]
+    fn frees_slot_on_release_predicts_release_without_mutating() {
+        let mut table = GenerationTable::<2>::new();
+        let a = table.allocate().unwrap();
+        let before = table.clone();
+
+        assert!(table.frees_slot_on_release(a));
+        assert!(!table.frees_slot_on_release(EntityId::VACANT));
+        assert_eq!(table, before);
+
+        table.release(a).unwrap();
+        assert!(!table.frees_slot_on_release(a), "périmé : rien à libérer");
     }
 
     /// `VACANT` ne peut correspondre à aucun handle émis par une table : son index
