@@ -44,11 +44,11 @@ impl EntityId {
 
 /// Le dépassement de capacité de la table : erreur explicite, jamais une croissance.
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) struct CapacityExceeded;
+pub struct CapacityExceeded;
 
 /// Le handle ne désigne plus d'entité vivante.
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) struct StaleEntity;
+pub struct StaleEntity;
 
 #[derive(Clone, Copy)]
 struct Slot {
