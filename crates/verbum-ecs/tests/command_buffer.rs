@@ -1,7 +1,7 @@
 //! Command Buffer vu depuis l'API publique : la création n'existe qu'après `World::apply`,
 //! la destruction est différée, le buffer est vide et réutilisable après application.
 
-use verbum_ecs::{BufferFull, CapacityExceeded, CommandBuffer, World};
+use verbum_ecs::{ApplyError, BufferFull, CapacityExceeded, CommandBuffer, World};
 
 #[test]
 fn deferred_structural_mutations_are_resolved_once_by_the_world() {
@@ -21,7 +21,10 @@ fn deferred_structural_mutations_are_resolved_once_by_the_world() {
     // Réutilisable ; le monde plein signale explicitement le dépassement.
     buffer.spawn().unwrap();
     buffer.spawn().unwrap();
-    assert_eq!(world.apply(&mut buffer), Err(CapacityExceeded));
+    assert_eq!(
+        world.apply(&mut buffer),
+        Err(ApplyError::Spawn(CapacityExceeded))
+    );
     // Échec : le buffer est conservé intact, l'appelant le vide explicitement.
     assert_eq!(buffer.len(), 2);
     buffer.clear();

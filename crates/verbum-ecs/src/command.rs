@@ -7,27 +7,32 @@
 //! Aucune allocation : la capacité est fixée à la construction (const-générique, forme la
 //! plus petite que le test impose ; révisable, cf. `docs/PLAN-ETAPE-0-ECS.md`).
 
+use core::convert::Infallible;
+
 use crate::entity::EntityId;
 
-/// Mutation structurelle différée. À ce stade : création et destruction, sans donnée de
-/// composant (Phase 4b). `Spawn` ne porte pas d'identifiant : seul le `World` en crée.
+/// Mutation structurelle différée : création, destruction, ajout de composant. `Spawn` ne
+/// porte pas d'identifiant : seul le `World` en crée. `A` est l'ajout typé du `ComponentSet`
+/// du monde cible (ensemble fermé de variantes, une par stockage).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Command {
+pub(crate) enum Command<A> {
     Spawn,
     Despawn(EntityId),
+    Add(EntityId, A),
 }
 
 /// Le buffer est plein : erreur explicite, jamais une croissance.
 #[derive(Debug, PartialEq, Eq)]
 pub struct BufferFull;
 
-/// Buffer de `COMMANDS` commandes au plus. État initial déterministe : vide.
-pub struct CommandBuffer<const COMMANDS: usize> {
-    commands: [Command; COMMANDS],
+/// Buffer de `COMMANDS` commandes au plus. État initial déterministe : vide. `A` est le type
+/// d'ajout du `ComponentSet` du `World` qui le résoudra ; par défaut inhabité (aucun ajout).
+pub struct CommandBuffer<const COMMANDS: usize, A = Infallible> {
+    commands: [Command<A>; COMMANDS],
     len: usize,
 }
 
-impl<const COMMANDS: usize> CommandBuffer<COMMANDS> {
+impl<const COMMANDS: usize, A: Copy> CommandBuffer<COMMANDS, A> {
     pub fn new() -> Self {
         Self {
             commands: [Command::Spawn; COMMANDS], // remplissage ; seul `[0, len)` est lisible
@@ -53,7 +58,14 @@ impl<const COMMANDS: usize> CommandBuffer<COMMANDS> {
         self.push(Command::Despawn(entity))
     }
 
-    fn push(&mut self, command: Command) -> Result<(), BufferFull> {
+    /// Accumule l'ajout d'un composant à une entité. Le `World` l'ignore si le handle est
+    /// périmé ou détruit plus tôt dans le lot ; un doublon ou un dépassement de capacité
+    /// rejette le lot entier (`World::apply`).
+    pub fn add_component(&mut self, entity: EntityId, add: A) -> Result<(), BufferFull> {
+        self.push(Command::Add(entity, add))
+    }
+
+    fn push(&mut self, command: Command<A>) -> Result<(), BufferFull> {
         let slot = self.commands.get_mut(self.len).ok_or(BufferFull)?;
         *slot = command;
         self.len += 1;
@@ -61,7 +73,7 @@ impl<const COMMANDS: usize> CommandBuffer<COMMANDS> {
     }
 
     /// Commandes accumulées, dans l'ordre d'émission.
-    pub(crate) fn as_slice(&self) -> &[Command] {
+    pub(crate) fn as_slice(&self) -> &[Command<A>] {
         &self.commands[..self.len]
     }
 
@@ -73,7 +85,7 @@ impl<const COMMANDS: usize> CommandBuffer<COMMANDS> {
     }
 }
 
-impl<const COMMANDS: usize> Default for CommandBuffer<COMMANDS> {
+impl<const COMMANDS: usize, A: Copy> Default for CommandBuffer<COMMANDS, A> {
     fn default() -> Self {
         Self::new()
     }
@@ -82,6 +94,31 @@ impl<const COMMANDS: usize> Default for CommandBuffer<COMMANDS> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::fixtures::{KinematicsAdd, pos, vel};
+
+    /// Les ajouts s'accumulent dans l'ordre d'émission avec les autres commandes, sans effet
+    /// sur le monde ; la capacité borne aussi les ajouts.
+    #[test]
+    fn accumulates_component_adds_in_emission_order() {
+        let mut world = crate::World::<2>::new();
+        let a = world.spawn().unwrap();
+        let mut buffer = CommandBuffer::<3, KinematicsAdd>::new();
+
+        buffer.add_component(a, pos(1)).unwrap();
+        buffer.despawn(a).unwrap();
+        buffer.add_component(a, vel(2)).unwrap();
+
+        assert_eq!(
+            buffer.as_slice(),
+            [
+                Command::Add(a, pos(1)),
+                Command::Despawn(a),
+                Command::Add(a, vel(2))
+            ]
+        );
+        assert_eq!(buffer.add_component(a, pos(3)), Err(BufferFull));
+        assert_eq!(buffer.len(), 3);
+    }
 
     /// ADR-006, point 3 : accumulation libre en écriture. Les commandes s'empilent dans
     /// l'ordre d'émission, quel que soit le producteur.
@@ -99,7 +136,11 @@ mod tests {
         assert_eq!(buffer.len(), 3);
         assert_eq!(
             buffer.as_slice(),
-            [Command::Spawn, Command::Despawn(a), Command::Spawn]
+            [
+                Command::<Infallible>::Spawn,
+                Command::Despawn(a),
+                Command::Spawn
+            ]
         );
     }
 

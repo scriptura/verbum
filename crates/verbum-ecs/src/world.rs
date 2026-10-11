@@ -1,25 +1,53 @@
-//! `World` minimal : identité et cycle de vie des entités, rien d'autre.
+//! `World` : identité, cycle de vie des entités et stockages de composants.
 //!
-//! Seul le `World` crée et détruit des entités (`01-runtime-ecs.md`, section 2).
-//! À ce stade, il n'a aucun stockage de composant : le premier `SparseSet` y entre
-//! en Phase 4b. `spawn` et `despawn` sont ici des primitives directes ; le Command
-//! Buffer (Phase 4a) s'y ajoutera en façade (cf. `docs/PLAN-ETAPE-0-ECS.md`).
+//! Seul le `World` crée et détruit des entités et mute les stockages (`01-runtime-ecs.md`,
+//! sections 2 et 3). Il ignore toute sémantique métier : l'ensemble des stockages est un
+//! `ComponentSet` fourni par l'appelant (cf. `component_set`), accessible en lecture par
+//! `components()` ; toute mutation passe par `spawn`/`despawn` ou par `apply` (ADR-006).
 
 use crate::command::{Command, CommandBuffer};
+use crate::component_set::ComponentSet;
 use crate::entity::{CapacityExceeded, EntityId, GenerationTable, StaleEntity};
+use crate::storage::InsertError;
 
-/// Monde de `ENTITIES` entités au plus. La capacité est fixée avant la simulation et la
-/// mémoire de la table est portée par le `World` lui-même : aucune allocation.
-#[cfg_attr(test, derive(Clone, Debug, PartialEq))]
-pub struct World<const ENTITIES: usize> {
-    entities: GenerationTable<ENTITIES>,
+/// Échec de `World::apply` : première commande inapplicable dans l'ordre d'émission.
+#[derive(Debug, PartialEq, Eq)]
+pub enum ApplyError {
+    /// Une création dépasse la capacité en entités.
+    Spawn(CapacityExceeded),
+    /// Un ajout viole un stockage : doublon, dense plein ou index hors de l'étendue sparse.
+    Add(InsertError),
 }
 
-impl<const ENTITIES: usize> World<ENTITIES> {
+/// Échec de la primitive d'ajout. Le handle périmé (ignoré par `apply`) se distingue
+/// explicitement de l'erreur de stockage (rejet du lot).
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum AddError {
+    Stale(StaleEntity),
+    Insert(InsertError),
+}
+
+/// Monde de `ENTITIES` entités au plus, portant les stockages `S`. La capacité est fixée avant
+/// la simulation et toute la mémoire est portée par le `World` lui-même : aucune allocation.
+#[cfg_attr(test, derive(Clone, Debug, PartialEq))]
+pub struct World<const ENTITIES: usize, S: ComponentSet = ()> {
+    entities: GenerationTable<ENTITIES>,
+    components: S,
+}
+
+impl<const ENTITIES: usize, S: ComponentSet> World<ENTITIES, S> {
     pub fn new() -> Self {
         Self {
             entities: GenerationTable::new(),
+            components: S::default(),
         }
+    }
+
+    /// Stockages en lecture. Aucun accès mutable : les mutations structurelles passent par le
+    /// `World`. Le stockage ne revalide pas la génération (ADR-001, point 2) : l'appelant
+    /// vérifie la vivacité du handle avec `is_alive`.
+    pub fn components(&self) -> &S {
+        &self.components
     }
 
     /// Crée une entité. Erreur explicite si la capacité est atteinte, jamais une croissance.
@@ -27,9 +55,21 @@ impl<const ENTITIES: usize> World<ENTITIES> {
         self.entities.allocate()
     }
 
-    /// Détruit une entité. Refuse un handle périmé sans toucher à l'occupant actuel de l'index.
+    /// Détruit une entité et purge ses composants de tous les stockages, avant que son slot
+    /// puisse être réutilisé. Refuse un handle périmé sans toucher à l'occupant actuel de
+    /// l'index : ni identité, ni composants.
     pub fn despawn(&mut self, id: EntityId) -> Result<(), StaleEntity> {
-        self.entities.release(id)
+        self.entities.release(id)?;
+        self.components.remove_all(id);
+        Ok(())
+    }
+
+    /// Ajoute un composant à une entité vivante. Primitive de référence de `apply`.
+    pub(crate) fn add_component(&mut self, id: EntityId, add: S::Add) -> Result<(), AddError> {
+        if !self.entities.is_alive(id) {
+            return Err(AddError::Stale(StaleEntity));
+        }
+        self.components.insert(id, add).map_err(AddError::Insert)
     }
 
     /// Vivacité d'un handle : comparaison `(index, génération)`, en O(1).
@@ -43,31 +83,44 @@ impl<const ENTITIES: usize> World<ENTITIES> {
     /// **Atomique** : le lot est d'abord prévalidé, dans son ordre d'émission, sans mutation ni
     /// allocation ; il n'est appliqué que s'il est intégralement applicable. Si `apply`
     /// renvoie une erreur, le `World` est resté intégralement inchangé (entités vivantes,
-    /// générations, liste libre) et le buffer est **conservé intact** : transaction non
-    /// consommée, qu'un appelant qui ignore l'erreur retrouvera à l'identique à la phase
+    /// générations, liste libre, stockages) et le buffer est **conservé intact** : transaction
+    /// non consommée, qu'un appelant qui ignore l'erreur retrouvera à l'identique à la phase
     /// suivante, jamais en silence. L'appelant le vide alors avec [`CommandBuffer::clear`].
     /// En cas de succès, le lot est appliqué en une seule passe, dans l'ordre d'accumulation,
-    /// via les primitives `spawn` et `despawn`, puis le buffer est vidé. Le buffer n'est pas
+    /// exactement selon la séquence prévalidée, puis le buffer est vidé. Le buffer n'est pas
     /// possédé par le `World` : sa mémoire reste à l'appelant.
     ///
-    /// Un dépassement de capacité est un bug de configuration (ADR-001, point 5). Choix local
-    /// (non spécifié par le corpus) : une destruction dont le handle est périmé est sans effet,
-    /// plusieurs producteurs pouvant viser la même entité.
+    /// Sémantique du lot, dans l'ordre d'émission (choix locaux, non spécifiés par le corpus) :
+    /// - un handle périmé (ou détruit plus tôt dans le lot) rend la destruction ou l'ajout
+    ///   **sans effet** : plusieurs producteurs peuvent viser la même entité ;
+    /// - un ajout avant la destruction de la cible est appliqué, puis purgé avec elle ;
+    /// - ajout d'un composant déjà présent, stockage dense plein, index hors de l'étendue
+    ///   sparse, création au-delà de la capacité : erreur, **lot entier rejeté** (un
+    ///   dépassement de capacité est un bug de configuration, ADR-001, point 5) ;
+    /// - les handles sont évalués contre le monde avant le lot : aucune commande ne peut
+    ///   désigner une entité créée par ce lot.
     pub fn apply<const COMMANDS: usize>(
         &mut self,
-        commands: &mut CommandBuffer<COMMANDS>,
-    ) -> Result<(), CapacityExceeded> {
-        self.validate(commands.as_slice())?;
+        commands: &mut CommandBuffer<COMMANDS, S::Add>,
+    ) -> Result<(), ApplyError> {
+        let planned = self.plan::<COMMANDS>(commands.as_slice())?;
 
-        for command in commands.as_slice() {
+        for (command, &applies) in commands.as_slice().iter().zip(&planned) {
+            if !applies {
+                continue;
+            }
             match *command {
                 Command::Spawn => {
                     let spawned = self.spawn();
                     debug_assert!(spawned.is_ok(), "lot prévalidé");
                 }
                 Command::Despawn(id) => {
-                    // Handle périmé : sans effet.
-                    let _ = self.despawn(id);
+                    let despawned = self.despawn(id);
+                    debug_assert!(despawned.is_ok(), "lot prévalidé");
+                }
+                Command::Add(id, add) => {
+                    let added = self.add_component(id, add);
+                    debug_assert!(added.is_ok(), "lot prévalidé");
                 }
             }
         }
@@ -75,45 +128,104 @@ impl<const ENTITIES: usize> World<ENTITIES> {
         Ok(())
     }
 
-    /// Prévalidation d'un lot : sans mutation ni allocation. Seule une création peut échouer
-    /// (capacité) ; une destruction peut libérer un slot pour les créations suivantes, une
-    /// seule fois par handle (les doublons et les handles périmés sont sans effet).
+    /// Prévalidation d'un lot : simule dans l'ordre d'émission les effets logiques de chaque
+    /// commande, sans mutation ni allocation (compteurs et drapeaux sur la pile). Renvoie, par
+    /// commande, si elle a un effet ; `apply` n'exécute que celles-ci, de sorte que
+    /// l'application coïncide exactement avec la séquence prévalidée.
     ///
-    /// Les handles de destruction sont évalués contre l'état du `World` avant le lot :
-    /// l'état de référence d'un producteur est le monde stable de sa phase, et aucune
-    /// commande ne peut désigner une entité créée par le même lot. Pour tout handle émis par ce
-    /// `World`, cela coïncide avec l'application séquentielle des primitives (test exhaustif) ;
-    /// pour un handle étranger, la prévalidation est au pire plus stricte, jamais plus
-    /// permissive : prévalidé implique applicable.
-    fn validate(&self, batch: &[Command]) -> Result<(), CapacityExceeded> {
-        // Chemin rapide, O(n) : les destructions ne peuvent qu'ajouter de la capacité.
-        let spawns = batch
-            .iter()
-            .filter(|command| matches!(command, Command::Spawn))
-            .count();
-        if spawns <= self.entities.free_slots() {
-            return Ok(());
+    /// Simulé : le décompte de slots libres (créations, destructions effectives), et, par
+    /// stockage, la longueur dense (ajouts effectifs, purges des destructions effectives). Une
+    /// destruction est effective si le handle est vivant avant le lot et pas déjà détruit par
+    /// lui ; un ajout, si sa cible l'est aussi. La présence d'un composant se lit dans le
+    /// stockage avant le lot, complétée par les ajouts effectifs précédents (aucune purge
+    /// n'intervient sur une cible encore vivante). Erreurs dans l'ordre de `SparseSet::insert` :
+    /// hors étendue, doublon, dense plein.
+    ///
+    /// Coût O(n²) (parcours de préfixe par commande) : borné par la capacité du buffer, fixée
+    /// avant la simulation ; optimisable sans changer le contrat (mesure d'abord).
+    fn plan<const COMMANDS: usize>(
+        &self,
+        batch: &[Command<S::Add>],
+    ) -> Result<[bool; COMMANDS], ApplyError> {
+        let mut applies = [false; COMMANDS];
+        let mut free = self.entities.free_slots();
+        let mut lengths = S::Counters::default();
+        for (kind, length) in lengths.as_mut().iter_mut().enumerate() {
+            *length = self.components.dense_len(kind);
         }
-        // Simulation ordonnée du seul décompte de slots libres.
-        let mut available = self.entities.free_slots();
+        let kinds = lengths.as_mut().len();
+
         for (position, command) in batch.iter().enumerate() {
+            let before = &batch[..position];
             match *command {
                 Command::Spawn => {
-                    available = available.checked_sub(1).ok_or(CapacityExceeded)?;
+                    free = free
+                        .checked_sub(1)
+                        .ok_or(ApplyError::Spawn(CapacityExceeded))?;
+                    applies[position] = true;
                 }
                 Command::Despawn(id) => {
-                    let first_occurrence = !batch[..position].contains(&Command::Despawn(id));
-                    if first_occurrence && self.entities.frees_slot_on_release(id) {
-                        available += 1;
+                    if self.is_live_at(id, before) {
+                        applies[position] = true;
+                        if self.entities.frees_slot_on_release(id) {
+                            free += 1;
+                        }
+                        for kind in 0..kinds {
+                            if self.holds(kind, id, before, &applies) {
+                                lengths.as_mut()[kind] -= 1;
+                            }
+                        }
+                    }
+                }
+                Command::Add(id, add) => {
+                    if self.is_live_at(id, before) {
+                        let kind = S::kind(&add);
+                        if !self.components.covers(kind, id) {
+                            return Err(ApplyError::Add(InsertError::IndexOutOfRange));
+                        }
+                        if self.holds(kind, id, before, &applies) {
+                            return Err(ApplyError::Add(InsertError::AlreadyPresent));
+                        }
+                        if lengths.as_mut()[kind] >= self.components.dense_capacity(kind) {
+                            return Err(ApplyError::Add(InsertError::DenseFull));
+                        }
+                        lengths.as_mut()[kind] += 1;
+                        applies[position] = true;
                     }
                 }
             }
         }
-        Ok(())
+        Ok(applies)
+    }
+
+    /// Le handle est vivant avant le lot et aucune destruction qui le vise ne le précède dans
+    /// le lot (la première destruction d'un handle vivant est toujours effective).
+    fn is_live_at(&self, id: EntityId, before: &[Command<S::Add>]) -> bool {
+        self.entities.is_alive(id)
+            && !before
+                .iter()
+                .any(|command| matches!(*command, Command::Despawn(d) if d == id))
+    }
+
+    /// L'entité (vivante à ce point du lot) possède un composant de ce `kind` : présent avant le
+    /// lot, ou ajouté par une commande précédente effective.
+    fn holds(
+        &self,
+        kind: usize,
+        id: EntityId,
+        before: &[Command<S::Add>],
+        applies: &[bool],
+    ) -> bool {
+        self.components.is_present(kind, id)
+            || before.iter().zip(applies).any(|(command, &applied)| {
+                applied
+                    && matches!(*command, Command::Add(target, add)
+                        if target == id && S::kind(&add) == kind)
+            })
     }
 }
 
-impl<const ENTITIES: usize> Default for World<ENTITIES> {
+impl<const ENTITIES: usize, S: ComponentSet> Default for World<ENTITIES, S> {
     fn default() -> Self {
         Self::new()
     }
@@ -238,7 +350,10 @@ mod tests {
 
         let direct = world.spawn(); // la capacité est encore libre
         assert!(direct.is_ok());
-        assert_eq!(world.apply(&mut buffer), Err(CapacityExceeded));
+        assert_eq!(
+            world.apply(&mut buffer),
+            Err(ApplyError::Spawn(CapacityExceeded))
+        );
     }
 
     /// Le buffer est transitoire : vide après application, mémoire réutilisable.
@@ -292,7 +407,10 @@ mod tests {
         buffer.spawn().unwrap(); // applicable
         buffer.spawn().unwrap(); // applicable
         buffer.spawn().unwrap(); // échoue : 3 créations pour 2 slots
-        assert_eq!(world.apply(&mut buffer), Err(CapacityExceeded));
+        assert_eq!(
+            world.apply(&mut buffer),
+            Err(ApplyError::Spawn(CapacityExceeded))
+        );
 
         assert_eq!(world, before, "état complet inchangé");
         assert!(
@@ -316,9 +434,16 @@ mod tests {
         buffer.spawn().unwrap(); // échoue : monde plein
         buffer.despawn(e).unwrap();
 
-        assert_eq!(world.apply(&mut buffer), Err(CapacityExceeded));
+        assert_eq!(
+            world.apply(&mut buffer),
+            Err(ApplyError::Spawn(CapacityExceeded))
+        );
         assert_eq!(buffer.as_slice(), [Command::Spawn, Command::Despawn(e)]);
-        assert_eq!(world.apply(&mut buffer), Err(CapacityExceeded), "répétable");
+        assert_eq!(
+            world.apply(&mut buffer),
+            Err(ApplyError::Spawn(CapacityExceeded)),
+            "répétable"
+        );
         assert_eq!(buffer.len(), 2);
 
         buffer.clear();
@@ -393,6 +518,7 @@ mod tests {
                             Command::Despawn(id) => {
                                 let _ = oracle.despawn(id);
                             }
+                            Command::Add(_, add) => match add {}, // inhabité
                         }
                         if oracle_failed {
                             break;
@@ -405,18 +531,386 @@ mod tests {
                         match *command {
                             Command::Spawn => buffer.spawn().unwrap(),
                             Command::Despawn(id) => buffer.despawn(id).unwrap(),
+                            Command::Add(_, add) => match add {},
                         }
                     }
                     let result = world.apply(&mut buffer);
 
                     if oracle_failed {
-                        assert_eq!(result, Err(CapacityExceeded), "{sequence:?}");
+                        assert_eq!(
+                            result,
+                            Err(ApplyError::Spawn(CapacityExceeded)),
+                            "{sequence:?}"
+                        );
                         assert_eq!(world, world0, "{sequence:?}");
                         assert_eq!(buffer.as_slice(), sequence, "{sequence:?}");
                     } else {
                         assert_eq!(result, Ok(()), "{sequence:?}");
                         assert_eq!(world, oracle, "{sequence:?}");
                         assert!(buffer.is_empty(), "{sequence:?}");
+                    }
+                }
+            }
+        }
+    }
+
+    // ---- Phase 4b : composants ----------------------------------------------------------
+
+    use crate::fixtures::{Kinematics, KinematicsAdd, Position, Velocity, pos, vel};
+
+    type KWorld<const E: usize> = World<E, Kinematics>;
+    type KBuffer<const C: usize> = CommandBuffer<C, KinematicsAdd>;
+
+    fn position(x: i32) -> Position {
+        Position { x, y: -x }
+    }
+
+    fn velocity(dx: i32) -> Velocity {
+        Velocity { dx, dy: -dx }
+    }
+
+    /// Deux types distincts dans un même `World`, stockages indépendants, ajouts différés.
+    #[test]
+    fn two_distinct_component_types_live_in_one_world() {
+        let mut world = KWorld::<3>::new();
+        let (a, b) = (world.spawn().unwrap(), world.spawn().unwrap());
+        let mut buffer = KBuffer::<3>::new();
+        buffer.add_component(a, pos(1)).unwrap();
+        buffer.add_component(a, vel(2)).unwrap();
+        buffer.add_component(b, pos(3)).unwrap();
+        assert_eq!(world.components().positions.len(), 0, "différé");
+
+        assert_eq!(world.apply(&mut buffer), Ok(()));
+        let set = world.components();
+        assert_eq!(set.positions.get(a), Some(&position(1)));
+        assert_eq!(set.velocities.get(a), Some(&velocity(2)));
+        assert_eq!(set.positions.get(b), Some(&position(3)));
+        assert_eq!(set.velocities.get(b), None);
+        assert!(buffer.is_empty());
+    }
+
+    /// Une destruction valide purge tous les stockages avant la réutilisation du slot.
+    #[test]
+    fn despawn_purges_every_storage_before_slot_reuse() {
+        let mut world = KWorld::<1>::new();
+        let old = world.spawn().unwrap();
+        world.add_component(old, pos(1)).unwrap();
+        world.add_component(old, vel(2)).unwrap();
+
+        world.despawn(old).unwrap();
+        assert_eq!(world.components().positions.len(), 0);
+        assert_eq!(world.components().velocities.len(), 0);
+
+        let new = world.spawn().unwrap();
+        assert_eq!(world.components().positions.get(new), None);
+        assert_eq!(world.components().velocities.get(new), None);
+    }
+
+    /// Une destruction périmée ne retire jamais les composants du nouvel occupant (primitive
+    /// et lot).
+    #[test]
+    fn stale_despawn_never_removes_the_new_occupants_components() {
+        let mut world = KWorld::<1>::new();
+        let old = world.spawn().unwrap();
+        world.despawn(old).unwrap();
+        let new = world.spawn().unwrap();
+        world.add_component(new, pos(7)).unwrap();
+        world.add_component(new, vel(8)).unwrap();
+
+        assert_eq!(world.despawn(old), Err(StaleEntity));
+        let mut buffer = KBuffer::<1>::new();
+        buffer.despawn(old).unwrap();
+        assert_eq!(world.apply(&mut buffer), Ok(()));
+
+        assert!(world.is_alive(new));
+        assert_eq!(world.components().positions.get(new), Some(&position(7)));
+        assert_eq!(world.components().velocities.get(new), Some(&velocity(8)));
+    }
+
+    /// Un ajout sur un handle périmé est ignoré (pas une erreur), y compris quand le nouvel
+    /// occupant du slot est vivant : il ne reçoit rien.
+    #[test]
+    fn add_on_a_stale_handle_is_ignored() {
+        let mut world = KWorld::<1>::new();
+        let old = world.spawn().unwrap();
+        world.despawn(old).unwrap();
+        let new = world.spawn().unwrap();
+
+        let mut buffer = KBuffer::<2>::new();
+        buffer.add_component(old, pos(1)).unwrap();
+        buffer.add_component(EntityId::VACANT, vel(2)).unwrap();
+        assert_eq!(world.apply(&mut buffer), Ok(()));
+
+        assert_eq!(world.components().positions.len(), 0);
+        assert_eq!(world.components().velocities.len(), 0);
+        assert!(world.is_alive(new));
+    }
+
+    /// Ajout avant destruction : appliqué puis purgé. Destruction avant ajout : ajout ignoré.
+    /// Le slot libéré par le lot est réutilisable sans hériter d'un composant.
+    #[test]
+    fn adds_before_and_after_destruction_in_one_batch() {
+        let mut world = KWorld::<3>::new();
+        let (a, b) = (world.spawn().unwrap(), world.spawn().unwrap());
+
+        let mut buffer = KBuffer::<5>::new();
+        buffer.add_component(a, pos(1)).unwrap(); // appliqué…
+        buffer.despawn(a).unwrap(); // …puis purgé
+        buffer.add_component(a, vel(2)).unwrap(); // cible détruite : ignoré
+        buffer.add_component(b, pos(3)).unwrap();
+        buffer.spawn().unwrap();
+        assert_eq!(world.apply(&mut buffer), Ok(()));
+
+        assert!(!world.is_alive(a));
+        assert_eq!(world.components().positions.len(), 1);
+        assert_eq!(world.components().positions.get(b), Some(&position(3)));
+        assert_eq!(world.components().velocities.len(), 0);
+    }
+
+    /// La purge libère de la capacité dense au sein du lot : l'ajout suivant tient.
+    #[test]
+    fn purge_frees_dense_capacity_within_the_batch() {
+        // `positions` : 2 composants au plus.
+        let mut world = KWorld::<3>::new();
+        let (a, b, c) = (
+            world.spawn().unwrap(),
+            world.spawn().unwrap(),
+            world.spawn().unwrap(),
+        );
+        world.add_component(a, pos(1)).unwrap();
+        world.add_component(b, pos(2)).unwrap(); // dense plein
+
+        let mut buffer = KBuffer::<2>::new();
+        buffer.add_component(c, pos(3)).unwrap();
+        assert_eq!(
+            world.apply(&mut buffer),
+            Err(ApplyError::Add(InsertError::DenseFull))
+        );
+        buffer.clear();
+
+        buffer.despawn(a).unwrap();
+        buffer.add_component(c, pos(3)).unwrap();
+        assert_eq!(world.apply(&mut buffer), Ok(()));
+        assert_eq!(world.components().positions.get(c), Some(&position(3)));
+        assert_eq!(world.components().positions.get(b), Some(&position(2)));
+    }
+
+    /// Une destruction dont le slot est retiré (génération épuisée) purge quand même.
+    #[test]
+    fn despawn_of_a_retiring_slot_still_purges() {
+        let mut world = KWorld::<1>::new();
+        world.entities.set_generation_for_test(0, u32::MAX - 1);
+        let last = world.spawn().unwrap();
+        world.add_component(last, pos(1)).unwrap();
+
+        let mut buffer = KBuffer::<1>::new();
+        buffer.despawn(last).unwrap();
+        assert_eq!(world.apply(&mut buffer), Ok(()));
+        assert_eq!(world.components().positions.len(), 0);
+    }
+
+    /// Doublons : déjà présent dans le stockage, ou ajouté plus tôt dans le lot, rejette le lot
+    /// entier ; deux stockages distincts pour une même entité ne sont pas un doublon.
+    #[test]
+    fn duplicate_add_rejects_the_whole_batch() {
+        let mut world = KWorld::<3>::new();
+        let (a, b) = (world.spawn().unwrap(), world.spawn().unwrap());
+        world.add_component(a, pos(1)).unwrap();
+        let before = world.clone();
+
+        let mut buffer = KBuffer::<3>::new();
+        buffer.add_component(b, pos(2)).unwrap(); // applicable
+        buffer.add_component(a, pos(3)).unwrap(); // déjà présent
+        assert_eq!(
+            world.apply(&mut buffer),
+            Err(ApplyError::Add(InsertError::AlreadyPresent))
+        );
+        assert_eq!(world, before);
+        assert_eq!(buffer.len(), 2);
+        buffer.clear();
+
+        buffer.add_component(b, vel(1)).unwrap();
+        buffer.add_component(b, vel(2)).unwrap(); // doublon dans le lot
+        assert_eq!(
+            world.apply(&mut buffer),
+            Err(ApplyError::Add(InsertError::AlreadyPresent))
+        );
+        assert_eq!(world, before);
+        buffer.clear();
+
+        buffer.add_component(a, vel(1)).unwrap(); // autre stockage : valide
+        assert_eq!(world.apply(&mut buffer), Ok(()));
+    }
+
+    /// Handle périmé (ignoré) et index vivant hors étendue (erreur) : distinction explicite.
+    /// `velocities` ne couvre que les index 0 et 1.
+    #[test]
+    fn stale_handle_is_ignored_while_live_out_of_range_index_is_an_error() {
+        let mut world = KWorld::<3>::new();
+        let _a = world.spawn().unwrap();
+        let _b = world.spawn().unwrap();
+        let c = world.spawn().unwrap(); // index 2
+
+        let mut buffer = KBuffer::<1>::new();
+        buffer.add_component(c, vel(1)).unwrap();
+        assert_eq!(
+            world.apply(&mut buffer),
+            Err(ApplyError::Add(InsertError::IndexOutOfRange))
+        );
+        buffer.clear();
+
+        world.despawn(c).unwrap(); // `c` est maintenant périmé, d'index inchangé
+        buffer.add_component(c, vel(1)).unwrap();
+        assert_eq!(world.apply(&mut buffer), Ok(()));
+        assert_eq!(world.components().velocities.len(), 0);
+    }
+
+    /// Erreur = première commande inapplicable dans l'ordre d'émission, quelle que soit sa nature.
+    #[test]
+    fn first_failure_in_emission_order_is_reported() {
+        let mut world = KWorld::<2>::new();
+        let a = world.spawn().unwrap();
+        let _b = world.spawn().unwrap();
+        world.add_component(a, pos(1)).unwrap();
+
+        let mut buffer = KBuffer::<2>::new();
+        buffer.spawn().unwrap(); // monde plein
+        buffer.add_component(a, pos(2)).unwrap(); // doublon
+        assert_eq!(
+            world.apply(&mut buffer),
+            Err(ApplyError::Spawn(CapacityExceeded))
+        );
+        buffer.clear();
+        buffer.add_component(a, pos(2)).unwrap();
+        buffer.spawn().unwrap();
+        assert_eq!(
+            world.apply(&mut buffer),
+            Err(ApplyError::Add(InsertError::AlreadyPresent))
+        );
+    }
+
+    /// Primitive de référence : application séquentielle, la première erreur arrête.
+    fn oracle<const E: usize, S: ComponentSet>(
+        world: &mut World<E, S>,
+        sequence: &[Command<S::Add>],
+    ) -> Result<(), ApplyError> {
+        for command in sequence {
+            match *command {
+                Command::Spawn => {
+                    world.spawn().map_err(ApplyError::Spawn)?;
+                }
+                Command::Despawn(id) => {
+                    let _ = world.despawn(id); // périmé : sans effet
+                }
+                Command::Add(id, add) => match world.add_component(id, add) {
+                    Ok(()) | Err(AddError::Stale(_)) => {}
+                    Err(AddError::Insert(error)) => return Err(ApplyError::Add(error)),
+                },
+            }
+        }
+        Ok(())
+    }
+
+    /// Exactitude et atomicité sur les stockages, sur tous les petits lots : même résultat
+    /// que les primitives appliquées dans l'ordre (succès : monde identique, buffer vide ;
+    /// échec : même erreur, monde et buffer inchangés). Couvre doublons, handles périmés,
+    /// index hors étendue, dense plein, purge, slot retiré, monde vide.
+    #[test]
+    fn prevalidation_with_components_is_exact_and_atomic_over_all_small_batches() {
+        // Capacité du buffer : longueur maximale des lots, donc couverture complète hors Miri.
+        const LEN: usize = 5;
+        // Sous Miri, l'exploration est limitée à 3 commandes (même alphabet, mêmes 5 scénarios,
+        // mêmes assertions) : le coût de l'interpréteur rend les 5 commandes prohibitives.
+        // Les chemins de prévalidation et d'application sur les stockages restent exercés ;
+        // seuls les lots de 4 et 5 commandes ne le sont que par les tests ordinaires.
+        const MAX_LENGTH: usize = if cfg!(miri) { 3 } else { LEN };
+        type Seq = Command<KinematicsAdd>;
+
+        // Scénarios : (monde, [x0, x1, x2]). `positions` : dense 2, 3 index ; `velocities` :
+        // dense 2, 2 index (l'index 2 est hors étendue).
+        fn scenarios() -> [(KWorld<3>, [EntityId; 3]); 5] {
+            let spawn3 = |w: &mut KWorld<3>| [(); 3].map(|()| w.spawn().unwrap());
+
+            // 1. Tout vivant, aucun composant (index 2 vivant : hors étendue de `velocities`).
+            let mut w1 = KWorld::<3>::new();
+            let h1 = spawn3(&mut w1);
+
+            // 2. x2 périmé (index 2 libre, réattribuable), x0 porte une position.
+            let mut w2 = KWorld::<3>::new();
+            let h2 = spawn3(&mut w2);
+            w2.despawn(h2[2]).unwrap();
+            w2.add_component(h2[0], pos(9)).unwrap();
+
+            // 3. Positions saturées (x0, x1) ; x1 porte aussi une vitesse.
+            let mut w3 = KWorld::<3>::new();
+            let h3 = spawn3(&mut w3);
+            w3.add_component(h3[0], pos(1)).unwrap();
+            w3.add_component(h3[1], pos(2)).unwrap();
+            w3.add_component(h3[1], vel(3)).unwrap();
+
+            // 4. Slot 0 à une génération de l'épuisement : sa destruction le retire.
+            let mut w4 = KWorld::<3>::new();
+            w4.entities.set_generation_for_test(0, u32::MAX - 1);
+            let h4 = spawn3(&mut w4);
+            w4.add_component(h4[0], pos(4)).unwrap();
+            w4.add_component(h4[0], vel(5)).unwrap();
+
+            // 5. Monde vide, handles étrangers : tout ajout et toute destruction sont ignorés.
+            let w5 = KWorld::<3>::new();
+
+            [
+                (w1, h1),
+                (w2, h2),
+                (w3, h3),
+                (w4, h4),
+                (w5, [EntityId::VACANT; 3]),
+            ]
+        }
+
+        for (world0, [x0, x1, x2]) in scenarios() {
+            let alphabet: [Seq; 10] = [
+                Command::Spawn,
+                Command::Despawn(x0),
+                Command::Despawn(x1),
+                Command::Despawn(x2),
+                Command::Add(x0, pos(10)),
+                Command::Add(x0, vel(11)),
+                Command::Add(x1, pos(12)),
+                Command::Add(x1, vel(13)),
+                Command::Add(x2, pos(14)),
+                Command::Add(x2, vel(15)),
+            ];
+            for length in 0..=MAX_LENGTH {
+                for code in 0..alphabet.len().pow(length as u32) {
+                    let mut sequence = [Command::Spawn; LEN];
+                    let mut rest = code;
+                    for slot in sequence.iter_mut().take(length) {
+                        *slot = alphabet[rest % alphabet.len()];
+                        rest /= alphabet.len();
+                    }
+                    let sequence = &sequence[..length];
+
+                    let mut expected = world0.clone();
+                    let expected_result = oracle(&mut expected, sequence);
+
+                    let mut world = world0.clone();
+                    let mut buffer = KBuffer::<LEN>::new();
+                    for command in sequence {
+                        match *command {
+                            Command::Spawn => buffer.spawn().unwrap(),
+                            Command::Despawn(id) => buffer.despawn(id).unwrap(),
+                            Command::Add(id, add) => buffer.add_component(id, add).unwrap(),
+                        }
+                    }
+                    let result = world.apply(&mut buffer);
+
+                    assert_eq!(result, expected_result, "{sequence:?}");
+                    if result.is_ok() {
+                        assert_eq!(world, expected, "{sequence:?}");
+                        assert!(buffer.is_empty(), "{sequence:?}");
+                    } else {
+                        assert_eq!(world, world0, "{sequence:?}");
+                        assert_eq!(buffer.as_slice(), sequence, "{sequence:?}");
                     }
                 }
             }

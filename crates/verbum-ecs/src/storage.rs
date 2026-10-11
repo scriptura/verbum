@@ -8,9 +8,8 @@
 //!
 //! Aucune allocation. La mémoire est fournie à la construction sous forme de deux
 //! capacités const-génériques distinctes : `SPARSE` (étendue des index d'entité
-//! adressables) et `DENSE` (nombre maximal de composants). Forme la plus petite que
-//! les tests de la Phase 2 imposent ; révisable en Phase 4b, cf.
-//! `docs/PLAN-ETAPE-0-ECS.md`.
+//! adressables) et `DENSE` (nombre maximal de composants). Intégré au `World` via
+//! `ComponentSet` (Phase 4b, cf. `docs/PLAN-ETAPE-0-ECS.md`).
 
 use core::mem::MaybeUninit;
 
@@ -23,7 +22,7 @@ const ABSENT: u32 = u32::MAX;
 /// Échec d'insertion. Dépassements de capacité et doublons : erreurs explicites,
 /// jamais une croissance ni un comportement silencieux (ADR-001, point 5).
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) enum InsertError {
+pub enum InsertError {
     /// L'entité possède déjà un composant dans ce stockage (comportement local,
     /// non spécifié par le corpus).
     AlreadyPresent,
@@ -48,7 +47,7 @@ pub(crate) enum InsertError {
 /// non `ABSENT` de `sparse` est `< len`. Les cases `[len, DENSE)` de `dense_data`
 /// ne sont jamais lues comme des `T` : elles ne sont atteignables ni par `get`
 /// (qui passe par `sparse`), ni par aucune autre méthode.
-pub(crate) struct SparseSet<T, const SPARSE: usize, const DENSE: usize> {
+pub struct SparseSet<T, const SPARSE: usize, const DENSE: usize> {
     sparse: [u32; SPARSE],
     dense_entities: [EntityId; DENSE],
     dense_data: [MaybeUninit<T>; DENSE],
@@ -60,7 +59,7 @@ impl<T: Copy, const SPARSE: usize, const DENSE: usize> SparseSet<T, SPARSE, DENS
     /// `u32::MAX` (celui de `EntityId::VACANT`) doit rester hors de l'étendue sparse.
     const CAPACITIES_FIT: () = assert!(DENSE < ABSENT as usize && SPARSE < ABSENT as usize);
 
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         let () = Self::CAPACITIES_FIT;
         Self {
             sparse: [ABSENT; SPARSE],
@@ -70,8 +69,24 @@ impl<T: Copy, const SPARSE: usize, const DENSE: usize> SparseSet<T, SPARSE, DENS
         }
     }
 
-    pub(crate) fn len(&self) -> usize {
+    /// Nombre de composants stockés.
+    pub fn len(&self) -> usize {
         self.len
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    /// Nombre maximal de composants (`DENSE`).
+    pub const fn dense_capacity(&self) -> usize {
+        DENSE
+    }
+
+    /// L'index de l'entité tient dans l'étendue sparse (`SPARSE`) : `insert` ne renverra pas
+    /// `IndexOutOfRange`. Compare l'index seul, jamais la génération.
+    pub fn covers(&self, entity: EntityId) -> bool {
+        (entity.index() as usize) < SPARSE
     }
 
     /// Position dense de l'entité, si présente. Compare l'index seul, jamais la génération.
@@ -80,7 +95,7 @@ impl<T: Copy, const SPARSE: usize, const DENSE: usize> SparseSet<T, SPARSE, DENS
         (position != ABSENT).then_some(position as usize)
     }
 
-    pub(crate) fn contains(&self, entity: EntityId) -> bool {
+    pub fn contains(&self, entity: EntityId) -> bool {
         self.position(entity).is_some()
     }
 
@@ -88,7 +103,7 @@ impl<T: Copy, const SPARSE: usize, const DENSE: usize> SparseSet<T, SPARSE, DENS
         unsafe_code,
         reason = "seul bloc unsafe du stockage ; cf. invariant d'initialisation"
     )]
-    pub(crate) fn get(&self, entity: EntityId) -> Option<&T> {
+    pub fn get(&self, entity: EntityId) -> Option<&T> {
         let position = self.position(entity)?;
         debug_assert!(position < self.len);
         // SAFETY: `position` provient de `sparse` et est donc `< len` (invariant de
@@ -96,7 +111,7 @@ impl<T: Copy, const SPARSE: usize, const DENSE: usize> SparseSet<T, SPARSE, DENS
         Some(unsafe { self.dense_data[position].assume_init_ref() })
     }
 
-    pub(crate) fn insert(&mut self, entity: EntityId, value: T) -> Result<(), InsertError> {
+    pub fn insert(&mut self, entity: EntityId, value: T) -> Result<(), InsertError> {
         let slot = self
             .sparse
             .get_mut(entity.index() as usize)
@@ -116,7 +131,7 @@ impl<T: Copy, const SPARSE: usize, const DENSE: usize> SparseSet<T, SPARSE, DENS
     }
 
     /// Retire le composant de l'entité par swap-remove. `false` si elle n'en avait pas.
-    pub(crate) fn remove(&mut self, entity: EntityId) -> bool {
+    pub fn remove(&mut self, entity: EntityId) -> bool {
         let Some(position) = self.position(entity) else {
             return false;
         };
@@ -130,6 +145,54 @@ impl<T: Copy, const SPARSE: usize, const DENSE: usize> SparseSet<T, SPARSE, DENS
         self.sparse[entity.index() as usize] = ABSENT;
         self.len = last;
         true
+    }
+}
+
+impl<T: Copy, const SPARSE: usize, const DENSE: usize> Default for SparseSet<T, SPARSE, DENSE> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Impls de test seulement : comparer et cloner des mondes entiers dans les tests d'atomicité.
+/// L'égalité est logique et stricte : même présence, même ordre dense, mêmes valeurs ; les
+/// cases hors du préfixe `[0, len)` (non initialisées) ne sont jamais lues.
+#[cfg(test)]
+impl<T: Copy, const SPARSE: usize, const DENSE: usize> Clone for SparseSet<T, SPARSE, DENSE> {
+    fn clone(&self) -> Self {
+        Self {
+            sparse: self.sparse,
+            dense_entities: self.dense_entities,
+            dense_data: self.dense_data,
+            len: self.len,
+        }
+    }
+}
+
+#[cfg(test)]
+impl<T: Copy + PartialEq, const SPARSE: usize, const DENSE: usize> PartialEq
+    for SparseSet<T, SPARSE, DENSE>
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.len == other.len
+            && self.sparse == other.sparse
+            && self.dense_entities[..self.len] == other.dense_entities[..other.len]
+            && self.dense_entities[..self.len]
+                .iter()
+                .all(|&entity| self.get(entity) == other.get(entity))
+    }
+}
+
+#[cfg(test)]
+impl<T: Copy + core::fmt::Debug, const SPARSE: usize, const DENSE: usize> core::fmt::Debug
+    for SparseSet<T, SPARSE, DENSE>
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let mut list = f.debug_list();
+        for &entity in &self.dense_entities[..self.len] {
+            list.entry(&(entity, self.get(entity)));
+        }
+        list.finish()
     }
 }
 

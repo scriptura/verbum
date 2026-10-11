@@ -6,19 +6,15 @@
 #![no_std]
 
 mod command;
+mod component_set;
 mod entity;
-
-// Le stockage n'est consommé par aucun code non-test avant la Phase 4b (premier
-// `SparseSet` intégré au `World`). Attente satisfaite tant que le module est inutilisé ;
-// à retirer en Phase 4b.
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "consommé par le World à partir de la Phase 4b")
-)]
+#[cfg(test)]
+mod fixtures;
 mod storage;
-
 mod world;
 
 pub use command::{BufferFull, CommandBuffer};
+pub use component_set::ComponentSet;
 pub use entity::{CapacityExceeded, EntityId, StaleEntity};
-pub use world::World;
+pub use storage::{InsertError, SparseSet};
+pub use world::{ApplyError, World};
