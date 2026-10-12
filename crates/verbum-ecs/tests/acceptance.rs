@@ -1,3 +1,5 @@
+// crates/verbum-ecs/tests/acceptance.rs
+
 //! Test d'acceptation de l'étape 0 (`ROADMAP.md`) :
 //! spawn → ajout composant → query → command buffer → resolve → query.
 //!

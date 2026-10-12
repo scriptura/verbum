@@ -1,3 +1,5 @@
+// crates/verbum-ecs/src/command.rs
+
 //! Command Buffer : support transitoire des mutations structurelles différées (ADR-006).
 //!
 //! Accumulation libre en écriture ; la résolution est unique et appartient au `World`

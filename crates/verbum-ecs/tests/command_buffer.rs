@@ -1,3 +1,5 @@
+// crates/verbum-ecs/tests/command_buffer.rs
+
 //! Command Buffer vu depuis l'API publique : la création n'existe qu'après `World::apply`,
 //! la destruction est différée, le buffer est vide et réutilisable après application.
 

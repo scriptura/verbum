@@ -1,3 +1,5 @@
+// crates/verbum-ecs/src/entity.rs
+
 //! Identité des entités : `EntityId` et table de génération.
 //!
 //! Invariant : un `EntityId` est un identifiant opaque dont la validité repose sur

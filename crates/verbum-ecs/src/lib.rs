@@ -1,3 +1,5 @@
+// crates/verbum-ecs/src/lib.rs
+
 //! Noyau ECS de Verbum.
 //!
 //! Crate `no_std` sans `alloc` (ADR-000, §4) : aucune allocation, y compris à la

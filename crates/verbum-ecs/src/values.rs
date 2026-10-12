@@ -1,3 +1,5 @@
+// crates/verbum-ecs/src/values.rs
+
 //! Accès mutable limité aux valeurs : la séparation entre mutation de valeur et mutation
 //! structurelle, tenue par les types et non par convention.
 //!

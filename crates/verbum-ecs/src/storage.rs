@@ -1,3 +1,5 @@
+// crates/verbum-ecs/src/storage.rs
+
 //! Stockage des composants : Sparse Set (ADR-001).
 //!
 //! Le Sparse Set est un index de présence, jamais un mécanisme de validation

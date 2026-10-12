@@ -1,3 +1,5 @@
+// crates/verbum-ecs/tests/resources.rs
+
 //! Ressources vues depuis l'API publique : cardinalité 1 par `World`, ensemble défini hors du
 //! crate (le noyau ne nomme aucun type métier), indépendance du cycle de vie des entités.
 

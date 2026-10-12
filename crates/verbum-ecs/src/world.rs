@@ -1,3 +1,5 @@
+// crates/verbum-ecs/src/world.rs
+
 //! `World` : identité, cycle de vie des entités et stockages de composants.
 //!
 //! Seul le `World` crée et détruit des entités et mute les stockages (`01-runtime-ecs.md`,

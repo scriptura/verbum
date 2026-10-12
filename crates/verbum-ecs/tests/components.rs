@@ -1,3 +1,5 @@
+// crates/verbum-ecs/tests/components.rs
+
 //! Composants vus depuis l'API publique, avec un `ComponentSet` défini hors du crate : le noyau
 //! ne nomme aucun type métier (`01-runtime-ecs.md`, section 3). Deux types distincts dans un
 //! même `World`, ajouts différés, purge à la destruction, atomicité sur les stockages.

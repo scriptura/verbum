@@ -1,3 +1,5 @@
+// crates/verbum-ecs/src/component_set.rs
+
 //! `ComponentSet` : l'ensemble concret des stockages d'un `World`.
 //!
 //! Le noyau ne nomme aucun type de composant (`01-runtime-ecs.md`, section 3) : l'ensemble est

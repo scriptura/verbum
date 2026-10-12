@@ -1,3 +1,5 @@
+// crates/verbum-ecs/src/query.rs
+
 //! Query : vue passive sur des stockages (ADR-002).
 //!
 //! Une Query n'est ni possédée par le `World` ni couplée à lui (ADR-001, ADR-002, point 1) : elle

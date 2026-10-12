@@ -1,3 +1,5 @@
+// crates/verbum-ecs/src/resource.rs
+
 //! Ressource : donnée de cardinalité 1 par `World` (ADR-005).
 //!
 //! Une Ressource est identifiée par une clé unique plutôt que par `EntityId` ; ici, la clé est

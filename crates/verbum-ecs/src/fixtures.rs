@@ -1,3 +1,5 @@
+// crates/verbum-ecs/src/fixtures.rs
+
 //! Jeu de composants de test : deux types distincts dans un même `World`, définis hors du
 //! noyau (qui ne nomme aucun type métier). `Position` et `Velocity` n'implémentent
 //! volontairement ni `Default` ni aucun trait `Component`.

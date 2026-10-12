@@ -1,3 +1,5 @@
+// crates/verbum-ecs/tests/query.rs
+
 //! Query vue depuis l'API publique : une vue sur des stockages, sans couplage avec le `World`
 //! (ADR-002). Les identifiants viennent du `World` (seule source d'`EntityId`) ; les stockages
 //! sont ceux de l'appelant.

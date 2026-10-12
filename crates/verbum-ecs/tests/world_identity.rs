@@ -1,3 +1,5 @@
+// crates/verbum-ecs/tests/world_identity.rs
+
 //! Identité des entités, vue depuis l'API publique seule : aucun constructeur
 //! d'`EntityId` n'est accessible hors du `World`.
 
