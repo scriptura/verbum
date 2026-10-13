@@ -11,8 +11,13 @@
 //! execution order. No ordering exists when the deduced dependencies close
 //! into a cycle: that is a construction error, never a runtime one
 //! (ADR-004, point 4).
+//!
+//! [`check_ownership`] enforces the single-owner rules over the systems of
+//! a model: one writer per persistent category within a phase, and a
+//! category is either written or produced, never both (I9, I11).
 
 use crate::contract::Contract;
+use crate::data::DataSet;
 
 /// Whether `producer` produces or writes a category that `consumer` reads.
 ///
@@ -95,6 +100,52 @@ pub fn order_phase(contracts: &[Contract], order: &mut [usize]) -> Result<(), Or
                 placed += 1;
             }
             None => return Err(OrderError::Cycle),
+        }
+    }
+    Ok(())
+}
+
+/// A violation of the single-owner rules (I9, I11).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OwnershipError {
+    /// A category is written by some system and produced by some system
+    /// (possibly the same one), anywhere in the model. A category is
+    /// either persistent (written) or transient (produced): its nature is
+    /// one of the axes of the category, not a property of a phase.
+    MixedNature,
+    /// Two distinct systems of the same phase write the same category:
+    /// a persistent category has one writer per phase.
+    MultipleWriters,
+}
+
+/// Checks the single-owner rules over `systems`, given as
+/// `(phase, contract)` pairs.
+///
+/// Checks are made in a fixed order, and the first violation is reported:
+/// 1. [`OwnershipError::MixedNature`], over the whole model;
+/// 2. [`OwnershipError::MultipleWriters`], within each phase only: the same
+///    category may be written by systems of different phases.
+///
+/// Any number of systems may produce the same category (free production),
+/// and any number may read it. No allocation.
+///
+/// Cost: quadratic in the number of systems, not measured; it runs once, at
+/// construction time.
+pub fn check_ownership(systems: &[(usize, Contract)]) -> Result<(), OwnershipError> {
+    let mut written = DataSet::EMPTY;
+    let mut produced = DataSet::EMPTY;
+    for (_, contract) in systems {
+        written = written.union(contract.writes());
+        produced = produced.union(contract.produces());
+    }
+    if written.intersects(produced) {
+        return Err(OwnershipError::MixedNature);
+    }
+    for (index, (phase, contract)) in systems.iter().enumerate() {
+        for (other_phase, other) in &systems[index + 1..] {
+            if phase == other_phase && contract.writes().intersects(other.writes()) {
+                return Err(OwnershipError::MultipleWriters);
+            }
         }
     }
     Ok(())
@@ -497,6 +548,235 @@ mod tests {
             }
         }
         assert!(orderable > 0 && cyclic > 0);
+    }
+
+    // ---- phase 2 complement: legitimate edges of a self-reading system ----
+
+    #[test]
+    fn a_self_reading_system_keeps_its_edges_towards_other_systems() {
+        let x = DataSet::of(0);
+        // A reads and writes X (or reads and produces X); B reads X.
+        for a in [data(x, x, E), data(x, E, x)] {
+            let contracts = [a, reads(x)];
+            assert!(has_edge(&contracts, 0, 1), "A -> B must exist");
+            assert!(!has_edge(&contracts, 0, 0), "A -> A must not exist");
+            assert!(!has_edge(&contracts, 1, 1));
+            assert!(!has_edge(&contracts, 1, 0), "B produces nothing");
+            // Declared backwards, A still runs first.
+            assert_eq!(ordered(&[reads(x), a]), Ok([1, 0]));
+            assert_eq!(ordered(&contracts), Ok([0, 1]));
+        }
+    }
+
+    // ---- check_ownership -------------------------------------------------
+
+    const POSITION: u8 = 0;
+    const ACCUMULATOR: u8 = 1;
+
+    #[test]
+    fn three_producers_one_resolver_and_one_reader_are_accepted_and_ordered() {
+        let (position, accumulator) = (DataSet::of(POSITION), DataSet::of(ACCUMULATOR));
+        let producer = produces(accumulator);
+        let resolver = data(accumulator, position, E);
+        let reader = reads(position);
+        let systems = [
+            (0, reader),
+            (0, resolver),
+            (0, producer),
+            (0, producer),
+            (0, producer),
+        ];
+        assert_eq!(check_ownership(&systems), Ok(()));
+        // Producers (2, 3, 4) first, then the resolver (1), then the reader (0).
+        let contracts = systems.map(|(_, contract)| contract);
+        assert_eq!(ordered(&contracts), Ok([2, 3, 4, 1, 0]));
+    }
+
+    #[test]
+    fn any_number_of_producers_of_one_category_is_accepted() {
+        // More than the 64 categories: production is free.
+        const LEN: usize = if cfg!(miri) { 70 } else { 200 };
+        let systems = [(0, produces(DataSet::of(0))); LEN];
+        assert_eq!(check_ownership(&systems), Ok(()));
+    }
+
+    #[test]
+    fn empty_and_single_system_models_are_accepted() {
+        assert_eq!(check_ownership(&[]), Ok(()));
+        assert_eq!(check_ownership(&[(0, writes(DataSet::of(0)))]), Ok(()));
+        assert_eq!(
+            check_ownership(&[(3, data(DataSet::of(0), DataSet::of(0), E))]),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn two_writers_of_one_category_in_one_phase_are_rejected() {
+        let x = DataSet::of(0);
+        assert_eq!(
+            check_ownership(&[(0, writes(x)), (0, writes(x))]),
+            Err(OwnershipError::MultipleWriters)
+        );
+        // Whatever else they declare, and wherever they sit in the list.
+        let both = writes(x.union(DataSet::of(1)));
+        assert_eq!(
+            check_ownership(&[(2, both), (2, writes(DataSet::of(5))), (2, writes(x))]),
+            Err(OwnershipError::MultipleWriters)
+        );
+    }
+
+    #[test]
+    fn writers_of_one_category_in_different_phases_are_accepted() {
+        let x = DataSet::of(0);
+        assert_eq!(check_ownership(&[(0, writes(x)), (1, writes(x))]), Ok(()));
+        // Distinct categories in one phase are accepted too.
+        assert_eq!(
+            check_ownership(&[(0, writes(x)), (0, writes(DataSet::of(1)))]),
+            Ok(())
+        );
+        // A third writer in a phase already holding one is rejected.
+        assert_eq!(
+            check_ownership(&[(0, writes(x)), (1, writes(x)), (1, writes(x))]),
+            Err(OwnershipError::MultipleWriters)
+        );
+    }
+
+    #[test]
+    fn a_category_written_and_produced_is_rejected_wherever_they_sit() {
+        let x = DataSet::of(0);
+        // Same phase, different phases, and one system doing both.
+        assert_eq!(
+            check_ownership(&[(0, writes(x)), (0, produces(x))]),
+            Err(OwnershipError::MixedNature)
+        );
+        assert_eq!(
+            check_ownership(&[(0, writes(x)), (1, produces(x))]),
+            Err(OwnershipError::MixedNature)
+        );
+        assert_eq!(
+            check_ownership(&[(4, produces(x)), (0, writes(x))]),
+            Err(OwnershipError::MixedNature)
+        );
+        assert_eq!(
+            check_ownership(&[(0, data(E, x, x))]),
+            Err(OwnershipError::MixedNature)
+        );
+    }
+
+    #[test]
+    fn reading_a_category_never_changes_its_nature() {
+        let x = DataSet::of(0);
+        // Reads of a written category, reads of a produced category, and a
+        // system that reads one category while writing another.
+        assert_eq!(
+            check_ownership(&[(0, writes(x)), (0, reads(x)), (1, reads(x))]),
+            Ok(())
+        );
+        assert_eq!(
+            check_ownership(&[(0, produces(x)), (0, reads(x)), (1, reads(x))]),
+            Ok(())
+        );
+        assert_eq!(
+            check_ownership(&[(0, data(x, DataSet::of(1), E)), (0, produces(x))]),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn mixed_nature_is_reported_before_multiple_writers() {
+        let (x, y) = (DataSet::of(0), DataSet::of(1));
+        // Both violations present, whatever the order of declaration.
+        let both = [
+            (0, writes(x)),
+            (0, writes(x)),
+            (0, writes(y)),
+            (1, produces(y)),
+        ];
+        assert_eq!(check_ownership(&both), Err(OwnershipError::MixedNature));
+        let reversed = [both[3], both[2], both[1], both[0]];
+        assert_eq!(check_ownership(&reversed), Err(OwnershipError::MixedNature));
+        // Remove the mixed nature: the other violation remains.
+        assert_eq!(
+            check_ownership(&both[..3]),
+            Err(OwnershipError::MultipleWriters)
+        );
+    }
+
+    #[test]
+    fn two_producers_reading_what_they_produce_pass_ownership_but_form_a_cycle() {
+        // Ownership and ordering are separate checks: free production is
+        // accepted here, the mutual dependency is rejected as a cycle.
+        let x = DataSet::of(0);
+        let contract = data(x, E, x);
+        assert_eq!(check_ownership(&[(0, contract), (0, contract)]), Ok(()));
+        assert_eq!(ordered(&[contract, contract]), Err(OrderError::Cycle));
+    }
+
+    /// Exhaustive comparison with an oracle over every model of three
+    /// systems: each in phase 0 or 1, writing a subset of two categories and
+    /// producing a subset of two categories (16 contracts, 8 phase
+    /// assignments, so 16^3 x 8 = 32 768 models). The oracle works category
+    /// by category: mixed nature if some system writes it and some system
+    /// produces it; otherwise multiple writers if two systems of one phase
+    /// write it; otherwise accepted.
+    ///
+    /// Under Miri, only every 37th model is explored (about 886 of 32 768;
+    /// 37 is coprime with 32 768, so the sample spreads over all fields).
+    /// The ordinary suite explores all of them and must never be reduced.
+    #[test]
+    fn ownership_matches_an_oracle_over_all_small_models() {
+        let set = |bits: u8| {
+            let mut set = E;
+            for category in 0..2u8 {
+                if bits & (1 << category) != 0 {
+                    set = set.union(DataSet::of(category));
+                }
+            }
+            set
+        };
+        let stride = if cfg!(miri) { 37 } else { 1 };
+        let (mut accepted, mut mixed, mut multiple) = (0, 0, 0);
+        for model in (0..16 * 16 * 16 * 8).step_by(stride) {
+            let choice = [model % 16, model / 16 % 16, model / 256 % 16];
+            let phases = [model / 4096 % 2, model / 8192 % 2, model / 16384 % 2];
+            let writes_bits = choice.map(|c| (c % 4) as u8);
+            let produces_bits = choice.map(|c| (c / 4) as u8);
+            let systems: [(usize, Contract); 3] = core::array::from_fn(|i| {
+                (
+                    phases[i],
+                    data(E, set(writes_bits[i]), set(produces_bits[i])),
+                )
+            });
+
+            let in_system =
+                |bits: &[u8; 3], system: usize, category: u8| bits[system] & (1 << category) != 0;
+            let mut mixed_nature = false;
+            let mut multiple_writers = false;
+            for category in 0..2u8 {
+                let written = (0..3).any(|s| in_system(&writes_bits, s, category));
+                let produced = (0..3).any(|s| in_system(&produces_bits, s, category));
+                mixed_nature |= written && produced;
+                for a in 0..3 {
+                    for b in a + 1..3 {
+                        multiple_writers |= phases[a] == phases[b]
+                            && in_system(&writes_bits, a, category)
+                            && in_system(&writes_bits, b, category);
+                    }
+                }
+            }
+            let expected = if mixed_nature {
+                mixed += 1;
+                Err(OwnershipError::MixedNature)
+            } else if multiple_writers {
+                multiple += 1;
+                Err(OwnershipError::MultipleWriters)
+            } else {
+                accepted += 1;
+                Ok(())
+            };
+            assert_eq!(check_ownership(&systems), expected, "{choice:?} {phases:?}");
+        }
+        assert!(accepted > 0 && mixed > 0 && multiple > 0);
     }
 
     // Compile-time proof that `precedes` is usable in a `const` context.
