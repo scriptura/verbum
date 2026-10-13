@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/verbum-ecs", "crates/verbum"]
+members = ["crates/verbum-ecs", "crates/verbum-schedule", "crates/verbum"]
 
 [workspace.package]
 version = "0.1.0"
