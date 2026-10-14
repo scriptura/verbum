@@ -67,6 +67,126 @@ impl<const ENTITIES: usize, S: ComponentSet, R: Default> World<ENTITIES, S, R> {
         &mut self.resources
     }
 
+    /// Accès simultané aux **valeurs** des composants et aux Ressources : deux champs disjoints
+    /// du `World`, empruntés ensemble, sans `unsafe`. Équivaut à `component_values_mut` et
+    /// `resources_mut` pris ensemble, ce que ces deux accesseurs, qui empruntent chacun tout le
+    /// `World`, ne permettent pas.
+    ///
+    /// N'expose ni `&mut World`, ni `&mut S` (le premier élément est un `S::Values`, composé de
+    /// `ValuesMut`, sans `insert` ni `remove`), ni la table d'identité : la structure reste
+    /// résolue par `apply` (ADR-006). `&mut R` n'est pas plus large que `resources_mut`.
+    ///
+    /// Borne héritée : cette méthode figure dans le bloc `impl` qui exige `R: Default`, comme
+    /// `new` et `resources_mut`. Elle n'utilise pas cette borne ; la lever relèverait d'une
+    /// refonte des accesseurs, hors du périmètre de cet ajout.
+    ///
+    /// Les deux emprunts bloquent le `World` tant qu'ils sont utilisés : toute autre opération
+    /// sur le monde, comme `spawn`, ne compile pas (E0499).
+    ///
+    /// ```compile_fail,E0499
+    /// # use verbum_ecs::{ComponentSet, EntityId, InsertError, ResourceSlot, SparseSet, ValuesMut, World};
+    /// # use core::convert::Infallible;
+    /// # #[derive(Default)]
+    /// # struct Set { numbers: SparseSet<u8, 1, 1> }
+    /// # impl ComponentSet for Set {
+    /// #     type Add = Infallible;
+    /// #     type Counters = [usize; 1];
+    /// #     type Values<'a> = (ValuesMut<'a, u8, 1, 1>,);
+    /// #     fn kind(add: &Infallible) -> usize { match *add {} }
+    /// #     fn dense_len(&self, _: usize) -> usize { 0 }
+    /// #     fn dense_capacity(&self, _: usize) -> usize { 0 }
+    /// #     fn covers(&self, _: usize, _: EntityId) -> bool { false }
+    /// #     fn is_present(&self, _: usize, _: EntityId) -> bool { false }
+    /// #     fn insert(&mut self, _: EntityId, add: Infallible) -> Result<(), InsertError> { match add {} }
+    /// #     fn remove_all(&mut self, _: EntityId) {}
+    /// #     fn values_mut(&mut self) -> Self::Values<'_> { (self.numbers.values_mut(),) }
+    /// # }
+    /// let mut world = World::<1, Set, ResourceSlot<u8>>::new();
+    /// let (values, resources) = world.split_mut();
+    /// let _ = world.spawn(); // le monde est encore emprunté…
+    /// let _ = (values, resources); // …car les deux emprunts servent encore ici
+    /// ```
+    ///
+    /// Le même code, avec les emprunts relâchés avant `spawn`, compile :
+    ///
+    /// ```
+    /// # use verbum_ecs::{ComponentSet, EntityId, InsertError, ResourceSlot, SparseSet, ValuesMut, World};
+    /// # use core::convert::Infallible;
+    /// # #[derive(Default)]
+    /// # struct Set { numbers: SparseSet<u8, 1, 1> }
+    /// # impl ComponentSet for Set {
+    /// #     type Add = Infallible;
+    /// #     type Counters = [usize; 1];
+    /// #     type Values<'a> = (ValuesMut<'a, u8, 1, 1>,);
+    /// #     fn kind(add: &Infallible) -> usize { match *add {} }
+    /// #     fn dense_len(&self, _: usize) -> usize { 0 }
+    /// #     fn dense_capacity(&self, _: usize) -> usize { 0 }
+    /// #     fn covers(&self, _: usize, _: EntityId) -> bool { false }
+    /// #     fn is_present(&self, _: usize, _: EntityId) -> bool { false }
+    /// #     fn insert(&mut self, _: EntityId, add: Infallible) -> Result<(), InsertError> { match add {} }
+    /// #     fn remove_all(&mut self, _: EntityId) {}
+    /// #     fn values_mut(&mut self) -> Self::Values<'_> { (self.numbers.values_mut(),) }
+    /// # }
+    /// let mut world = World::<1, Set, ResourceSlot<u8>>::new();
+    /// let (values, resources) = world.split_mut();
+    /// let _ = (values, resources); // dernier usage des deux emprunts
+    /// let _ = world.spawn();
+    /// ```
+    ///
+    /// Le premier élément n'est pas un `&mut S` : il ne s'affecte pas à ce type, donc les
+    /// opérations structurelles du stockage restent hors d'atteinte (E0308).
+    ///
+    /// ```compile_fail,E0308
+    /// # use verbum_ecs::{ComponentSet, EntityId, InsertError, ResourceSlot, SparseSet, ValuesMut, World};
+    /// # use core::convert::Infallible;
+    /// # #[derive(Default)]
+    /// # struct Set { numbers: SparseSet<u8, 1, 1> }
+    /// # impl ComponentSet for Set {
+    /// #     type Add = Infallible;
+    /// #     type Counters = [usize; 1];
+    /// #     type Values<'a> = (ValuesMut<'a, u8, 1, 1>,);
+    /// #     fn kind(add: &Infallible) -> usize { match *add {} }
+    /// #     fn dense_len(&self, _: usize) -> usize { 0 }
+    /// #     fn dense_capacity(&self, _: usize) -> usize { 0 }
+    /// #     fn covers(&self, _: usize, _: EntityId) -> bool { false }
+    /// #     fn is_present(&self, _: usize, _: EntityId) -> bool { false }
+    /// #     fn insert(&mut self, _: EntityId, add: Infallible) -> Result<(), InsertError> { match add {} }
+    /// #     fn remove_all(&mut self, _: EntityId) {}
+    /// #     fn values_mut(&mut self) -> Self::Values<'_> { (self.numbers.values_mut(),) }
+    /// # }
+    /// let mut world = World::<1, Set, ResourceSlot<u8>>::new();
+    /// let (values, _resources) = world.split_mut();
+    /// let _structure: &mut Set = values;
+    /// ```
+    ///
+    /// Le même code, avec le type réellement rendu, compile :
+    ///
+    /// ```
+    /// # use verbum_ecs::{ComponentSet, EntityId, InsertError, ResourceSlot, SparseSet, ValuesMut, World};
+    /// # use core::convert::Infallible;
+    /// # #[derive(Default)]
+    /// # struct Set { numbers: SparseSet<u8, 1, 1> }
+    /// # impl ComponentSet for Set {
+    /// #     type Add = Infallible;
+    /// #     type Counters = [usize; 1];
+    /// #     type Values<'a> = (ValuesMut<'a, u8, 1, 1>,);
+    /// #     fn kind(add: &Infallible) -> usize { match *add {} }
+    /// #     fn dense_len(&self, _: usize) -> usize { 0 }
+    /// #     fn dense_capacity(&self, _: usize) -> usize { 0 }
+    /// #     fn covers(&self, _: usize, _: EntityId) -> bool { false }
+    /// #     fn is_present(&self, _: usize, _: EntityId) -> bool { false }
+    /// #     fn insert(&mut self, _: EntityId, add: Infallible) -> Result<(), InsertError> { match add {} }
+    /// #     fn remove_all(&mut self, _: EntityId) {}
+    /// #     fn values_mut(&mut self) -> Self::Values<'_> { (self.numbers.values_mut(),) }
+    /// # }
+    /// let mut world = World::<1, Set, ResourceSlot<u8>>::new();
+    /// let (values, _resources) = world.split_mut();
+    /// let _view: (ValuesMut<'_, u8, 1, 1>,) = values;
+    /// ```
+    pub fn split_mut(&mut self) -> (S::Values<'_>, &mut R) {
+        (self.components.values_mut(), &mut self.resources)
+    }
+
     /// Accès mutable aux **valeurs** des composants, jamais à la structure : `S::Values` est
     /// composé de `ValuesMut` (type scellé), sans `insert` ni `remove`. Seul le `World` résout
     /// les mutations structurelles (ADR-006). Une Query en lecture/écriture se construit
@@ -1039,5 +1159,116 @@ mod tests {
         world.apply(&mut buffer).unwrap();
         assert_eq!(world.components().positions.entities(), [b]);
         assert_eq!(world.components().velocities.len(), 0);
+    }
+
+    // ---- Phase 6 : accès disjoint aux valeurs et aux Ressources ------------------------------
+
+    use crate::ValuesMut;
+
+    type GWorld<const E: usize> = World<E, Kinematics, Globals>;
+    type PositionValues<'a> = ValuesMut<'a, Position, 3, 2>;
+    type VelocityValues<'a> = ValuesMut<'a, Velocity, 2, 2>;
+
+    /// Monde de départ commun aux tests de `split_mut` : deux entités, trois composants, une
+    /// Ressource renseignée.
+    fn gworld() -> (GWorld<3>, [EntityId; 2]) {
+        let mut world = GWorld::<3>::new();
+        let (a, b) = (world.spawn().unwrap(), world.spawn().unwrap());
+        world.add_component(a, pos(1)).unwrap();
+        world.add_component(b, pos(2)).unwrap();
+        world.add_component(a, vel(3)).unwrap();
+        world.resources_mut().score.insert(10);
+        (world, [a, b])
+    }
+
+    /// Écritures de valeurs communes aux deux chemins comparés.
+    fn edit_values(
+        positions: &mut PositionValues<'_>,
+        velocities: &mut VelocityValues<'_>,
+        [a, b]: [EntityId; 2],
+    ) {
+        *positions.get_mut(a).unwrap() = position(100);
+        positions.get_mut(b).unwrap().x += 5;
+        velocities.get_mut(a).unwrap().dx += 1;
+    }
+
+    /// Écritures de Ressources communes aux deux chemins comparés.
+    fn edit_resources(resources: &mut Globals) {
+        *resources.score.get_mut().unwrap() += 7;
+        resources.label.insert(-4);
+    }
+
+    /// Plan §4.4, test 1 : valeurs de composants et Ressource sont modifiées **ensemble**, dans
+    /// une même portée, depuis un même emprunt du `World` ; la lecture d'une vue alimente
+    /// l'écriture de la Ressource ; les deux effets sont visibles après la portée.
+    #[test]
+    fn split_mut_writes_component_values_and_a_resource_in_one_scope() {
+        let (mut world, [a, b]) = gworld();
+
+        {
+            let ((mut positions, mut velocities), resources) = world.split_mut();
+            *positions.get_mut(a).unwrap() = position(100);
+            velocities.get_mut(a).unwrap().dx += 1;
+            *resources.score.get_mut().unwrap() += positions.len() as u32;
+            resources.label.insert(-4);
+        }
+
+        let set = world.components();
+        assert_eq!(set.positions.get(a), Some(&position(100)));
+        assert_eq!(set.positions.get(b), Some(&position(2)), "voisine intacte");
+        assert_eq!(set.velocities.get(a), Some(&Velocity { dx: 4, dy: -3 }));
+        assert_eq!(world.resources().score.get(), Some(&12), "10 + 2 positions");
+        assert_eq!(world.resources().label.get(), Some(&-4));
+    }
+
+    /// Plan §4.4, test 2 : l'accès conjoint ne change aucune structure : entités vivantes,
+    /// présence et ordre dense des composants, générations et liste libre (observés par le
+    /// `spawn` suivant, comparé à celui d'un monde de référence cloné avant les écritures).
+    #[test]
+    fn split_mut_leaves_the_structure_unchanged() {
+        let (mut world, [a, b]) = gworld();
+        let mut reference = world.clone();
+
+        {
+            let (mut values, resources) = world.split_mut();
+            edit_values(&mut values.0, &mut values.1, [a, b]);
+            edit_resources(resources);
+        }
+
+        assert!(world.is_alive(a) && world.is_alive(b));
+        assert_eq!(
+            world.components().positions.entities(),
+            reference.components().positions.entities()
+        );
+        assert_eq!(
+            world.components().velocities.entities(),
+            reference.components().velocities.entities()
+        );
+        assert_eq!(world.spawn(), reference.spawn(), "générations, liste libre");
+        assert_eq!(world.spawn(), Err(CapacityExceeded));
+        assert_eq!(reference.spawn(), Err(CapacityExceeded));
+    }
+
+    /// Plan §4.4, test 5 : `split_mut` donne le même résultat que `component_values_mut` puis
+    /// `resources_mut` pris séparément, pour les mêmes écritures.
+    #[test]
+    fn split_mut_matches_the_two_separate_accessors() {
+        let (mut joint, handles) = gworld();
+        let mut separate = joint.clone();
+        let unedited = joint.clone();
+
+        {
+            let ((mut positions, mut velocities), resources) = joint.split_mut();
+            edit_values(&mut positions, &mut velocities, handles);
+            edit_resources(resources);
+        }
+        {
+            let (mut positions, mut velocities) = separate.component_values_mut();
+            edit_values(&mut positions, &mut velocities, handles);
+        }
+        edit_resources(separate.resources_mut());
+
+        assert_ne!(joint, unedited, "les écritures ont bien eu lieu");
+        assert_eq!(joint, separate);
     }
 }
