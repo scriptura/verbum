@@ -90,14 +90,17 @@ impl<const ENTITIES: usize, S: ComponentSet, R: Default> World<ENTITIES, S, R> {
     /// # struct Set { numbers: SparseSet<u8, 1, 1> }
     /// # impl ComponentSet for Set {
     /// #     type Add = Infallible;
+    /// #     type Remove = Infallible;
     /// #     type Counters = [usize; 1];
     /// #     type Values<'a> = (ValuesMut<'a, u8, 1, 1>,);
     /// #     fn kind(add: &Infallible) -> usize { match *add {} }
+    /// #     fn remove_kind(remove: &Infallible) -> usize { match *remove {} }
     /// #     fn dense_len(&self, _: usize) -> usize { 0 }
     /// #     fn dense_capacity(&self, _: usize) -> usize { 0 }
     /// #     fn covers(&self, _: usize, _: EntityId) -> bool { false }
     /// #     fn is_present(&self, _: usize, _: EntityId) -> bool { false }
     /// #     fn insert(&mut self, _: EntityId, add: Infallible) -> Result<(), InsertError> { match add {} }
+    /// #     fn remove(&mut self, _: EntityId, remove: Infallible) -> bool { match remove {} }
     /// #     fn remove_all(&mut self, _: EntityId) {}
     /// #     fn values_mut(&mut self) -> Self::Values<'_> { (self.numbers.values_mut(),) }
     /// # }
@@ -116,14 +119,17 @@ impl<const ENTITIES: usize, S: ComponentSet, R: Default> World<ENTITIES, S, R> {
     /// # struct Set { numbers: SparseSet<u8, 1, 1> }
     /// # impl ComponentSet for Set {
     /// #     type Add = Infallible;
+    /// #     type Remove = Infallible;
     /// #     type Counters = [usize; 1];
     /// #     type Values<'a> = (ValuesMut<'a, u8, 1, 1>,);
     /// #     fn kind(add: &Infallible) -> usize { match *add {} }
+    /// #     fn remove_kind(remove: &Infallible) -> usize { match *remove {} }
     /// #     fn dense_len(&self, _: usize) -> usize { 0 }
     /// #     fn dense_capacity(&self, _: usize) -> usize { 0 }
     /// #     fn covers(&self, _: usize, _: EntityId) -> bool { false }
     /// #     fn is_present(&self, _: usize, _: EntityId) -> bool { false }
     /// #     fn insert(&mut self, _: EntityId, add: Infallible) -> Result<(), InsertError> { match add {} }
+    /// #     fn remove(&mut self, _: EntityId, remove: Infallible) -> bool { match remove {} }
     /// #     fn remove_all(&mut self, _: EntityId) {}
     /// #     fn values_mut(&mut self) -> Self::Values<'_> { (self.numbers.values_mut(),) }
     /// # }
@@ -143,14 +149,17 @@ impl<const ENTITIES: usize, S: ComponentSet, R: Default> World<ENTITIES, S, R> {
     /// # struct Set { numbers: SparseSet<u8, 1, 1> }
     /// # impl ComponentSet for Set {
     /// #     type Add = Infallible;
+    /// #     type Remove = Infallible;
     /// #     type Counters = [usize; 1];
     /// #     type Values<'a> = (ValuesMut<'a, u8, 1, 1>,);
     /// #     fn kind(add: &Infallible) -> usize { match *add {} }
+    /// #     fn remove_kind(remove: &Infallible) -> usize { match *remove {} }
     /// #     fn dense_len(&self, _: usize) -> usize { 0 }
     /// #     fn dense_capacity(&self, _: usize) -> usize { 0 }
     /// #     fn covers(&self, _: usize, _: EntityId) -> bool { false }
     /// #     fn is_present(&self, _: usize, _: EntityId) -> bool { false }
     /// #     fn insert(&mut self, _: EntityId, add: Infallible) -> Result<(), InsertError> { match add {} }
+    /// #     fn remove(&mut self, _: EntityId, remove: Infallible) -> bool { match remove {} }
     /// #     fn remove_all(&mut self, _: EntityId) {}
     /// #     fn values_mut(&mut self) -> Self::Values<'_> { (self.numbers.values_mut(),) }
     /// # }
@@ -168,14 +177,17 @@ impl<const ENTITIES: usize, S: ComponentSet, R: Default> World<ENTITIES, S, R> {
     /// # struct Set { numbers: SparseSet<u8, 1, 1> }
     /// # impl ComponentSet for Set {
     /// #     type Add = Infallible;
+    /// #     type Remove = Infallible;
     /// #     type Counters = [usize; 1];
     /// #     type Values<'a> = (ValuesMut<'a, u8, 1, 1>,);
     /// #     fn kind(add: &Infallible) -> usize { match *add {} }
+    /// #     fn remove_kind(remove: &Infallible) -> usize { match *remove {} }
     /// #     fn dense_len(&self, _: usize) -> usize { 0 }
     /// #     fn dense_capacity(&self, _: usize) -> usize { 0 }
     /// #     fn covers(&self, _: usize, _: EntityId) -> bool { false }
     /// #     fn is_present(&self, _: usize, _: EntityId) -> bool { false }
     /// #     fn insert(&mut self, _: EntityId, add: Infallible) -> Result<(), InsertError> { match add {} }
+    /// #     fn remove(&mut self, _: EntityId, remove: Infallible) -> bool { match remove {} }
     /// #     fn remove_all(&mut self, _: EntityId) {}
     /// #     fn values_mut(&mut self) -> Self::Values<'_> { (self.numbers.values_mut(),) }
     /// # }
@@ -217,6 +229,21 @@ impl<const ENTITIES: usize, S: ComponentSet, R: Default> World<ENTITIES, S, R> {
         self.components.insert(id, add).map_err(AddError::Insert)
     }
 
+    /// Retire un composant d'une entité vivante. Primitive de référence de `apply`, symétrique de
+    /// `add_component`. `Ok(true)` : le composant était présent et est retiré (swap-remove) ;
+    /// `Ok(false)` : il était absent, sans effet (choix local, non spécifié par le corpus) ;
+    /// `Err(StaleEntity)` : handle périmé, ignoré par `apply`.
+    pub(crate) fn remove_component(
+        &mut self,
+        id: EntityId,
+        remove: S::Remove,
+    ) -> Result<bool, StaleEntity> {
+        if !self.entities.is_alive(id) {
+            return Err(StaleEntity);
+        }
+        Ok(self.components.remove(id, remove))
+    }
+
     /// Vivacité d'un handle : comparaison `(index, génération)`, en O(1).
     pub fn is_alive(&self, id: EntityId) -> bool {
         self.entities.is_alive(id)
@@ -239,6 +266,8 @@ impl<const ENTITIES: usize, S: ComponentSet, R: Default> World<ENTITIES, S, R> {
     /// - un handle périmé (ou détruit plus tôt dans le lot) rend la destruction ou l'ajout
     ///   **sans effet** : plusieurs producteurs peuvent viser la même entité ;
     /// - un ajout avant la destruction de la cible est appliqué, puis purgé avec elle ;
+    /// - un retrait sans effet (handle périmé, détruit plus tôt dans le lot, composant absent
+    ///   à ce point du lot, index hors de l'étendue sparse) n'est **pas** une erreur ;
     /// - ajout d'un composant déjà présent, stockage dense plein, index hors de l'étendue
     ///   sparse, création au-delà de la capacité : erreur, **lot entier rejeté** (un
     ///   dépassement de capacité est un bug de configuration, ADR-001, point 5) ;
@@ -246,7 +275,7 @@ impl<const ENTITIES: usize, S: ComponentSet, R: Default> World<ENTITIES, S, R> {
     ///   désigner une entité créée par ce lot.
     pub fn apply<const COMMANDS: usize>(
         &mut self,
-        commands: &mut CommandBuffer<COMMANDS, S::Add>,
+        commands: &mut CommandBuffer<COMMANDS, S::Add, S::Remove>,
     ) -> Result<(), ApplyError> {
         let planned = self.plan::<COMMANDS>(commands.as_slice())?;
 
@@ -267,6 +296,10 @@ impl<const ENTITIES: usize, S: ComponentSet, R: Default> World<ENTITIES, S, R> {
                     let added = self.add_component(id, add);
                     debug_assert!(added.is_ok(), "lot prévalidé");
                 }
+                Command::Remove(id, remove) => {
+                    let removed = self.remove_component(id, remove);
+                    debug_assert!(matches!(removed, Ok(true)), "lot prévalidé");
+                }
             }
         }
         commands.clear();
@@ -279,18 +312,22 @@ impl<const ENTITIES: usize, S: ComponentSet, R: Default> World<ENTITIES, S, R> {
     /// l'application coïncide exactement avec la séquence prévalidée.
     ///
     /// Simulé : le décompte de slots libres (créations, destructions effectives), et, par
-    /// stockage, la longueur dense (ajouts effectifs, purges des destructions effectives). Une
-    /// destruction est effective si le handle est vivant avant le lot et pas déjà détruit par
-    /// lui ; un ajout, si sa cible l'est aussi. La présence d'un composant se lit dans le
-    /// stockage avant le lot, complétée par les ajouts effectifs précédents (aucune purge
-    /// n'intervient sur une cible encore vivante). Erreurs dans l'ordre de `SparseSet::insert` :
-    /// hors étendue, doublon, dense plein.
+    /// stockage, la longueur dense (ajouts effectifs, retraits effectifs, purges des
+    /// destructions effectives). Une destruction est effective si le handle est vivant avant le
+    /// lot et pas déjà détruit par lui ; un ajout ou un retrait, si sa cible l'est aussi, et un
+    /// retrait seulement si le composant est présent à ce point du lot. La présence d'un
+    /// composant se lit dans le stockage avant le lot, puis évolue dans l'ordre d'émission :
+    /// ajout effectif, présent ; retrait effectif, absent (aucune purge n'intervient sur une
+    /// cible encore vivante). Une commande ne dépend que des commandes **précédentes** : une
+    /// commande ultérieure ne rend jamais valide rétroactivement une commande invalide.
+    /// Erreurs dans l'ordre de `SparseSet::insert` : hors étendue, doublon, dense plein ; un
+    /// retrait n'a pas d'erreur.
     ///
     /// Coût O(n²) (parcours de préfixe par commande) : borné par la capacité du buffer, fixée
     /// avant la simulation ; optimisable sans changer le contrat (mesure d'abord).
     fn plan<const COMMANDS: usize>(
         &self,
-        batch: &[Command<S::Add>],
+        batch: &[Command<S::Add, S::Remove>],
     ) -> Result<[bool; COMMANDS], ApplyError> {
         let mut applies = [false; COMMANDS];
         let mut free = self.entities.free_slots();
@@ -338,6 +375,15 @@ impl<const ENTITIES: usize, S: ComponentSet, R: Default> World<ENTITIES, S, R> {
                         applies[position] = true;
                     }
                 }
+                Command::Remove(id, remove) => {
+                    if self.is_live_at(id, before) {
+                        let kind = S::remove_kind(&remove);
+                        if self.holds(kind, id, before, &applies) {
+                            lengths.as_mut()[kind] -= 1;
+                            applies[position] = true;
+                        }
+                    }
+                }
             }
         }
         Ok(applies)
@@ -345,28 +391,41 @@ impl<const ENTITIES: usize, S: ComponentSet, R: Default> World<ENTITIES, S, R> {
 
     /// Le handle est vivant avant le lot et aucune destruction qui le vise ne le précède dans
     /// le lot (la première destruction d'un handle vivant est toujours effective).
-    fn is_live_at(&self, id: EntityId, before: &[Command<S::Add>]) -> bool {
+    fn is_live_at(&self, id: EntityId, before: &[Command<S::Add, S::Remove>]) -> bool {
         self.entities.is_alive(id)
             && !before
                 .iter()
                 .any(|command| matches!(*command, Command::Despawn(d) if d == id))
     }
 
-    /// L'entité (vivante à ce point du lot) possède un composant de ce `kind` : présent avant le
-    /// lot, ou ajouté par une commande précédente effective.
+    /// L'entité (vivante à ce point du lot) possède un composant de ce `kind` : état avant le
+    /// lot, rejoué dans l'ordre d'émission par les seules commandes précédentes effectives
+    /// (un ajout rend présent, un retrait rend absent).
     fn holds(
         &self,
         kind: usize,
         id: EntityId,
-        before: &[Command<S::Add>],
+        before: &[Command<S::Add, S::Remove>],
         applies: &[bool],
     ) -> bool {
-        self.components.is_present(kind, id)
-            || before.iter().zip(applies).any(|(command, &applied)| {
-                applied
-                    && matches!(*command, Command::Add(target, add)
-                        if target == id && S::kind(&add) == kind)
-            })
+        let mut present = self.components.is_present(kind, id);
+        for (command, &applied) in before.iter().zip(applies) {
+            if !applied {
+                continue;
+            }
+            match *command {
+                Command::Add(target, add) if target == id && S::kind(&add) == kind => {
+                    present = true;
+                }
+                Command::Remove(target, remove)
+                    if target == id && S::remove_kind(&remove) == kind =>
+                {
+                    present = false;
+                }
+                _ => {}
+            }
+        }
+        present
     }
 }
 
@@ -670,6 +729,7 @@ mod tests {
                                 let _ = oracle.despawn(id);
                             }
                             Command::Add(_, add) => match add {}, // inhabité
+                            Command::Remove(_, remove) => match remove {}, // inhabité
                         }
                         if oracle_failed {
                             break;
@@ -683,6 +743,7 @@ mod tests {
                             Command::Spawn => buffer.spawn().unwrap(),
                             Command::Despawn(id) => buffer.despawn(id).unwrap(),
                             Command::Add(_, add) => match add {},
+                            Command::Remove(_, remove) => match remove {},
                         }
                     }
                     let result = world.apply(&mut buffer);
@@ -707,10 +768,12 @@ mod tests {
 
     // ---- Phase 4b : composants ----------------------------------------------------------
 
-    use crate::fixtures::{Kinematics, KinematicsAdd, Position, Velocity, pos, vel};
+    use crate::fixtures::{
+        Kinematics, KinematicsAdd, KinematicsRemove, Position, Velocity, pos, vel,
+    };
 
     type KWorld<const E: usize> = World<E, Kinematics>;
-    type KBuffer<const C: usize> = CommandBuffer<C, KinematicsAdd>;
+    type KBuffer<const C: usize> = CommandBuffer<C, KinematicsAdd, KinematicsRemove>;
 
     fn position(x: i32) -> Position {
         Position { x, y: -x }
@@ -943,7 +1006,7 @@ mod tests {
     /// Primitive de référence : application séquentielle, la première erreur arrête.
     fn oracle<const E: usize, S: ComponentSet>(
         world: &mut World<E, S>,
-        sequence: &[Command<S::Add>],
+        sequence: &[Command<S::Add, S::Remove>],
     ) -> Result<(), ApplyError> {
         for command in sequence {
             match *command {
@@ -957,6 +1020,9 @@ mod tests {
                     Ok(()) | Err(AddError::Stale(_)) => {}
                     Err(AddError::Insert(error)) => return Err(ApplyError::Add(error)),
                 },
+                Command::Remove(id, remove) => {
+                    let _ = world.remove_component(id, remove); // périmé ou absent : sans effet
+                }
             }
         }
         Ok(())
@@ -975,7 +1041,7 @@ mod tests {
         // Les chemins de prévalidation et d'application sur les stockages restent exercés ;
         // seuls les lots de 4 et 5 commandes ne le sont que par les tests ordinaires.
         const MAX_LENGTH: usize = if cfg!(miri) { 3 } else { LEN };
-        type Seq = Command<KinematicsAdd>;
+        type Seq = Command<KinematicsAdd, KinematicsRemove>;
 
         // Scénarios : (monde, [x0, x1, x2]). `positions` : dense 2, 3 index ; `velocities` :
         // dense 2, 2 index (l'index 2 est hors étendue).
@@ -1051,6 +1117,9 @@ mod tests {
                             Command::Spawn => buffer.spawn().unwrap(),
                             Command::Despawn(id) => buffer.despawn(id).unwrap(),
                             Command::Add(id, add) => buffer.add_component(id, add).unwrap(),
+                            Command::Remove(id, remove) => {
+                                buffer.remove_component(id, remove).unwrap()
+                            }
                         }
                     }
                     let result = world.apply(&mut buffer);
@@ -1102,7 +1171,7 @@ mod tests {
         let e = world.spawn().unwrap();
         world.add_component(e, pos(1)).unwrap();
 
-        let mut buffer = CommandBuffer::<2, KinematicsAdd>::new();
+        let mut buffer = CommandBuffer::<2, KinematicsAdd, KinematicsRemove>::new();
         buffer.spawn().unwrap(); // monde plein : lot rejeté
         let before = world.clone();
         assert_eq!(
@@ -1270,5 +1339,368 @@ mod tests {
 
         assert_ne!(joint, unedited, "les écritures ont bien eu lieu");
         assert_eq!(joint, separate);
+    }
+
+    // ---- Phase 6bis : RemoveComponent ---------------------------------------------------------
+
+    const RM_P: KinematicsRemove = KinematicsRemove::Position;
+    const RM_V: KinematicsRemove = KinematicsRemove::Velocity;
+
+    /// a : position et vitesse ; b : position ; c : rien. `positions` est saturé (dense 2) ;
+    /// l'index de c (2) est hors de l'étendue de `velocities`.
+    fn removal_world() -> (KWorld<3>, [EntityId; 3]) {
+        let mut world = KWorld::<3>::new();
+        let [a, b, c] = [(); 3].map(|()| world.spawn().unwrap());
+        world.add_component(a, pos(1)).unwrap();
+        world.add_component(b, pos(2)).unwrap();
+        world.add_component(a, vel(3)).unwrap();
+        (world, [a, b, c])
+    }
+
+    /// Primitive : `Ok(true)` si le composant était présent, `Ok(false)` s'il était absent
+    /// (sans effet, choix local), `Err(StaleEntity)` pour un handle périmé.
+    #[test]
+    fn remove_component_reports_present_absent_and_stale() {
+        let (mut world, [a, _b, c]) = removal_world();
+
+        assert_eq!(world.remove_component(a, RM_P), Ok(true));
+        assert_eq!(world.components().positions.get(a), None);
+        assert_eq!(world.remove_component(a, RM_P), Ok(false));
+        assert_eq!(world.remove_component(c, RM_V), Ok(false));
+
+        world.despawn(c).unwrap();
+        assert_eq!(world.remove_component(c, RM_V), Err(StaleEntity));
+    }
+
+    /// Retrait d'un composant présent : il disparaît, l'élément de fin comble la position
+    /// libérée (swap-remove), les autres stockages de l'entité sont intacts, la place libérée
+    /// est réutilisable, et rien n'est visible avant `apply`.
+    #[test]
+    fn a_removal_swap_removes_isolates_storages_and_frees_the_slot() {
+        let (mut world, [a, b, c]) = removal_world();
+        let mut buffer = KBuffer::<2>::new();
+        buffer.remove_component(a, RM_P).unwrap();
+        assert_eq!(world.components().positions.len(), 2, "différé");
+
+        assert_eq!(world.apply(&mut buffer), Ok(()));
+        assert!(buffer.is_empty());
+        let set = world.components();
+        assert_eq!(set.positions.entities(), [b]);
+        assert_eq!(set.positions.get(b), Some(&position(2)));
+        assert_eq!(set.positions.get(a), None);
+        assert_eq!(set.velocities.get(a), Some(&velocity(3)), "autre stockage");
+        assert!(world.is_alive(a));
+
+        buffer.add_component(c, pos(7)).unwrap();
+        assert_eq!(world.apply(&mut buffer), Ok(()));
+        assert_eq!(world.components().positions.entities(), [b, c]);
+        assert_eq!(world.components().positions.get(c), Some(&position(7)));
+    }
+
+    /// Composant absent, y compris sur un index hors de l'étendue sparse : `Ok`, aucun effet,
+    /// le lot n'est pas rejeté.
+    #[test]
+    fn removing_an_absent_component_is_a_no_op() {
+        let (mut world, [_a, _b, c]) = removal_world();
+        let before = world.clone();
+
+        let mut buffer = KBuffer::<2>::new();
+        buffer.remove_component(c, RM_P).unwrap(); // absent
+        buffer.remove_component(c, RM_V).unwrap(); // absent, index hors étendue
+        assert_eq!(world.apply(&mut buffer), Ok(()));
+
+        assert_eq!(world, before);
+        assert!(buffer.is_empty());
+    }
+
+    /// Handle périmé : sans effet, le nouvel occupant de l'index garde son composant. Entité
+    /// détruite plus tôt dans le lot : sans effet. `Remove` puis `Despawn` : pas de double
+    /// décrément (la longueur simulée de `positions` passerait sous zéro).
+    #[test]
+    fn removals_on_stale_or_destroyed_handles_have_no_effect() {
+        // Handle périmé.
+        let (mut world, [_a, b, _c]) = removal_world();
+        world.despawn(b).unwrap();
+        let new = world.spawn().unwrap();
+        assert_eq!(new.index(), b.index());
+        world.add_component(new, pos(5)).unwrap();
+        let before = world.clone();
+        let mut buffer = KBuffer::<1>::new();
+        buffer.remove_component(b, RM_P).unwrap();
+        assert_eq!(world.apply(&mut buffer), Ok(()));
+        assert_eq!(world, before);
+
+        // Détruite plus tôt dans le lot.
+        let (mut world, [a, ..]) = removal_world();
+        let mut reference = world.clone();
+        let mut buffer = KBuffer::<2>::new();
+        buffer.despawn(a).unwrap();
+        buffer.remove_component(a, RM_P).unwrap();
+        assert_eq!(world.apply(&mut buffer), Ok(()));
+        reference.despawn(a).unwrap();
+        assert_eq!(world, reference);
+
+        // `Remove` puis `Despawn` : un seul décrément ; deux ajouts tiennent ensuite.
+        let mut world = KWorld::<3>::new();
+        let [a, b, c] = [(); 3].map(|()| world.spawn().unwrap());
+        world.add_component(a, pos(1)).unwrap();
+        let mut reference = world.clone();
+        let mut buffer = KBuffer::<4>::new();
+        buffer.remove_component(a, RM_P).unwrap();
+        buffer.despawn(a).unwrap();
+        buffer.add_component(b, pos(2)).unwrap();
+        buffer.add_component(c, pos(3)).unwrap();
+        assert_eq!(world.apply(&mut buffer), Ok(()));
+        reference.remove_component(a, RM_P).unwrap();
+        reference.despawn(a).unwrap();
+        reference.add_component(b, pos(2)).unwrap();
+        reference.add_component(c, pos(3)).unwrap();
+        assert_eq!(world, reference);
+        assert_eq!(world.components().positions.entities(), [b, c]);
+    }
+
+    /// `Add` puis `Remove`, `Remove` puis `Add`, composant absent, `Remove` puis `Remove` :
+    /// la simulation suit l'ordre d'émission.
+    #[test]
+    fn add_and_remove_in_one_batch_follow_the_emission_order() {
+        fn base() -> (KWorld<3>, [EntityId; 3]) {
+            let mut world = KWorld::<3>::new();
+            let [a, b, c] = [(); 3].map(|()| world.spawn().unwrap());
+            world.add_component(a, pos(1)).unwrap();
+            (world, [a, b, c])
+        }
+
+        // `Add` valide puis `Remove` : composant absent à la fin.
+        let (mut world, [a, b, _]) = base();
+        let mut buffer = KBuffer::<2>::new();
+        buffer.add_component(b, pos(5)).unwrap();
+        buffer.remove_component(b, RM_P).unwrap();
+        assert_eq!(world.apply(&mut buffer), Ok(()));
+        assert_eq!(world.components().positions.entities(), [a]);
+
+        // `Remove` puis `Add` : présent, avec la valeur ajoutée.
+        let (mut world, [a, ..]) = base();
+        buffer.remove_component(a, RM_P).unwrap();
+        buffer.add_component(a, pos(9)).unwrap();
+        assert_eq!(world.apply(&mut buffer), Ok(()));
+        assert_eq!(world.components().positions.get(a), Some(&position(9)));
+
+        // Composant absent : `Remove` sans effet, puis `Add` : présent.
+        let (mut world, [_, b, _]) = base();
+        buffer.remove_component(b, RM_P).unwrap();
+        buffer.add_component(b, pos(7)).unwrap();
+        assert_eq!(world.apply(&mut buffer), Ok(()));
+        assert_eq!(world.components().positions.get(b), Some(&position(7)));
+
+        // `Remove` puis `Remove` : un seul effet.
+        let (mut world, [a, b, _]) = base();
+        world.add_component(b, pos(2)).unwrap();
+        buffer.remove_component(a, RM_P).unwrap();
+        buffer.remove_component(a, RM_P).unwrap();
+        assert_eq!(world.apply(&mut buffer), Ok(()));
+        assert_eq!(world.components().positions.entities(), [b]);
+    }
+
+    /// Stockage dense plein : `Remove` puis `Add` est accepté ; `Add` puis `Remove` est rejeté
+    /// (`DenseFull`) : le retrait ultérieur ne rend pas l'ajout rétroactivement valide, et
+    /// aucune commande n'est appliquée.
+    #[test]
+    fn a_full_storage_accepts_remove_then_add_but_not_add_then_remove() {
+        let (mut world, [a, b, c]) = removal_world();
+        let before = world.clone();
+
+        let mut buffer = KBuffer::<2>::new();
+        buffer.remove_component(a, RM_P).unwrap();
+        buffer.add_component(c, pos(3)).unwrap();
+        assert_eq!(world.apply(&mut buffer), Ok(()));
+        assert_eq!(world.components().positions.entities(), [b, c]);
+        assert_eq!(world.components().velocities.get(a), Some(&velocity(3)));
+
+        let mut world = before.clone();
+        buffer.add_component(c, pos(3)).unwrap();
+        buffer.remove_component(a, RM_P).unwrap();
+        assert_eq!(
+            world.apply(&mut buffer),
+            Err(ApplyError::Add(InsertError::DenseFull))
+        );
+        assert_eq!(world, before, "aucune commande appliquée");
+        assert_eq!(
+            buffer.as_slice(),
+            [Command::Add(c, pos(3)), Command::Remove(a, RM_P)]
+        );
+    }
+
+    /// Pas de validation rétroactive : un `Remove` placé après un `Add` invalide ne le répare
+    /// pas (doublon, index hors étendue).
+    #[test]
+    fn a_later_remove_never_repairs_an_earlier_invalid_add() {
+        let (mut world, [a, _b, c]) = removal_world();
+        let before = world.clone();
+
+        let mut buffer = KBuffer::<2>::new();
+        buffer.add_component(a, pos(2)).unwrap(); // doublon
+        buffer.remove_component(a, RM_P).unwrap();
+        assert_eq!(
+            world.apply(&mut buffer),
+            Err(ApplyError::Add(InsertError::AlreadyPresent))
+        );
+        assert_eq!(world, before);
+        assert_eq!(world.components().positions.get(a), Some(&position(1)));
+        buffer.clear();
+
+        buffer.add_component(c, vel(1)).unwrap(); // index 2 hors de `velocities`
+        buffer.remove_component(c, RM_V).unwrap();
+        assert_eq!(
+            world.apply(&mut buffer),
+            Err(ApplyError::Add(InsertError::IndexOutOfRange))
+        );
+        assert_eq!(world, before);
+    }
+
+    /// Rejet atomique : un `Remove` valide qui précède une commande invalide n'est pas
+    /// appliqué ; monde intact, buffer conservé intact, vidé seulement par `clear`.
+    #[test]
+    fn a_rejected_batch_applies_no_earlier_removal() {
+        let (mut world, [a, b, _c]) = removal_world();
+        let before = world.clone();
+
+        let mut buffer = KBuffer::<2>::new();
+        buffer.remove_component(a, RM_P).unwrap(); // valide
+        buffer.add_component(b, pos(4)).unwrap(); // doublon d'une autre entité
+        assert_eq!(
+            world.apply(&mut buffer),
+            Err(ApplyError::Add(InsertError::AlreadyPresent))
+        );
+
+        assert_eq!(world, before);
+        assert_eq!(world.components().positions.get(a), Some(&position(1)));
+        assert_eq!(
+            buffer.as_slice(),
+            [Command::Remove(a, RM_P), Command::Add(b, pos(4))]
+        );
+        buffer.clear();
+        assert!(buffer.is_empty());
+    }
+
+    /// Exactitude et atomicité de la prévalidation avec retraits, sur tous les petits lots :
+    /// même résultat que les primitives appliquées dans l'ordre (l'oracle ne réutilise ni
+    /// `plan` ni sa simulation). Couvre `Remove` présent, absent, périmé, hors étendue,
+    /// `Add` sur stockage plein, `Remove` puis `Despawn`, slot retiré.
+    #[test]
+    fn prevalidation_with_removals_is_exact_and_atomic_over_all_small_batches() {
+        // Capacité du buffer : longueur maximale des lots, donc couverture complète hors Miri.
+        const LEN: usize = 5;
+        // Sous Miri, l'exploration est limitée à 3 commandes (même alphabet, mêmes scénarios,
+        // mêmes assertions) : le coût de l'interpréteur rend les 5 commandes prohibitives. Les
+        // chemins de prévalidation et d'application restent exercés ; les lots de 4 et 5
+        // commandes ne le sont que par les tests ordinaires, qui ne sont jamais réduits.
+        const MAX_LENGTH: usize = if cfg!(miri) { 3 } else { LEN };
+        type Seq = Command<KinematicsAdd, KinematicsRemove>;
+
+        // Scénarios : (monde, [x0, x1, x2]). `positions` : dense 2, 3 index ; `velocities` :
+        // dense 2, 2 index (l'index 2 est hors étendue).
+        fn scenarios() -> [(KWorld<3>, [EntityId; 3]); 6] {
+            let spawn3 = |w: &mut KWorld<3>| [(); 3].map(|()| w.spawn().unwrap());
+
+            // 1. Tout vivant, aucun composant.
+            let mut w1 = KWorld::<3>::new();
+            let h1 = spawn3(&mut w1);
+
+            // 2. `positions` saturé (x0, x1) ; x0 et x1 portent aussi une vitesse.
+            let (w2, h2) = removal_world();
+
+            // 3. x0 porte une position et une vitesse ; `positions` non saturé.
+            let mut w3 = KWorld::<3>::new();
+            let h3 = spawn3(&mut w3);
+            w3.add_component(h3[0], pos(1)).unwrap();
+            w3.add_component(h3[0], vel(2)).unwrap();
+
+            // 4. x2 périmé (index 2 libre) ; x0 et x1 saturent `positions`.
+            let mut w4 = KWorld::<3>::new();
+            let h4 = spawn3(&mut w4);
+            w4.despawn(h4[2]).unwrap();
+            w4.add_component(h4[0], pos(3)).unwrap();
+            w4.add_component(h4[1], pos(4)).unwrap();
+            w4.add_component(h4[1], vel(5)).unwrap();
+
+            // 5. Slot 0 à une génération de l'épuisement : sa destruction le retire.
+            let mut w5 = KWorld::<3>::new();
+            w5.entities.set_generation_for_test(0, u32::MAX - 1);
+            let h5 = spawn3(&mut w5);
+            w5.add_component(h5[0], pos(6)).unwrap();
+            w5.add_component(h5[0], vel(7)).unwrap();
+
+            // 6. Monde vide, handles étrangers.
+            let w6 = KWorld::<3>::new();
+
+            [
+                (w1, h1),
+                (w2, h2),
+                (w3, h3),
+                (w4, h4),
+                (w5, h5),
+                (w6, [EntityId::VACANT; 3]),
+            ]
+        }
+
+        let (mut accepted, mut rejected) = (0usize, 0usize);
+        for (world0, [x0, x1, x2]) in scenarios() {
+            let alphabet: [Seq; 11] = [
+                Command::Despawn(x0),
+                Command::Despawn(x1),
+                Command::Add(x0, pos(10)),
+                Command::Add(x1, pos(12)),
+                Command::Add(x2, pos(14)),
+                Command::Add(x2, vel(15)),
+                Command::Remove(x0, RM_P),
+                Command::Remove(x1, RM_P),
+                Command::Remove(x2, RM_P),
+                Command::Remove(x1, RM_V),
+                Command::Remove(x2, RM_V),
+            ];
+            for length in 0..=MAX_LENGTH {
+                for code in 0..alphabet.len().pow(length as u32) {
+                    let mut sequence = [Command::Spawn; LEN];
+                    let mut rest = code;
+                    for slot in sequence.iter_mut().take(length) {
+                        *slot = alphabet[rest % alphabet.len()];
+                        rest /= alphabet.len();
+                    }
+                    let sequence = &sequence[..length];
+
+                    let mut expected = world0.clone();
+                    let expected_result = oracle(&mut expected, sequence);
+
+                    let mut world = world0.clone();
+                    let mut buffer = KBuffer::<LEN>::new();
+                    for command in sequence {
+                        match *command {
+                            Command::Spawn => buffer.spawn().unwrap(),
+                            Command::Despawn(id) => buffer.despawn(id).unwrap(),
+                            Command::Add(id, add) => buffer.add_component(id, add).unwrap(),
+                            Command::Remove(id, remove) => {
+                                buffer.remove_component(id, remove).unwrap()
+                            }
+                        }
+                    }
+                    let result = world.apply(&mut buffer);
+
+                    assert_eq!(result, expected_result, "{sequence:?}");
+                    if result.is_ok() {
+                        accepted += 1;
+                        assert_eq!(world, expected, "{sequence:?}");
+                        assert!(buffer.is_empty(), "{sequence:?}");
+                    } else {
+                        rejected += 1;
+                        assert_eq!(world, world0, "{sequence:?}");
+                        assert_eq!(buffer.as_slice(), sequence, "{sequence:?}");
+                    }
+                }
+            }
+        }
+        assert!(
+            accepted > 0 && rejected > 0,
+            "l'espace couvre les deux issues"
+        );
     }
 }

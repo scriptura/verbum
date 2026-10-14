@@ -13,28 +13,31 @@ use core::convert::Infallible;
 
 use crate::entity::EntityId;
 
-/// Mutation structurelle différée : création, destruction, ajout de composant. `Spawn` ne
-/// porte pas d'identifiant : seul le `World` en crée. `A` est l'ajout typé du `ComponentSet`
-/// du monde cible (ensemble fermé de variantes, une par stockage).
+/// Mutation structurelle différée : création, destruction, ajout ou retrait de composant.
+/// `Spawn` ne porte pas d'identifiant : seul le `World` en crée. `A` est l'ajout typé et `Rm`
+/// le retrait typé du `ComponentSet` du monde cible (ensembles fermés de variantes, une par
+/// stockage) ; `Rm` est par défaut inhabité (aucun retrait).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Command<A> {
+pub(crate) enum Command<A, Rm = Infallible> {
     Spawn,
     Despawn(EntityId),
     Add(EntityId, A),
+    Remove(EntityId, Rm),
 }
 
 /// Le buffer est plein : erreur explicite, jamais une croissance.
 #[derive(Debug, PartialEq, Eq)]
 pub struct BufferFull;
 
-/// Buffer de `COMMANDS` commandes au plus. État initial déterministe : vide. `A` est le type
-/// d'ajout du `ComponentSet` du `World` qui le résoudra ; par défaut inhabité (aucun ajout).
-pub struct CommandBuffer<const COMMANDS: usize, A = Infallible> {
-    commands: [Command<A>; COMMANDS],
+/// Buffer de `COMMANDS` commandes au plus. État initial déterministe : vide. `A` et `Rm` sont
+/// les types d'ajout et de retrait du `ComponentSet` du `World` qui le résoudra ; par défaut
+/// inhabités (aucun ajout, aucun retrait).
+pub struct CommandBuffer<const COMMANDS: usize, A = Infallible, Rm = Infallible> {
+    commands: [Command<A, Rm>; COMMANDS],
     len: usize,
 }
 
-impl<const COMMANDS: usize, A: Copy> CommandBuffer<COMMANDS, A> {
+impl<const COMMANDS: usize, A: Copy, Rm: Copy> CommandBuffer<COMMANDS, A, Rm> {
     pub fn new() -> Self {
         Self {
             commands: [Command::Spawn; COMMANDS], // remplissage ; seul `[0, len)` est lisible
@@ -67,7 +70,14 @@ impl<const COMMANDS: usize, A: Copy> CommandBuffer<COMMANDS, A> {
         self.push(Command::Add(entity, add))
     }
 
-    fn push(&mut self, command: Command<A>) -> Result<(), BufferFull> {
+    /// Accumule le retrait d'un composant d'une entité. Le `World` l'ignore si le handle est
+    /// périmé, détruit plus tôt dans le lot, ou si le composant est absent à ce point du lot
+    /// (choix local, non spécifié par le corpus) : ce n'est jamais une erreur de lot.
+    pub fn remove_component(&mut self, entity: EntityId, remove: Rm) -> Result<(), BufferFull> {
+        self.push(Command::Remove(entity, remove))
+    }
+
+    fn push(&mut self, command: Command<A, Rm>) -> Result<(), BufferFull> {
         let slot = self.commands.get_mut(self.len).ok_or(BufferFull)?;
         *slot = command;
         self.len += 1;
@@ -75,7 +85,7 @@ impl<const COMMANDS: usize, A: Copy> CommandBuffer<COMMANDS, A> {
     }
 
     /// Commandes accumulées, dans l'ordre d'émission.
-    pub(crate) fn as_slice(&self) -> &[Command<A>] {
+    pub(crate) fn as_slice(&self) -> &[Command<A, Rm>] {
         &self.commands[..self.len]
     }
 
@@ -87,7 +97,7 @@ impl<const COMMANDS: usize, A: Copy> CommandBuffer<COMMANDS, A> {
     }
 }
 
-impl<const COMMANDS: usize, A: Copy> Default for CommandBuffer<COMMANDS, A> {
+impl<const COMMANDS: usize, A: Copy, Rm: Copy> Default for CommandBuffer<COMMANDS, A, Rm> {
     fn default() -> Self {
         Self::new()
     }
@@ -96,7 +106,7 @@ impl<const COMMANDS: usize, A: Copy> Default for CommandBuffer<COMMANDS, A> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::fixtures::{KinematicsAdd, pos, vel};
+    use crate::fixtures::{KinematicsAdd, KinematicsRemove, pos, vel};
 
     /// Les ajouts s'accumulent dans l'ordre d'émission avec les autres commandes, sans effet
     /// sur le monde ; la capacité borne aussi les ajouts.
@@ -171,5 +181,35 @@ mod tests {
         buffer.spawn().unwrap();
         buffer.spawn().unwrap();
         assert_eq!(buffer.len(), 2);
+    }
+
+    /// Les retraits s'accumulent dans l'ordre d'émission avec les autres commandes ; la capacité
+    /// borne aussi les retraits : débordement explicite, contenu conservé, sans croissance.
+    #[test]
+    fn accumulates_component_removes_in_emission_order() {
+        let mut world = crate::World::<2>::new();
+        let a = world.spawn().unwrap();
+        let mut buffer = CommandBuffer::<3, KinematicsAdd, KinematicsRemove>::new();
+
+        buffer
+            .remove_component(a, KinematicsRemove::Position)
+            .unwrap();
+        buffer.add_component(a, pos(1)).unwrap();
+        buffer
+            .remove_component(a, KinematicsRemove::Velocity)
+            .unwrap();
+
+        let expected = [
+            Command::Remove(a, KinematicsRemove::Position),
+            Command::Add(a, pos(1)),
+            Command::Remove(a, KinematicsRemove::Velocity),
+        ];
+        assert_eq!(buffer.as_slice(), expected);
+        assert_eq!(
+            buffer.remove_component(a, KinematicsRemove::Position),
+            Err(BufferFull)
+        );
+        assert_eq!(buffer.len(), 3);
+        assert_eq!(buffer.as_slice(), expected, "contenu préservé");
     }
 }

@@ -8,6 +8,8 @@
 //! Buffer résolu une fois par le `World`, que la seconde Query observe l'état résolu, et qu'un
 //! handle périmé échoue toujours via `(index, génération)`.
 
+use core::convert::Infallible;
+
 use verbum_ecs::{
     ApplyError, CommandBuffer, ComponentSet, EntityId, InsertError, ReadWriteQuery, SparseSet,
     ValuesMut, World,
@@ -33,6 +35,7 @@ enum MotionAdd {
 
 impl ComponentSet for Motion {
     type Add = MotionAdd;
+    type Remove = Infallible;
     type Counters = [usize; 2];
     type Values<'a> = (ValuesMut<'a, Position, 4, 4>, ValuesMut<'a, Velocity, 4, 4>);
 
@@ -41,6 +44,10 @@ impl ComponentSet for Motion {
             MotionAdd::Position(_) => 0,
             MotionAdd::Velocity(_) => 1,
         }
+    }
+
+    fn remove_kind(remove: &Infallible) -> usize {
+        match *remove {}
     }
 
     fn dense_len(&self, kind: usize) -> usize {
@@ -76,6 +83,10 @@ impl ComponentSet for Motion {
             MotionAdd::Position(p) => self.positions.insert(entity, p),
             MotionAdd::Velocity(v) => self.velocities.insert(entity, v),
         }
+    }
+
+    fn remove(&mut self, _entity: EntityId, remove: Infallible) -> bool {
+        match remove {}
     }
 
     fn remove_all(&mut self, entity: EntityId) {

@@ -4,6 +4,8 @@
 //! ne nomme aucun type métier (`01-runtime-ecs.md`, section 3). Deux types distincts dans un
 //! même `World`, ajouts différés, purge à la destruction, atomicité sur les stockages.
 
+use core::convert::Infallible;
+
 use verbum_ecs::{
     ApplyError, CapacityExceeded, CommandBuffer, ComponentSet, EntityId, InsertError, SparseSet,
     ValuesMut, World,
@@ -31,6 +33,7 @@ enum StatsAdd {
 
 impl ComponentSet for Stats {
     type Add = StatsAdd;
+    type Remove = Infallible;
     type Counters = [usize; 2];
     type Values<'a> = (ValuesMut<'a, Health, 4, 2>, ValuesMut<'a, Mana, 2, 2>);
 
@@ -39,6 +42,10 @@ impl ComponentSet for Stats {
             StatsAdd::Health(_) => 0,
             StatsAdd::Mana(_) => 1,
         }
+    }
+
+    fn remove_kind(remove: &Infallible) -> usize {
+        match *remove {}
     }
 
     fn dense_len(&self, kind: usize) -> usize {
@@ -74,6 +81,10 @@ impl ComponentSet for Stats {
             StatsAdd::Health(value) => self.health.insert(entity, value),
             StatsAdd::Mana(value) => self.mana.insert(entity, value),
         }
+    }
+
+    fn remove(&mut self, _entity: EntityId, remove: Infallible) -> bool {
+        match remove {}
     }
 
     fn remove_all(&mut self, entity: EntityId) {

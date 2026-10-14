@@ -38,6 +38,13 @@ pub(crate) enum KinematicsAdd {
     Velocity(Velocity),
 }
 
+/// Ensemble fermé des retraits possibles : une variante typée par stockage.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum KinematicsRemove {
+    Position,
+    Velocity,
+}
+
 pub(crate) const fn pos(x: i32) -> KinematicsAdd {
     KinematicsAdd::Position(Position { x, y: -x })
 }
@@ -48,6 +55,7 @@ pub(crate) const fn vel(dx: i32) -> KinematicsAdd {
 
 impl ComponentSet for Kinematics {
     type Add = KinematicsAdd;
+    type Remove = KinematicsRemove;
     type Counters = [usize; 2];
     type Values<'a> = (ValuesMut<'a, Position, 3, 2>, ValuesMut<'a, Velocity, 2, 2>);
 
@@ -55,6 +63,13 @@ impl ComponentSet for Kinematics {
         match add {
             KinematicsAdd::Position(_) => POSITION,
             KinematicsAdd::Velocity(_) => VELOCITY,
+        }
+    }
+
+    fn remove_kind(remove: &Self::Remove) -> usize {
+        match remove {
+            KinematicsRemove::Position => POSITION,
+            KinematicsRemove::Velocity => VELOCITY,
         }
     }
 
@@ -94,6 +109,13 @@ impl ComponentSet for Kinematics {
         match add {
             KinematicsAdd::Position(position) => self.positions.insert(entity, position),
             KinematicsAdd::Velocity(velocity) => self.velocities.insert(entity, velocity),
+        }
+    }
+
+    fn remove(&mut self, entity: EntityId, remove: Self::Remove) -> bool {
+        match remove {
+            KinematicsRemove::Position => self.positions.remove(entity),
+            KinematicsRemove::Velocity => self.velocities.remove(entity),
         }
     }
 
