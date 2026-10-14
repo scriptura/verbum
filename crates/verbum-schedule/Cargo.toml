@@ -11,6 +11,7 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
+verbum-ecs.workspace = true
 
 [lints]
 workspace = true
