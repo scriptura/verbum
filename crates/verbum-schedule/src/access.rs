@@ -17,6 +17,9 @@
 //!   identity of a category is the const-generic `ID: u8` of the view, never
 //!   the type of the stored value. The field of a view is private: a system
 //!   cannot build a view, nor choose the storage behind a category.
+//! - [`Commands`] is the typed handle on the command buffer. It is bound through
+//!   [`Locate`] under the reserved key [`COMMANDS_BINDING`], which is not a
+//!   category. Its contract carries only the structural effects it declares.
 //! - [`Part`] (sealed) gives an access type its [`Contract`] as an associated
 //!   constant, computed from the type. Tuples of one to four parts, and `()`,
 //!   are parts; tuples nest beyond four.
@@ -52,13 +55,18 @@
 //! bound fails when the code is built (`cargo build`, `cargo test`), not under
 //! `cargo check`: see the doctests of [`Bind`].
 
-use verbum_ecs::{EntityId, ResourceSlot, SparseSet, ValuesMut};
+use verbum_ecs::{BufferFull, CommandBuffer, EntityId, ResourceSlot, SparseSet, ValuesMut};
 
 use crate::contract::{Contract, StructuralEffects};
 use crate::data::DataSet;
 
 mod sealed {
-    pub trait Sealed {}
+    pub trait Sealed {
+        /// Number of command handles ([`super::Commands`]) in this access. Private marker: it
+        /// counts handles, not effect bits, so that a second handle is detected whatever its
+        /// effects.
+        const HANDLES: usize = 0;
+    }
 
     /// Private supertrait of `Bind`: implemented next to each `Bind` impl of this module.
     pub trait Bound<P> {}
@@ -781,6 +789,447 @@ impl<'w, const ID: u8, T, const SPARSE: usize, const DENSE: usize>
 }
 
 // ---------------------------------------------------------------------------
+// Command handle
+// ---------------------------------------------------------------------------
+
+/// Binding key of the command buffer under [`Locate`]: `Locate<'w,
+/// COMMANDS_BINDING>` is implemented by the caller on its `Parts` to give the
+/// buffer to [`Commands`].
+///
+/// **This is a binding key only.** It is not a data category: it is outside
+/// the identifiers of a `DataSet` (`0..DataSet::CAPACITY`), it is never turned
+/// into a `DataId`, it never appears in `reads`, `writes` or `produces`, and it
+/// creates no ordering dependency. An ordinary view using it as a category is
+/// rejected by the constant check of its contract (E0080):
+///
+/// ```compile_fail,E0080
+/// use verbum_schedule::access::{COMMANDS_BINDING, Part, Read};
+/// use verbum_schedule::contract::Contract;
+///
+/// const _: Contract = <Read<COMMANDS_BINDING, ()> as Part>::CONTRACT;
+/// ```
+///
+/// Twin on the last valid category:
+///
+/// ```
+/// use verbum_schedule::access::{Part, Read};
+/// use verbum_schedule::contract::Contract;
+///
+/// const _: Contract = <Read<63, ()> as Part>::CONTRACT;
+/// ```
+pub const COMMANDS_BINDING: u8 = u8::MAX;
+
+/// Typed handle on the command buffer: it emits the structural commands the
+/// four indicators declare, and nothing else.
+///
+/// The indicators (`SPAWN`, `DESPAWN`, `ADD`, `REMOVE`) are the `effects` of
+/// the contract of the access; the contract carries no data category, and
+/// commands produce no ordering edge between systems (ADR-006, point 4). The
+/// field is private: a handle is built by [`Bind::bind`] only. A handle with no
+/// indicator is legal: it has no effect and no method, but it still counts as
+/// the one command handle an access may hold.
+///
+/// Only a store that is a `&mut` [`CommandBuffer`] exposes methods, each one
+/// available only when its indicator is `true`. Emitting never grows the
+/// buffer: a full buffer is `Err(BufferFull)`.
+///
+/// Without the indicator, the method does not exist (E0599): `spawn` needs `SPAWN`.
+///
+/// ```compile_fail,E0599
+/// # use verbum_ecs::{CommandBuffer, World};
+/// # use verbum_schedule::access::{Bind, COMMANDS_BINDING, Commands, Locate};
+/// # struct Parts<'w> {
+/// #     buffer: Option<&'w mut CommandBuffer<2, u8, u8>>,
+/// # }
+/// # impl<'w> Locate<'w, COMMANDS_BINDING> for Parts<'w> {
+/// #     type Store = &'w mut CommandBuffer<2, u8, u8>;
+/// #     fn take(&mut self) -> Option<Self::Store> {
+/// #         self.buffer.take()
+/// #     }
+/// # }
+/// # let mut buffer = CommandBuffer::<2, u8, u8>::new();
+/// # let entity = World::<1>::new().spawn().unwrap();
+/// # let mut parts = Parts { buffer: Some(&mut buffer) };
+/// let mut commands: Commands<&mut CommandBuffer<2, u8, u8>, false, true, true, true> =
+///     Bind::bind(&mut parts).unwrap();
+/// commands.spawn().unwrap();
+/// ```
+///
+/// Twin with the indicator:
+///
+/// ```
+/// # use verbum_ecs::{CommandBuffer, World};
+/// # use verbum_schedule::access::{Bind, COMMANDS_BINDING, Commands, Locate};
+/// # struct Parts<'w> {
+/// #     buffer: Option<&'w mut CommandBuffer<2, u8, u8>>,
+/// # }
+/// # impl<'w> Locate<'w, COMMANDS_BINDING> for Parts<'w> {
+/// #     type Store = &'w mut CommandBuffer<2, u8, u8>;
+/// #     fn take(&mut self) -> Option<Self::Store> {
+/// #         self.buffer.take()
+/// #     }
+/// # }
+/// # let mut buffer = CommandBuffer::<2, u8, u8>::new();
+/// # let entity = World::<1>::new().spawn().unwrap();
+/// # let mut parts = Parts { buffer: Some(&mut buffer) };
+/// let mut commands: Commands<&mut CommandBuffer<2, u8, u8>, true, true, true, true> =
+///     Bind::bind(&mut parts).unwrap();
+/// commands.spawn().unwrap();
+/// ```
+///
+/// Without the indicator, the method does not exist (E0599): `despawn` needs `DESPAWN`.
+///
+/// ```compile_fail,E0599
+/// # use verbum_ecs::{CommandBuffer, World};
+/// # use verbum_schedule::access::{Bind, COMMANDS_BINDING, Commands, Locate};
+/// # struct Parts<'w> {
+/// #     buffer: Option<&'w mut CommandBuffer<2, u8, u8>>,
+/// # }
+/// # impl<'w> Locate<'w, COMMANDS_BINDING> for Parts<'w> {
+/// #     type Store = &'w mut CommandBuffer<2, u8, u8>;
+/// #     fn take(&mut self) -> Option<Self::Store> {
+/// #         self.buffer.take()
+/// #     }
+/// # }
+/// # let mut buffer = CommandBuffer::<2, u8, u8>::new();
+/// # let entity = World::<1>::new().spawn().unwrap();
+/// # let mut parts = Parts { buffer: Some(&mut buffer) };
+/// let mut commands: Commands<&mut CommandBuffer<2, u8, u8>, true, false, true, true> =
+///     Bind::bind(&mut parts).unwrap();
+/// commands.despawn(entity).unwrap();
+/// ```
+///
+/// Twin with the indicator:
+///
+/// ```
+/// # use verbum_ecs::{CommandBuffer, World};
+/// # use verbum_schedule::access::{Bind, COMMANDS_BINDING, Commands, Locate};
+/// # struct Parts<'w> {
+/// #     buffer: Option<&'w mut CommandBuffer<2, u8, u8>>,
+/// # }
+/// # impl<'w> Locate<'w, COMMANDS_BINDING> for Parts<'w> {
+/// #     type Store = &'w mut CommandBuffer<2, u8, u8>;
+/// #     fn take(&mut self) -> Option<Self::Store> {
+/// #         self.buffer.take()
+/// #     }
+/// # }
+/// # let mut buffer = CommandBuffer::<2, u8, u8>::new();
+/// # let entity = World::<1>::new().spawn().unwrap();
+/// # let mut parts = Parts { buffer: Some(&mut buffer) };
+/// let mut commands: Commands<&mut CommandBuffer<2, u8, u8>, true, true, true, true> =
+///     Bind::bind(&mut parts).unwrap();
+/// commands.despawn(entity).unwrap();
+/// ```
+///
+/// Without the indicator, the method does not exist (E0599): `add_component` needs `ADD`.
+///
+/// ```compile_fail,E0599
+/// # use verbum_ecs::{CommandBuffer, World};
+/// # use verbum_schedule::access::{Bind, COMMANDS_BINDING, Commands, Locate};
+/// # struct Parts<'w> {
+/// #     buffer: Option<&'w mut CommandBuffer<2, u8, u8>>,
+/// # }
+/// # impl<'w> Locate<'w, COMMANDS_BINDING> for Parts<'w> {
+/// #     type Store = &'w mut CommandBuffer<2, u8, u8>;
+/// #     fn take(&mut self) -> Option<Self::Store> {
+/// #         self.buffer.take()
+/// #     }
+/// # }
+/// # let mut buffer = CommandBuffer::<2, u8, u8>::new();
+/// # let entity = World::<1>::new().spawn().unwrap();
+/// # let mut parts = Parts { buffer: Some(&mut buffer) };
+/// let mut commands: Commands<&mut CommandBuffer<2, u8, u8>, true, true, false, true> =
+///     Bind::bind(&mut parts).unwrap();
+/// commands.add_component(entity, 1).unwrap();
+/// ```
+///
+/// Twin with the indicator:
+///
+/// ```
+/// # use verbum_ecs::{CommandBuffer, World};
+/// # use verbum_schedule::access::{Bind, COMMANDS_BINDING, Commands, Locate};
+/// # struct Parts<'w> {
+/// #     buffer: Option<&'w mut CommandBuffer<2, u8, u8>>,
+/// # }
+/// # impl<'w> Locate<'w, COMMANDS_BINDING> for Parts<'w> {
+/// #     type Store = &'w mut CommandBuffer<2, u8, u8>;
+/// #     fn take(&mut self) -> Option<Self::Store> {
+/// #         self.buffer.take()
+/// #     }
+/// # }
+/// # let mut buffer = CommandBuffer::<2, u8, u8>::new();
+/// # let entity = World::<1>::new().spawn().unwrap();
+/// # let mut parts = Parts { buffer: Some(&mut buffer) };
+/// let mut commands: Commands<&mut CommandBuffer<2, u8, u8>, true, true, true, true> =
+///     Bind::bind(&mut parts).unwrap();
+/// commands.add_component(entity, 1).unwrap();
+/// ```
+///
+/// Without the indicator, the method does not exist (E0599): `remove_component` needs `REMOVE`.
+///
+/// ```compile_fail,E0599
+/// # use verbum_ecs::{CommandBuffer, World};
+/// # use verbum_schedule::access::{Bind, COMMANDS_BINDING, Commands, Locate};
+/// # struct Parts<'w> {
+/// #     buffer: Option<&'w mut CommandBuffer<2, u8, u8>>,
+/// # }
+/// # impl<'w> Locate<'w, COMMANDS_BINDING> for Parts<'w> {
+/// #     type Store = &'w mut CommandBuffer<2, u8, u8>;
+/// #     fn take(&mut self) -> Option<Self::Store> {
+/// #         self.buffer.take()
+/// #     }
+/// # }
+/// # let mut buffer = CommandBuffer::<2, u8, u8>::new();
+/// # let entity = World::<1>::new().spawn().unwrap();
+/// # let mut parts = Parts { buffer: Some(&mut buffer) };
+/// let mut commands: Commands<&mut CommandBuffer<2, u8, u8>, true, true, true, false> =
+///     Bind::bind(&mut parts).unwrap();
+/// commands.remove_component(entity, 1).unwrap();
+/// ```
+///
+/// Twin with the indicator:
+///
+/// ```
+/// # use verbum_ecs::{CommandBuffer, World};
+/// # use verbum_schedule::access::{Bind, COMMANDS_BINDING, Commands, Locate};
+/// # struct Parts<'w> {
+/// #     buffer: Option<&'w mut CommandBuffer<2, u8, u8>>,
+/// # }
+/// # impl<'w> Locate<'w, COMMANDS_BINDING> for Parts<'w> {
+/// #     type Store = &'w mut CommandBuffer<2, u8, u8>;
+/// #     fn take(&mut self) -> Option<Self::Store> {
+/// #         self.buffer.take()
+/// #     }
+/// # }
+/// # let mut buffer = CommandBuffer::<2, u8, u8>::new();
+/// # let entity = World::<1>::new().spawn().unwrap();
+/// # let mut parts = Parts { buffer: Some(&mut buffer) };
+/// let mut commands: Commands<&mut CommandBuffer<2, u8, u8>, true, true, true, true> =
+///     Bind::bind(&mut parts).unwrap();
+/// commands.remove_component(entity, 1).unwrap();
+/// ```
+///
+/// An access holds at most one command handle, whatever the effects of each
+/// one (E0080); the buffer is unique:
+///
+/// ```compile_fail,E0080
+/// use verbum_schedule::access::{Commands, Part};
+/// use verbum_schedule::contract::Contract;
+///
+/// const _: Contract = <(
+///     Commands<(), true, false, false, false>,
+///     Commands<(), false, true, false, false>,
+/// ) as Part>::CONTRACT;
+/// ```
+///
+/// ```compile_fail,E0080
+/// use verbum_schedule::access::{Commands, Part};
+/// use verbum_schedule::contract::Contract;
+///
+/// const _: Contract = <(
+///     Commands<(), true, true, false, false>,
+///     Commands<(), true, false, false, false>,
+/// ) as Part>::CONTRACT;
+/// ```
+///
+/// ```compile_fail,E0080
+/// use verbum_schedule::access::{Commands, Part, Read};
+/// use verbum_schedule::contract::Contract;
+///
+/// const _: Contract = <(
+///     (Commands<(), true, false, false, false>,),
+///     (Read<1, ()>, Commands<(), false, false, false, true>),
+/// ) as Part>::CONTRACT;
+/// ```
+///
+/// ```compile_fail,E0080
+/// use verbum_schedule::access::{Commands, Part};
+/// use verbum_schedule::contract::Contract;
+///
+/// const _: Contract = <(
+///     Commands<(), false, false, false, false>,
+///     Commands<(), false, false, false, false>,
+/// ) as Part>::CONTRACT;
+/// ```
+///
+/// Twin with a single handle among data views:
+///
+/// ```
+/// use verbum_schedule::access::{Commands, Part, Read, Write};
+/// use verbum_schedule::contract::Contract;
+///
+/// const _: Contract = <(
+///     Read<1, ()>,
+///     (Commands<(), true, false, false, true>,),
+///     Write<2, ()>,
+/// ) as Part>::CONTRACT;
+/// ```
+///
+/// `Bind` is sealed for the handle too: an external implementation with a
+/// local `Parts` that has no `Locate` for the key is rejected (E0277):
+///
+/// ```compile_fail,E0277
+/// use verbum_ecs::CommandBuffer;
+/// use verbum_schedule::access::{Bind, Commands};
+///
+/// struct SonParts<'w> {
+///     buffer: Option<&'w mut CommandBuffer<1>>,
+/// }
+/// impl<'w> Bind<'w, SonParts<'w>>
+///     for Commands<&'w mut CommandBuffer<1>, true, false, false, false>
+/// {
+///     fn bind(_parts: &mut SonParts<'w>) -> Option<Self> {
+///         None
+///     }
+/// }
+/// ```
+///
+/// Twin: the same `Parts`, bound through `Locate` under the key:
+///
+/// ```
+/// use verbum_ecs::CommandBuffer;
+/// use verbum_schedule::access::{Bind, COMMANDS_BINDING, Commands, Locate};
+///
+/// struct SonParts<'w> {
+///     buffer: Option<&'w mut CommandBuffer<1>>,
+/// }
+/// impl<'w> Locate<'w, COMMANDS_BINDING> for SonParts<'w> {
+///     type Store = &'w mut CommandBuffer<1>;
+///     fn take(&mut self) -> Option<Self::Store> {
+///         self.buffer.take()
+///     }
+/// }
+///
+/// let mut buffer = CommandBuffer::<1>::new();
+/// let mut parts = SonParts { buffer: Some(&mut buffer) };
+/// let commands: Option<Commands<&mut CommandBuffer<1>, true, false, false, false>> =
+///     Bind::bind(&mut parts);
+/// assert!(commands.is_some());
+/// ```
+///
+/// A store that is not a command buffer gives a handle with no method (E0599):
+///
+/// ```compile_fail,E0599
+/// use verbum_schedule::access::{Bind, COMMANDS_BINDING, Commands, Locate};
+///
+/// struct Parts {
+///     number: Option<u32>,
+/// }
+/// impl<'w> Locate<'w, COMMANDS_BINDING> for Parts {
+///     type Store = u32;
+///     fn take(&mut self) -> Option<Self::Store> {
+///         self.number.take()
+///     }
+/// }
+///
+/// let mut parts = Parts { number: Some(1) };
+/// let mut commands: Commands<u32, true, true, true, true> = Bind::bind(&mut parts).unwrap();
+/// let _ = commands.spawn();
+/// ```
+pub struct Commands<V, const SPAWN: bool, const DESPAWN: bool, const ADD: bool, const REMOVE: bool>(
+    V,
+);
+
+impl<V, const SPAWN: bool, const DESPAWN: bool, const ADD: bool, const REMOVE: bool> sealed::Sealed
+    for Commands<V, SPAWN, DESPAWN, ADD, REMOVE>
+{
+    const HANDLES: usize = 1;
+}
+
+impl<V, const SPAWN: bool, const DESPAWN: bool, const ADD: bool, const REMOVE: bool> Part
+    for Commands<V, SPAWN, DESPAWN, ADD, REMOVE>
+{
+    const CONTRACT: Contract = Contract::new(
+        DataSet::EMPTY,
+        DataSet::EMPTY,
+        DataSet::EMPTY,
+        StructuralEffects::new(SPAWN, DESPAWN, ADD, REMOVE),
+    );
+}
+
+impl<'w, P, const SPAWN: bool, const DESPAWN: bool, const ADD: bool, const REMOVE: bool>
+    sealed::Bound<P>
+    for Commands<<P as Locate<'w, COMMANDS_BINDING>>::Store, SPAWN, DESPAWN, ADD, REMOVE>
+where
+    P: Locate<'w, COMMANDS_BINDING>,
+{
+}
+
+impl<'w, P, const SPAWN: bool, const DESPAWN: bool, const ADD: bool, const REMOVE: bool> Bind<'w, P>
+    for Commands<<P as Locate<'w, COMMANDS_BINDING>>::Store, SPAWN, DESPAWN, ADD, REMOVE>
+where
+    P: Locate<'w, COMMANDS_BINDING>,
+{
+    fn bind(parts: &mut P) -> Option<Self> {
+        // See `view!`: evaluates the constant checks of the contract.
+        let _ = Self::CONTRACT;
+        parts.take().map(Commands)
+    }
+}
+
+impl<
+    const COMMANDS: usize,
+    Add: Copy,
+    Remove: Copy,
+    const DESPAWN: bool,
+    const ADD: bool,
+    const REMOVE: bool,
+> Commands<&mut CommandBuffer<COMMANDS, Add, Remove>, true, DESPAWN, ADD, REMOVE>
+{
+    /// Emits the creation of an entity. `Err(BufferFull)` if the buffer is full.
+    pub fn spawn(&mut self) -> Result<(), BufferFull> {
+        self.0.spawn()
+    }
+}
+
+impl<
+    const COMMANDS: usize,
+    Add: Copy,
+    Remove: Copy,
+    const SPAWN: bool,
+    const ADD: bool,
+    const REMOVE: bool,
+> Commands<&mut CommandBuffer<COMMANDS, Add, Remove>, SPAWN, true, ADD, REMOVE>
+{
+    /// Emits the destruction of an entity. `Err(BufferFull)` if the buffer is full.
+    pub fn despawn(&mut self, entity: EntityId) -> Result<(), BufferFull> {
+        self.0.despawn(entity)
+    }
+}
+
+impl<
+    const COMMANDS: usize,
+    Add: Copy,
+    Remove: Copy,
+    const SPAWN: bool,
+    const DESPAWN: bool,
+    const REMOVE: bool,
+> Commands<&mut CommandBuffer<COMMANDS, Add, Remove>, SPAWN, DESPAWN, true, REMOVE>
+{
+    /// Emits the addition of a component to an entity. `Err(BufferFull)` if the
+    /// buffer is full.
+    pub fn add_component(&mut self, entity: EntityId, add: Add) -> Result<(), BufferFull> {
+        self.0.add_component(entity, add)
+    }
+}
+
+impl<
+    const COMMANDS: usize,
+    Add: Copy,
+    Remove: Copy,
+    const SPAWN: bool,
+    const DESPAWN: bool,
+    const ADD: bool,
+> Commands<&mut CommandBuffer<COMMANDS, Add, Remove>, SPAWN, DESPAWN, ADD, true>
+{
+    /// Emits the removal of a component from an entity. `Err(BufferFull)` if the
+    /// buffer is full.
+    pub fn remove_component(&mut self, entity: EntityId, remove: Remove) -> Result<(), BufferFull> {
+        self.0.remove_component(entity, remove)
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Unit and tuples
 // ---------------------------------------------------------------------------
 
@@ -805,10 +1254,17 @@ impl<'w, P> Bind<'w, P> for () {
 
 macro_rules! tuple_parts {
     ($first:ident $(, $rest:ident)*) => {
-        impl<$first: Part $(, $rest: Part)*> sealed::Sealed for ($first, $($rest,)*) {}
+        impl<$first: Part $(, $rest: Part)*> sealed::Sealed for ($first, $($rest,)*) {
+            const HANDLES: usize =
+                <$first as sealed::Sealed>::HANDLES $(+ <$rest as sealed::Sealed>::HANDLES)*;
+        }
 
         impl<$first: Part $(, $rest: Part)*> Part for ($first, $($rest,)*) {
             const CONTRACT: Contract = {
+                assert!(
+                    <Self as sealed::Sealed>::HANDLES <= 1,
+                    "a command handle is declared twice in one access"
+                );
                 let contract = $first::CONTRACT;
                 $(let contract = merge_disjoint(contract, $rest::CONTRACT);)*
                 contract
@@ -880,6 +1336,27 @@ mod tests {
             effects.adds_component(),
             effects.removes_component(),
         ]
+    }
+
+    fn handles<T: sealed::Sealed>() -> usize {
+        T::HANDLES
+    }
+
+    /// The marker counts handles, not effect bits, through nesting.
+    #[test]
+    fn handles_are_counted_through_tuples_and_nesting() {
+        type None = Commands<(), false, false, false, false>;
+        type Spawn = Commands<(), true, false, false, false>;
+
+        assert_eq!(handles::<()>(), 0);
+        assert_eq!(handles::<Read<0, ()>>(), 0);
+        assert_eq!(handles::<(Read<0, ()>, Write<1, ()>)>(), 0);
+        assert_eq!(handles::<None>(), 1);
+        assert_eq!(handles::<Spawn>(), 1);
+        assert_eq!(handles::<(Spawn, Read<0, ()>)>(), 1);
+        assert_eq!(handles::<(Spawn, None)>(), 2);
+        assert_eq!(handles::<((Spawn,), (Read<0, ()>, (None,)))>(), 2);
+        assert_eq!(handles::<(Spawn, Spawn, Spawn, Spawn)>(), 4);
     }
 
     #[test]

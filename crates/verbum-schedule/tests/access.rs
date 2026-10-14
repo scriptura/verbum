@@ -8,10 +8,14 @@
 
 mod support;
 
-use verbum_ecs::{EntityId, ReadWriteQuery};
-use verbum_schedule::access::{Bind, Locate, Part, Produce, Read, Write};
-use verbum_schedule::contract::Contract;
-use verbum_schedule::data::DataSet;
+use verbum_ecs::{BufferFull, CapacityExceeded, EntityId, ReadWriteQuery};
+use verbum_schedule::access::{
+    Bind, COMMANDS_BINDING, Commands, Locate, Part, Produce, Read, Write,
+};
+use verbum_schedule::contract::{Contract, StructuralEffects};
+use verbum_schedule::data::{DataId, DataSet};
+use verbum_schedule::model::ExecutionModel;
+use verbum_schedule::order::{has_edge, precedes};
 
 use support::*;
 
@@ -418,4 +422,293 @@ fn a_crossed_wiring_compiles_and_is_observable_by_the_wiring_probe() {
     assert_eq!(counters(&correct), (11, 20), "A -> field A");
     assert_eq!(counters(&crossed), (10, 21), "crossed: A -> field B");
     assert_ne!(counters(&correct), counters(&crossed));
+}
+
+// ---------------------------------------------------------------------------------------------
+// Phase 7b: typed command handle
+// ---------------------------------------------------------------------------------------------
+
+fn flags(contract: Contract) -> [bool; 4] {
+    let effects = contract.effects();
+    [
+        effects.spawns(),
+        effects.destroys(),
+        effects.adds_component(),
+        effects.removes_component(),
+    ]
+}
+
+/// A contract made of one command handle, over a store irrelevant to the contract.
+macro_rules! commands_contract {
+    ($spawn:literal, $despawn:literal, $add:literal, $remove:literal) => {{
+        const CONTRACT: Contract =
+            <Commands<(), $spawn, $despawn, $add, $remove> as Part>::CONTRACT;
+        CONTRACT
+    }};
+}
+
+#[test]
+fn the_effects_of_the_contract_are_the_indicators_of_the_type() {
+    assert_eq!(
+        flags(commands_contract!(false, false, false, false)),
+        [false; 4]
+    );
+    assert_eq!(
+        flags(commands_contract!(true, false, false, false)),
+        [true, false, false, false]
+    );
+    assert_eq!(
+        flags(commands_contract!(false, true, false, false)),
+        [false, true, false, false]
+    );
+    assert_eq!(
+        flags(commands_contract!(false, false, true, false)),
+        [false, false, true, false]
+    );
+    assert_eq!(
+        flags(commands_contract!(false, false, false, true)),
+        [false, false, false, true]
+    );
+    assert_eq!(flags(commands_contract!(true, true, true, true)), [true; 4]);
+    assert_eq!(
+        flags(commands_contract!(true, false, true, true)),
+        [true, false, true, true]
+    );
+}
+
+#[test]
+fn a_command_handle_adds_no_category_to_the_contract() {
+    for contract in [
+        commands_contract!(false, false, false, false),
+        commands_contract!(true, true, true, true),
+    ] {
+        assert_eq!(contract.reads(), DataSet::EMPTY);
+        assert_eq!(contract.writes(), DataSet::EMPTY);
+        assert_eq!(contract.produces(), DataSet::EMPTY);
+    }
+    assert!(!commands_contract!(false, false, false, false).emits_commands());
+    assert!(commands_contract!(false, false, false, true).emits_commands());
+}
+
+#[test]
+fn a_command_handle_merges_with_data_views() {
+    type Access = (
+        Read<0, ()>,
+        Write<1, ()>,
+        Commands<(), true, false, true, false>,
+        (Produce<2, ()>,),
+    );
+    const CONTRACT: Contract = <Access as Part>::CONTRACT;
+
+    assert_eq!(CONTRACT.reads(), ids(&[0]));
+    assert_eq!(CONTRACT.writes(), ids(&[1]));
+    assert_eq!(CONTRACT.produces(), ids(&[2]));
+    assert_eq!(flags(CONTRACT), [true, false, true, false]);
+}
+
+/// The binding key is not a category: outside `0..64`, never a `DataId`.
+#[test]
+fn the_binding_key_is_outside_the_data_id_space() {
+    assert_eq!(COMMANDS_BINDING, u8::MAX);
+    assert!(DataId::new(COMMANDS_BINDING).is_err());
+    assert!((0..DataSet::CAPACITY).all(|category| category != COMMANDS_BINDING));
+}
+
+/// Commands produce no ordering edge, whatever the effects and the data of the other system.
+#[test]
+fn command_handles_create_no_edge_between_systems() {
+    const SPAWNER: Contract = <Commands<(), true, false, false, false> as Part>::CONTRACT;
+    const REMOVER: Contract = <Commands<(), false, false, false, true> as Part>::CONTRACT;
+    const ALL: Contract = <Commands<(), true, true, true, true> as Part>::CONTRACT;
+    const WRITER: Contract =
+        <(Write<1, ()>, Commands<(), true, true, true, true>) as Part>::CONTRACT;
+    const READER: Contract = <Read<1, ()> as Part>::CONTRACT;
+
+    let contracts = [SPAWNER, REMOVER, ALL, WRITER];
+    for from in 0..contracts.len() {
+        for to in 0..contracts.len() {
+            assert!(!has_edge(&contracts, from, to), "{from} -> {to}");
+            assert!(!precedes(contracts[from], contracts[to]), "{from} -> {to}");
+        }
+    }
+    // The only edge is the one of the data: the writer's category read by the reader.
+    let mixed = [WRITER, READER];
+    assert!(has_edge(&mixed, 0, 1) && !has_edge(&mixed, 1, 0));
+}
+
+#[test]
+fn command_handles_leave_the_execution_order_untouched() {
+    const A: Contract = <Commands<(), true, false, false, false> as Part>::CONTRACT;
+    const B: Contract = <Commands<(), false, true, false, false> as Part>::CONTRACT;
+    const C: Contract = <Commands<(), false, false, true, true> as Part>::CONTRACT;
+
+    for (first, second, third) in [(A, B, C), (C, B, A), (B, A, C)] {
+        let model = ExecutionModel::<3, 1>::build([(0, first), (0, second), (0, third)]).unwrap();
+        assert_eq!(model.phase(0), Some([0, 1, 2].as_slice()));
+    }
+}
+
+// --- emission, observed through `World::apply` ------------------------------------------------
+
+type Everything<'w> = CommandsOf<'w, true, true, true, true>;
+
+#[test]
+fn a_spawn_emitted_through_commands_is_resolved_by_apply() {
+    let (mut world, _) = populated_world(); // 3 of 4 entities
+    let mut buffer = MotionBuffer::new();
+    {
+        let mut parts = Parts::from_world(&mut world).with_buffer(&mut buffer);
+        let mut commands: Everything<'_> = bind(&mut parts).expect("buffer available");
+        assert_eq!(commands.spawn(), Ok(()));
+    }
+    assert_eq!(buffer.len(), 1);
+    assert_eq!(world.apply(&mut buffer), Ok(()));
+    assert!(buffer.is_empty());
+    assert_eq!(
+        world.spawn(),
+        Err(CapacityExceeded),
+        "the fourth place was taken"
+    );
+}
+
+#[test]
+fn a_despawn_emitted_through_commands_is_resolved_by_apply() {
+    let (mut world, [a, b, _]) = populated_world();
+    let mut buffer = MotionBuffer::new();
+    {
+        let mut parts = Parts::from_world(&mut world).with_buffer(&mut buffer);
+        let mut commands: Everything<'_> = bind(&mut parts).unwrap();
+        commands.despawn(a).unwrap();
+    }
+    assert!(world.is_alive(a), "nothing before apply");
+    world.apply(&mut buffer).unwrap();
+    assert!(!world.is_alive(a) && world.is_alive(b));
+    assert_eq!(world.components().positions.len(), 2, "purged");
+}
+
+#[test]
+fn an_add_emitted_through_commands_is_resolved_by_apply() {
+    let (mut world, [_, b, _]) = populated_world();
+    let mut buffer = MotionBuffer::new();
+    {
+        let mut parts = Parts::from_world(&mut world).with_buffer(&mut buffer);
+        let mut commands: Everything<'_> = bind(&mut parts).unwrap();
+        commands
+            .add_component(b, MotionAdd::Velocity(Velocity(7)))
+            .unwrap();
+    }
+    assert_eq!(
+        world.components().velocities.get(b),
+        None,
+        "nothing before apply"
+    );
+    world.apply(&mut buffer).unwrap();
+    assert_eq!(world.components().velocities.get(b), Some(&Velocity(7)));
+}
+
+#[test]
+fn a_removal_emitted_through_commands_reaches_the_buffer_of_the_ecs() {
+    let (mut world, [a, _, c]) = populated_world();
+    let mut buffer = MotionBuffer::new();
+    {
+        let mut parts = Parts::from_world(&mut world).with_buffer(&mut buffer);
+        let mut commands: Everything<'_> = bind(&mut parts).unwrap();
+        commands
+            .remove_component(a, MotionRemove::Velocity)
+            .unwrap();
+    }
+    assert_eq!(buffer.len(), 1);
+    assert_eq!(
+        world.components().velocities.get(a),
+        Some(&Velocity(10)),
+        "nothing before apply"
+    );
+    world.apply(&mut buffer).unwrap();
+    let components = world.components();
+    assert_eq!(components.velocities.get(a), None);
+    assert_eq!(
+        components.velocities.get(c),
+        Some(&Velocity(30)),
+        "only the target"
+    );
+    assert_eq!(
+        components.positions.len(),
+        3,
+        "the other storage is untouched"
+    );
+}
+
+#[test]
+fn commands_bind_next_to_data_views_in_one_access() {
+    let (mut world, [a, ..]) = populated_world();
+    let mut buffer = MotionBuffer::new();
+    {
+        let mut parts = Parts::from_world(&mut world).with_buffer(&mut buffer);
+        let (mut positions, mut commands): (
+            WriteOf<'_, POSITION>,
+            CommandsOf<'_, false, true, false, false>,
+        ) = bind(&mut parts).unwrap();
+        positions.get_mut(a).unwrap().0 = 99;
+        commands.despawn(a).unwrap();
+    }
+    assert_eq!(world.components().positions.get(a), Some(&Position(99)));
+    world.apply(&mut buffer).unwrap();
+    assert!(!world.is_alive(a));
+}
+
+#[test]
+fn overflow_is_reported_and_the_buffer_does_not_grow() {
+    let (mut world, [a, ..]) = populated_world();
+    let mut buffer = MotionBuffer::new(); // 4 commands
+    {
+        let mut parts = Parts::from_world(&mut world).with_buffer(&mut buffer);
+        let mut commands: Everything<'_> = bind(&mut parts).unwrap();
+        for _ in 0..4 {
+            assert_eq!(commands.spawn(), Ok(()));
+        }
+        assert_eq!(commands.spawn(), Err(BufferFull));
+        assert_eq!(commands.despawn(a), Err(BufferFull));
+        assert_eq!(
+            commands.add_component(a, MotionAdd::Position(Position(1))),
+            Err(BufferFull)
+        );
+        assert_eq!(
+            commands.remove_component(a, MotionRemove::Position),
+            Err(BufferFull)
+        );
+    }
+    assert_eq!(buffer.len(), 4);
+}
+
+#[test]
+fn without_a_buffer_commands_bind_to_none() {
+    let (mut world, _) = populated_world();
+    let mut parts = Parts::from_world(&mut world);
+    let commands: Option<Everything<'_>> = bind(&mut parts);
+    assert!(commands.is_none());
+}
+
+#[test]
+fn the_buffer_can_be_taken_once() {
+    let (mut world, _) = populated_world();
+    let mut buffer = MotionBuffer::new();
+    let mut parts = Parts::from_world(&mut world).with_buffer(&mut buffer);
+    let first: Option<Everything<'_>> = bind(&mut parts);
+    let second: Option<Everything<'_>> = bind(&mut parts);
+    assert!(first.is_some());
+    assert!(second.is_none());
+}
+
+/// A handle with no declared effect is legal: it binds, and its contract has no effect.
+#[test]
+fn a_handle_without_effects_binds_and_declares_nothing() {
+    let (mut world, _) = populated_world();
+    let mut buffer = MotionBuffer::new();
+    let mut parts = Parts::from_world(&mut world).with_buffer(&mut buffer);
+    let handle: Option<CommandsOf<'_, false, false, false, false>> = bind(&mut parts);
+    assert!(handle.is_some());
+    assert_eq!(
+        commands_contract!(false, false, false, false).effects(),
+        StructuralEffects::NONE
+    );
 }

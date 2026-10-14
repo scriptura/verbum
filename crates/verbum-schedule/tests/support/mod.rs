@@ -5,14 +5,14 @@
 //! two `Counter`s, of the same concrete type), the `Parts` assembly (one `Locate` per
 //! category) and its deliberately crossed variant `CrossedParts`.
 //!
-//! `Remove = Infallible`: no removal in 7a (real removal belongs to 7b).
-
-use core::convert::Infallible;
+//! `Motion` has a real `MotionRemove` since phase 7b, so that the commands emitted through
+//! `Commands` can be resolved by `World::apply` and observed in the world. `Parts` binds a
+//! command buffer only when one is given with `Parts::with_buffer`.
 
 use verbum_ecs::{
     CommandBuffer, ComponentSet, EntityId, InsertError, ResourceSlot, SparseSet, ValuesMut, World,
 };
-use verbum_schedule::access::{Locate, Produce, Read, Write};
+use verbum_schedule::access::{COMMANDS_BINDING, Commands, Locate, Produce, Read, Write};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Position(pub i32);
@@ -48,9 +48,15 @@ pub enum MotionAdd {
     Velocity(Velocity),
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum MotionRemove {
+    Position,
+    Velocity,
+}
+
 impl ComponentSet for Motion {
     type Add = MotionAdd;
-    type Remove = Infallible;
+    type Remove = MotionRemove;
     type Counters = [usize; 2];
     type Values<'a> = (ValuesMut<'a, Position, 4, 4>, ValuesMut<'a, Velocity, 4, 4>);
 
@@ -61,8 +67,11 @@ impl ComponentSet for Motion {
         }
     }
 
-    fn remove_kind(remove: &Infallible) -> usize {
-        match *remove {}
+    fn remove_kind(remove: &MotionRemove) -> usize {
+        match remove {
+            MotionRemove::Position => 0,
+            MotionRemove::Velocity => 1,
+        }
     }
 
     fn dense_len(&self, kind: usize) -> usize {
@@ -100,8 +109,11 @@ impl ComponentSet for Motion {
         }
     }
 
-    fn remove(&mut self, _entity: EntityId, remove: Infallible) -> bool {
-        match remove {}
+    fn remove(&mut self, entity: EntityId, remove: MotionRemove) -> bool {
+        match remove {
+            MotionRemove::Position => self.positions.remove(entity),
+            MotionRemove::Velocity => self.velocities.remove(entity),
+        }
     }
 
     fn remove_all(&mut self, entity: EntityId) {
@@ -124,6 +136,9 @@ pub struct Globals {
 
 pub type MotionWorld = World<4, Motion, Globals>;
 
+/// Command buffer of the test world: 4 commands, so that overflow is easy to reach.
+pub type MotionBuffer = CommandBuffer<4, MotionAdd, MotionRemove>;
+
 pub type Positions<'w> = ValuesMut<'w, Position, 4, 4>;
 pub type Velocities<'w> = ValuesMut<'w, Velocity, 4, 4>;
 pub type Slot<'w, T> = &'w mut ResourceSlot<T>;
@@ -136,6 +151,7 @@ pub struct Parts<'w> {
     accumulator: Option<Slot<'w, Accumulator>>,
     counter_a: Option<Slot<'w, Counter>>,
     counter_b: Option<Slot<'w, Counter>>,
+    commands: Option<&'w mut MotionBuffer>,
 }
 
 impl<'w> Parts<'w> {
@@ -152,7 +168,15 @@ impl<'w> Parts<'w> {
             accumulator: Some(accumulator),
             counter_a: Some(counter_a),
             counter_b: Some(counter_b),
+            commands: None,
         }
+    }
+
+    /// Gives the assembly a command buffer, bound under `COMMANDS_BINDING`. Without it, the
+    /// buffer slot is empty and `Commands` binds to `None`.
+    pub fn with_buffer(mut self, buffer: &'w mut MotionBuffer) -> Self {
+        self.commands = Some(buffer);
+        self
     }
 }
 
@@ -188,6 +212,13 @@ impl<'w> Locate<'w, COUNTER_B> for Parts<'w> {
     type Store = Slot<'w, Counter>;
     fn take(&mut self) -> Option<Self::Store> {
         self.counter_b.take()
+    }
+}
+
+impl<'w> Locate<'w, COMMANDS_BINDING> for Parts<'w> {
+    type Store = &'w mut MotionBuffer;
+    fn take(&mut self) -> Option<Self::Store> {
+        self.commands.take()
     }
 }
 
@@ -227,13 +258,20 @@ impl<'w> Locate<'w, COUNTER_B> for CrossedParts<'w> {
 pub type ReadOf<'w, const ID: u8> = Read<ID, <Parts<'w> as Locate<'w, ID>>::Store>;
 pub type WriteOf<'w, const ID: u8> = Write<ID, <Parts<'w> as Locate<'w, ID>>::Store>;
 pub type ProduceOf<'w, const ID: u8> = Produce<ID, <Parts<'w> as Locate<'w, ID>>::Store>;
+pub type CommandsOf<
+    'w,
+    const SPAWN: bool,
+    const DESPAWN: bool,
+    const ADD: bool,
+    const REMOVE: bool,
+> = Commands<<Parts<'w> as Locate<'w, COMMANDS_BINDING>>::Store, SPAWN, DESPAWN, ADD, REMOVE>;
 
 /// Populated world: three entities `[a, b, c]`, positions 1, 2, 3, velocities 10 (a) and 30
 /// (c), accumulator at 100, counters A and B at 10 and 20.
 pub fn populated_world() -> (MotionWorld, [EntityId; 3]) {
     let mut world = MotionWorld::new();
     let [a, b, c] = [(); 3].map(|()| world.spawn().unwrap());
-    let mut buffer = CommandBuffer::<8, MotionAdd>::new();
+    let mut buffer = CommandBuffer::<8, MotionAdd, MotionRemove>::new();
     for (entity, x) in [(a, 1), (b, 2), (c, 3)] {
         buffer
             .add_component(entity, MotionAdd::Position(Position(x)))
