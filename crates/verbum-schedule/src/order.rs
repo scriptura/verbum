@@ -459,31 +459,70 @@ mod tests {
         assert_eq!(order_phase(&contracts, &mut [9; 2]), Ok(()));
     }
 
+    /// A chain over the categories: system `k` reads category `k - 1` and
+    /// produces category `k`. Only one order is valid, the chain order,
+    /// whatever the declaration order.
+    ///
+    /// Volumes. Ordinary suite: 64 systems on the 64 categories, the full
+    /// capacity of a `DataSet`. Under Miri: 8 systems on 8 categories. The
+    /// code path is the same (a chain of dependencies resolved against four
+    /// declaration orders); only the scale is smaller, because interpreting
+    /// the ordering of 64 chained systems is disproportionately slow. The
+    /// ordinary suite must never be reduced.
     #[test]
     fn a_chain_over_every_category_is_ordered_whatever_its_declaration() {
-        // 64 systems, 64 categories: system k reads k - 1 and produces k.
-        const LEN: usize = DataSet::CAPACITY as usize;
-        let mut forward = [reads(E); LEN];
-        for (k, slot) in forward.iter_mut().enumerate() {
+        const LEN: usize = if cfg!(miri) {
+            8
+        } else {
+            DataSet::CAPACITY as usize
+        };
+        // `chain[k]` is system `k`.
+        let mut chain = [reads(E); LEN];
+        for (k, slot) in chain.iter_mut().enumerate() {
             let reads_previous = if k == 0 { E } else { DataSet::of(k as u8 - 1) };
             *slot = data(reads_previous, E, DataSet::of(k as u8));
         }
-        let mut backward = forward;
-        backward.reverse();
-        let mut expected_forward = [0; LEN];
-        let mut expected_backward = [0; LEN];
-        for k in 0..LEN {
-            expected_forward[k] = k;
-            expected_backward[k] = LEN - 1 - k;
+        // `declarations[d][j]` is the system declared at position `j`.
+        let declarations: [[usize; LEN]; 4] = [
+            // forward
+            core::array::from_fn(|j| j),
+            // backward
+            core::array::from_fn(|j| LEN - 1 - j),
+            // rotated by a third of the chain
+            core::array::from_fn(|j| (j + LEN / 3) % LEN),
+            // even systems first, then odd ones
+            core::array::from_fn(|j| {
+                if j < LEN / 2 {
+                    2 * j
+                } else {
+                    2 * (j - LEN / 2) + 1
+                }
+            }),
+        ];
+        for declaration in declarations {
+            for system in 0..LEN {
+                assert_eq!(declaration.iter().filter(|&&s| s == system).count(), 1);
+            }
+            let declared: [Contract; LEN] = core::array::from_fn(|j| chain[declaration[j]]);
+            // The k-th system to run is system k, found where it was declared.
+            let expected: [usize; LEN] = core::array::from_fn(|k| {
+                declaration.iter().position(|&system| system == k).unwrap()
+            });
+            assert_eq!(ordered(&declared), Ok(expected), "{declaration:?}");
         }
-        assert_eq!(ordered(&forward), Ok(expected_forward));
-        assert_eq!(ordered(&backward), Ok(expected_backward));
     }
 
+    /// The number of systems of a phase is not bounded by the 64 categories.
+    ///
+    /// Volumes. Ordinary suite: 200 independent systems. Under Miri: 65,
+    /// still above the 64 categories, which is all this test has to show;
+    /// the systems are independent, so no dependency is exercised at scale
+    /// (this is a sizing test, not a stress test of the ordering). The
+    /// ordinary suite must never be reduced.
     #[test]
     fn the_number_of_systems_is_not_capped_by_the_number_of_categories() {
-        // Under Miri a smaller phase still exceeds the 64 categories.
-        const LEN: usize = if cfg!(miri) { 70 } else { 200 };
+        const LEN: usize = if cfg!(miri) { 65 } else { 200 };
+        const _: () = assert!(LEN > DataSet::CAPACITY as usize);
         let contracts = [reads(DataSet::of(0)); LEN];
         let order = ordered(&contracts).unwrap();
         for (position, system) in order.iter().enumerate() {

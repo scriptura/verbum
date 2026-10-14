@@ -10,4 +10,5 @@
 
 pub mod contract;
 pub mod data;
+pub mod model;
 pub mod order;
