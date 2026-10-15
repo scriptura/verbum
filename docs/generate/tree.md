@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-10-15 11:56:47
+**Généré le:** 2026-10-15 22:18:49
 
 ## Racine du Workspace
 
@@ -38,11 +38,14 @@
 │       │   ├── data.rs
 │       │   ├── lib.rs
 │       │   ├── model.rs
-│       │   └── order.rs
+│       │   ├── order.rs
+│       │   ├── scheduler.rs
+│       │   └── system.rs
 │       ├── tests
 │       │   ├── support
 │       │   │   └── mod.rs
-│       │   └── access.rs
+│       │   ├── access.rs
+│       │   └── tick.rs
 │       └── Cargo.toml
 ├── scripts
 │   └── tree.sh
@@ -50,7 +53,7 @@
 ├── Cargo.toml
 └── README.md
 
-12 directories, 32 files
+12 directories, 35 files
 ```
 
 ## Documentation du projet
