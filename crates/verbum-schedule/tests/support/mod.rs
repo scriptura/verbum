@@ -13,6 +13,7 @@ use verbum_ecs::{
     CommandBuffer, ComponentSet, EntityId, InsertError, ResourceSlot, SparseSet, ValuesMut, World,
 };
 use verbum_schedule::access::{COMMANDS_BINDING, Commands, Locate, Produce, Read, Write};
+use verbum_schedule::system::Binding;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Position(pub i32);
@@ -288,4 +289,188 @@ pub fn populated_world() -> (MotionWorld, [EntityId; 3]) {
     globals.counter_a.insert(Counter(10));
     globals.counter_b.insert(Counter(20));
     (world, [a, b, c])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 8: world, assembly and bindings of the scheduler tests
+// ---------------------------------------------------------------------------
+
+/// Transient category produced by every system of the scheduler tests: each one appends its
+/// identifier to the `Log` resource, so that the order of execution is observable.
+#[allow(dead_code)]
+pub const LOG: u8 = 5;
+/// Transient category used to create ordering constraints between systems.
+#[allow(dead_code)]
+pub const X: u8 = 6;
+/// Second transient category, used to build a cycle.
+#[allow(dead_code)]
+pub const Y: u8 = 7;
+
+/// Execution log: identifiers in order of execution. Capacity 16, above the 13 systems of the
+/// largest list of the tests.
+#[derive(Debug, PartialEq)]
+#[allow(dead_code)]
+pub struct Log {
+    pub entries: [u8; 16],
+    pub len: usize,
+}
+
+#[allow(dead_code)]
+impl Log {
+    pub fn new() -> Self {
+        Self {
+            entries: [0; 16],
+            len: 0,
+        }
+    }
+
+    pub fn push(&mut self, id: u8) {
+        self.entries[self.len] = id;
+        self.len += 1;
+    }
+
+    pub fn recorded(&self) -> &[u8] {
+        &self.entries[..self.len]
+    }
+}
+
+/// Payload of the categories `X` and `Y`: never read, only its slot matters.
+#[derive(Debug, PartialEq)]
+#[allow(dead_code)]
+pub struct Token;
+
+#[derive(Default)]
+#[allow(dead_code)]
+pub struct LogGlobals {
+    pub log: ResourceSlot<Log>,
+    pub x: ResourceSlot<Token>,
+    pub y: ResourceSlot<Token>,
+}
+
+#[allow(dead_code)]
+pub type LogWorld = World<4, Motion, LogGlobals>;
+
+/// Assembly of `LogWorld`: one `Option` per slot, taken once, built anew for each binding.
+#[allow(dead_code)]
+pub struct LogParts<'w> {
+    log: Option<Slot<'w, Log>>,
+    x: Option<Slot<'w, Token>>,
+    y: Option<Slot<'w, Token>>,
+    commands: Option<&'w mut MotionBuffer>,
+}
+
+#[allow(dead_code)]
+impl<'w> LogParts<'w> {
+    /// Without a buffer: `Commands` then binds to `None`.
+    pub fn from_world(world: &'w mut LogWorld) -> Self {
+        let (_, LogGlobals { log, x, y }) = world.split_mut();
+        Self {
+            log: Some(log),
+            x: Some(x),
+            y: Some(y),
+            commands: None,
+        }
+    }
+
+    pub fn with_buffer(mut self, buffer: &'w mut MotionBuffer) -> Self {
+        self.commands = Some(buffer);
+        self
+    }
+}
+
+impl<'w> Locate<'w, LOG> for LogParts<'w> {
+    type Store = Slot<'w, Log>;
+    fn take(&mut self) -> Option<Self::Store> {
+        self.log.take()
+    }
+}
+
+impl<'w> Locate<'w, X> for LogParts<'w> {
+    type Store = Slot<'w, Token>;
+    fn take(&mut self) -> Option<Self::Store> {
+        self.x.take()
+    }
+}
+
+impl<'w> Locate<'w, Y> for LogParts<'w> {
+    type Store = Slot<'w, Token>;
+    fn take(&mut self) -> Option<Self::Store> {
+        self.y.take()
+    }
+}
+
+impl<'w> Locate<'w, COMMANDS_BINDING> for LogParts<'w> {
+    type Store = &'w mut MotionBuffer;
+    fn take(&mut self) -> Option<Self::Store> {
+        self.commands.take()
+    }
+}
+
+/// The binding of the tests: the caller's buffer is given to the assembly.
+#[allow(dead_code)]
+pub struct LogBinding;
+
+impl Binding for LogBinding {
+    type World = LogWorld;
+    type Buffer = MotionBuffer;
+    type Parts<'w> = LogParts<'w>;
+
+    fn parts<'w>(world: &'w mut LogWorld, buffer: &'w mut MotionBuffer) -> LogParts<'w> {
+        LogParts::from_world(world).with_buffer(buffer)
+    }
+}
+
+/// A binding that never gives the buffer to the assembly: `Commands` cannot bind.
+#[allow(dead_code)]
+pub struct NoBufferBinding;
+
+impl Binding for NoBufferBinding {
+    type World = LogWorld;
+    type Buffer = MotionBuffer;
+    type Parts<'w> = LogParts<'w>;
+
+    fn parts<'w>(world: &'w mut LogWorld, _buffer: &'w mut MotionBuffer) -> LogParts<'w> {
+        LogParts::from_world(world)
+    }
+}
+
+/// Per-assembly aliases: the `Store` is deduced from `Locate`, never restated.
+#[allow(dead_code)]
+pub type LRead<'w, const ID: u8> = Read<ID, <LogParts<'w> as Locate<'w, ID>>::Store>;
+#[allow(dead_code)]
+pub type LWrite<'w, const ID: u8> = Write<ID, <LogParts<'w> as Locate<'w, ID>>::Store>;
+#[allow(dead_code)]
+pub type LProduce<'w, const ID: u8> = Produce<ID, <LogParts<'w> as Locate<'w, ID>>::Store>;
+#[allow(dead_code)]
+pub type LCommands<'w, const SPAWN: bool> =
+    Commands<<LogParts<'w> as Locate<'w, COMMANDS_BINDING>>::Store, SPAWN, false, false, false>;
+
+/// Populated log world: empty log, `X` and `Y` slots filled.
+#[allow(dead_code)]
+pub fn log_world() -> LogWorld {
+    let mut world = LogWorld::new();
+    let globals = world.resources_mut();
+    globals.log.insert(Log::new());
+    globals.x.insert(Token);
+    globals.y.insert(Token);
+    world
+}
+
+// ---------------------------------------------------------------------------
+// Phase 9: binding of the motion world
+// ---------------------------------------------------------------------------
+
+/// Binding of `MotionWorld`: the caller's buffer is given to the assembly, under
+/// `COMMANDS_BINDING`.
+#[allow(dead_code)]
+pub struct MotionBinding;
+
+impl Binding for MotionBinding {
+    type World = MotionWorld;
+    type Buffer = MotionBuffer;
+    type Parts<'w> = Parts<'w>;
+
+    fn parts<'w>(world: &'w mut MotionWorld, buffer: &'w mut MotionBuffer) -> Parts<'w> {
+        Parts::from_world(world).with_buffer(buffer)
+    }
 }
