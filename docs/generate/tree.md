@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-10-16 15:30:43
+**Généré le:** 2026-10-16 23:49:36
 
 ## Racine du Workspace
 
@@ -104,12 +104,14 @@
 ├── generate
 │   └── tree.md
 ├── handoffs
-│   ├── HANDOFF-Stage-0.md
-│   └── HANDOFF-Stage-1.md
+│   ├── HANDOFF-stage-0.md
+│   ├── HANDOFF-stage-1.md
+│   └── HANDOFF-stage-2-forge.md
 ├── implementation
 │   ├── 00-verbum-ecs.md
 │   ├── 01-verbum-scheduler-sessions.md
-│   └── 01-verbum-scheduler.md
+│   ├── 01-verbum-scheduler.md
+│   └── 02-verbum-forge.md
 └── reflexivity
     ├── filiation.md
     ├── methodological-lineage-from-marius-to-verbum.md
@@ -117,6 +119,6 @@
     ├── when-context-leaves-the-conversation-to-enter-the-corpus.md
     └── why-the-name-verbum.md
 
-10 directories, 44 files
+10 directories, 46 files
 ```
 
