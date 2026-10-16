@@ -36,7 +36,7 @@ Le rapport de sortie distingue les deux décomptes.
 ### 1.3 Fichiers interdits à toutes les sessions
 - tout ADR et tout document de `docs/architecture/` (corpus figé) ;
 - `ROADMAP.md`, `00-verbum-ecs.md`, `HANDOFF-Stage-0.md`, `HANDOFF-Stage-1.md`, `01-verbum-scheduler.md` : **non modifiés** par les sessions d'implémentation. Une session consigne ses constats dans son rapport de sortie (§1.5) ; l'utilisateur décide de les reporter dans le plan ;
-- `crates/verbum-ecs/**` pour toute session autre que S2a et S2b ;
+- `crates/ecs/**` pour toute session autre que S2a et S2b ;
 - `Cargo.toml` racine et `Cargo.lock` pour toute session autre que S1 (phase 0) et S5 (phase 10c).
 
 ### 1.4 Quand démarrer une nouvelle session
@@ -88,15 +88,15 @@ Prochaine session : <id> ; prérequis satisfaits : <oui|non, lesquels>
 | **S4** | 8, 9 | Assemblage (liste, `Scheduler`) puis exécution et contrat d'erreur ; dépend de tous les types | S3 mergée | longue |
 | **S5** | 10a à 10c | Acceptance, exemple, façade ; touche le workspace racine en dernier | S4 mergée | courte |
 
-**Ordre recommandé : strictement séquentiel, S1 → S2a → S2b → S3 → S4 → S5.** S1 précède les modifications de `verbum-ecs` parce que son handoff prérempli attend encore les décomptes de l'étape 0 (64 unitaires, 11 d'intégration, 5 doctests) : exécuter S2a/S2b avant S1 changerait ces décomptes. Le parallélisme S1 ∥ (S2a → S2b) reste **théoriquement possible** sur des branches séparées (ensembles de fichiers disjoints : S1 : `Cargo.toml` racine, `Cargo.lock`, `crates/verbum-schedule/**` ; S2 : `crates/verbum-ecs/**`), à condition d'adapter le handoff de S1 aux décomptes modifiés ; **il n'est pas recommandé pour ce démarrage**.
+**Ordre recommandé : strictement séquentiel, S1 → S2a → S2b → S3 → S4 → S5.** S1 précède les modifications de `verbum-ecs` parce que son handoff prérempli attend encore les décomptes de l'étape 0 (64 unitaires, 11 d'intégration, 5 doctests) : exécuter S2a/S2b avant S1 changerait ces décomptes. Le parallélisme S1 ∥ (S2a → S2b) reste **théoriquement possible** sur des branches séparées (ensembles de fichiers disjoints : S1 : `Cargo.toml` racine, `Cargo.lock`, `crates/schedule/**` ; S2 : `crates/ecs/**`), à condition d'adapter le handoff de S1 aux décomptes modifiés ; **il n'est pas recommandé pour ce démarrage**.
 
 ---
 
 ## 3. Sessions
 
 ### S1 — Phases 0 à 5 : modèle d'exécution
-**Fichiers à traiter** : `Cargo.toml` (racine, `members`), `crates/verbum-schedule/Cargo.toml`, `src/lib.rs`, `src/data.rs`, `src/contract.rs`, `src/order.rs`, `src/model.rs`, tests unitaires et doctests de ces modules. Le crate suit les frontières du plan §7 : aucune occurrence de `verbum_ecs`, `System`, `Read`, `Write`, `At` dans `data`, `contract`, `order`, `model`.
-**Fichiers interdits** : `crates/verbum-ecs/**`, `crates/verbum/**`, tout ce qui figure en §1.3.
+**Fichiers à traiter** : `Cargo.toml` (racine, `members`), `crates/schedule/Cargo.toml`, `src/lib.rs`, `src/data.rs`, `src/contract.rs`, `src/order.rs`, `src/model.rs`, tests unitaires et doctests de ces modules. Le crate suit les frontières du plan §7 : aucune occurrence de `verbum_ecs`, `System`, `Read`, `Write`, `At` dans `data`, `contract`, `order`, `model`.
+**Fichiers interdits** : `crates/ecs/**`, `crates/verbum/**`, tout ce qui figure en §1.3.
 **Prérequis** : plan validé ; workspace avec `verbum-ecs` et `verbum` à l'état d'origine (étape 0 close : 64 tests unitaires, 11 d'intégration, 5 doctests).
 **Livrable** : `verbum-schedule` : `DataId`/`DataSet`, `Contract` (quatre indicateurs d'effets), dépendance déduite, tri déterministe, cycle = erreur de construction, `MultipleWriters`, `MixedNature` (global), `ExecutionModel` immuable construit des seuls contrats.
 **Commits attendus (un par invariant)** :
@@ -112,8 +112,8 @@ Prochaine session : <id> ; prérequis satisfaits : <oui|non, lesquels>
 **Arrêt** : fin de la phase 5, état vert. Rapport §1.5.
 
 ### S2a — Phase 6 : `World::split_mut`
-**Fichiers à traiter** : `crates/verbum-ecs/src/world.rs` (méthode, tests), éventuellement un fichier de test d'intégration dédié dans `crates/verbum-ecs/tests/`.
-**Fichiers interdits** : tout le reste, notamment `component_set.rs`, `command.rs`, `storage.rs`, `values.rs`, `crates/verbum-schedule/**`, `Cargo.toml` racine.
+**Fichiers à traiter** : `crates/ecs/src/world.rs` (méthode, tests), éventuellement un fichier de test d'intégration dédié dans `crates/ecs/tests/`.
+**Fichiers interdits** : tout le reste, notamment `component_set.rs`, `command.rs`, `storage.rs`, `values.rs`, `crates/schedule/**`, `Cargo.toml` racine.
 **Prérequis** : S1 mergée (état vert, rapport de sortie reçu) ; A2 (donné) ; `verbum-ecs` à l'état de la clôture de l'étape 0 (S1 ne le modifie pas).
 **Livrable** : `pub fn split_mut(&mut self) -> (S::Values<'_>, &mut R)`, sans `unsafe`, avec les tests du plan §4.4 (accès conjoint, structure inchangée, `compile_fail` E0499, `compile_fail` sur l'affectation à `&mut S`, équivalence avec les deux accessoires séparés). Signature exacte validée à l'implémentation (point B1) : si elle doit changer, la session s'arrête et expose pourquoi.
 **Commit attendu** : `world: accès disjoint aux valeurs de composants et aux Ressources`.
@@ -121,8 +121,8 @@ Prochaine session : <id> ; prérequis satisfaits : <oui|non, lesquels>
 **Arrêt** : **point de contrôle obligatoire**, attente du Miri de l'utilisateur et de la fusion avant S2b. Rapport §1.5 avec les nouveaux décomptes de tests.
 
 ### S2b — Phase 6bis : `RemoveComponent`
-**Fichiers à traiter** : `crates/verbum-ecs/src/component_set.rs`, `world.rs`, `command.rs`, `fixtures.rs` (implémenteur de test), tests et doctests qui implémentent `ComponentSet` ; nouveaux tests du plan §5.1.3.
-**Fichiers interdits** : `storage.rs` (sauf lecture : `SparseSet::remove` existe et n'est pas modifié), `values.rs`, `query.rs`, `resource.rs`, `entity.rs`, `crates/verbum-schedule/**`, `Cargo.toml` racine.
+**Fichiers à traiter** : `crates/ecs/src/component_set.rs`, `world.rs`, `command.rs`, `fixtures.rs` (implémenteur de test), tests et doctests qui implémentent `ComponentSet` ; nouveaux tests du plan §5.1.3.
+**Fichiers interdits** : `storage.rs` (sauf lecture : `SparseSet::remove` existe et n'est pas modifié), `values.rs`, `query.rs`, `resource.rs`, `entity.rs`, `crates/schedule/**`, `Cargo.toml` racine.
 **Prérequis** : S1 et S2a mergées, Miri vert ; l'utilisateur a pris connaissance du point **B2** (le trait `ComponentSet` n'est pas purement additif) et de **B3** (composant absent = sans effet). Si l'utilisateur modifie B2/B3 avant la session, le handoff d'entrée le consigne.
 **Livrable** : surface du plan §5.1.1 ; règles de prévalidation §5.1.2 (simulation séquentielle, pas de validation rétroactive, rejet atomique) ; tests §5.1.3 écrits avant le code. Aucune nouvelle variante de `ApplyError`.
 **Commit attendu** : `world: RemoveComponent — retrait de composant différé par le command buffer`. Les adaptations mécaniques des implémenteurs de `ComponentSet` font partie de ce commit ; elles sont listées dans le rapport.
@@ -130,8 +130,8 @@ Prochaine session : <id> ; prérequis satisfaits : <oui|non, lesquels>
 **Arrêt** : fin du commit, Miri en attente. Rapport §1.5 incluant la liste exacte des implémenteurs de `ComponentSet` adaptés.
 
 ### S3 — Phases 7a, 7b : accès typé et commandes
-**Fichiers à traiter** : `crates/verbum-schedule/src/access.rs` (`Locate`, `Bind` scellé, `Read`/`Write`/`Produce`, `Part` scellé, `Commands`), éventuellement `system.rs` pour `Binding` ; `crates/verbum-schedule/tests/access.rs`, `tests/support/`, doctests `compile_fail` du plan §2.6 ; `crates/verbum-schedule/Cargo.toml` (dépendance `verbum-ecs` si non encore ajoutée).
-**Fichiers interdits** : `crates/verbum-ecs/**` (tout besoin découvert est un blocage à signaler, pas une modification), `data`/`contract`/`order`/`model` hors ajout strictement nécessaire à l'accès (consigner), `crates/verbum/**`.
+**Fichiers à traiter** : `crates/schedule/src/access.rs` (`Locate`, `Bind` scellé, `Read`/`Write`/`Produce`, `Part` scellé, `Commands`), éventuellement `system.rs` pour `Binding` ; `crates/schedule/tests/access.rs`, `tests/support/`, doctests `compile_fail` du plan §2.6 ; `crates/schedule/Cargo.toml` (dépendance `verbum-ecs` si non encore ajoutée).
+**Fichiers interdits** : `crates/ecs/**` (tout besoin découvert est un blocage à signaler, pas une modification), `data`/`contract`/`order`/`model` hors ajout strictement nécessaire à l'accès (consigner), `crates/verbum/**`.
 **Prérequis** : S1, S2a, S2b mergées ; `split_mut` et `RemoveComponent` disponibles ; états verts. Le jeu de composants et de Ressources de `tests/support` implémente le `ComponentSet` **de l'état post-6bis**.
 **Livrable** : 7a (vues, liaison dérivée, contrat calculé en `const`, test de câblage de deux Ressources de même type avec témoin croisé, `compile_fail` §2.6 hors effets) ; 7b (`Commands<.., SPAWN, DESPAWN, ADD, REMOVE>`, effets du contrat = indicateurs du type, `compile_fail` des effets non déclarés, débordement → `BufferFull`).
 **Commits attendus** : `access: vues déclaratives, identité par catégorie, contrat calculé sur le type` (7a) ; `access: poignée de commandes typée par effets déclarés` (7b).
@@ -140,8 +140,8 @@ Prochaine session : <id> ; prérequis satisfaits : <oui|non, lesquels>
 **Si la liaison ne compile pas telle que prévue** : le prototype de faisabilité (plan §10) n'est pas dans le dépôt ; se rapporter au plan §2 et au tableau §2.3 ; exposer toute divergence (rustc 1.85, vrai `World`) avant de contourner.
 
 ### S4 — Phases 8, 9 : Scheduler et exécution d'un tick
-**Fichiers à traiter** : `crates/verbum-schedule/src/system.rs` (`System`, `At`, `Nil`/`Cons`, `contract_of`), `scheduler.rs` (`Scheduler`, `run_tick`, `TickError`), `tests/scheduler.rs`, `tests/tick.rs`.
-**Fichiers interdits** : `crates/verbum-ecs/**`, `crates/verbum/**`, `Cargo.toml` racine ; `data`/`contract`/`order`/`model` (sauf correctif d'un défaut démontré, consigné).
+**Fichiers à traiter** : `crates/schedule/src/system.rs` (`System`, `At`, `Nil`/`Cons`, `contract_of`), `scheduler.rs` (`Scheduler`, `run_tick`, `TickError`), `tests/scheduler.rs`, `tests/tick.rs`.
+**Fichiers interdits** : `crates/ecs/**`, `crates/verbum/**`, `Cargo.toml` racine ; `data`/`contract`/`order`/`model` (sauf correctif d'un défaut démontré, consigné).
 **Prérequis** : S3 mergée (7a et 7b verts).
 **Livrable** : phase 8 (liste récursive sans plafond, `contract_of`, `Scheduler::new`, **test d'exécution des 13 systèmes** par le dispatch récursif, journal d'exécution) ; phase 9 (tests 1 à 10 du plan : lecture intra-phase, interchangeabilité, immutabilité, déterminisme, différé structurel 5a/5b, échec d'`apply` en trois phases, `BufferFull`, défaut de liaison, garde d'entrée `BufferNotEmpty`, buffer vide après succès).
 **Commits attendus** : `scheduler: liste de systèmes typée, modèle construit des seuls contrats` (8) ; `scheduler: exécution d'un tick, lecture intra-phase` (9, commit A) ; `scheduler: validation en fin de phase, effets structurels différés` (9, commit B). Le variant `TickError::BufferNotEmpty` et sa garde entrent dans le commit B, avec leurs tests.
@@ -150,8 +150,8 @@ Prochaine session : <id> ; prérequis satisfaits : <oui|non, lesquels>
 **Attention** : aucune promesse de rollback dans la documentation ni les messages d'erreur ; contrat d'erreur : plan §6.2.
 
 ### S5 — Phases 10a à 10c : acceptance, exemple, façade
-**Fichiers à traiter** : `crates/verbum-schedule/tests/acceptance.rs`, `crates/verbum-schedule/examples/headless.rs` ; en 10c uniquement : `Cargo.toml` racine (`[workspace.dependencies]`), `crates/verbum/Cargo.toml`, `crates/verbum/src/lib.rs`.
-**Fichiers interdits** : `crates/verbum-ecs/**` ; `src/` de `verbum-schedule` sauf défaut démontré par l'acceptance (consigner, un commit séparé).
+**Fichiers à traiter** : `crates/schedule/tests/acceptance.rs`, `crates/schedule/examples/headless.rs` ; en 10c uniquement : `Cargo.toml` racine (`[workspace.dependencies]`), `crates/verbum/Cargo.toml`, `crates/verbum/src/lib.rs`.
+**Fichiers interdits** : `crates/ecs/**` ; `src/` de `verbum-schedule` sauf défaut démontré par l'acceptance (consigner, un commit séparé).
 **Prérequis** : S4 mergée.
 **Livrable** : acceptance (pipeline `ClearAccumulator` → `ContributeA/B/C` + `ResolveMotion` ; tests 1 et 2 de la Roadmap ; **interchangeabilité des producteurs** par les six permutations ; deux ticks : 6 puis 12, témoin négatif 18) ; exemple headless (plusieurs ticks, aucune sortie, code retour 0) ; réexport `pub use verbum_schedule as schedule;` dans la façade.
 **Commits attendus** : `scheduler: acceptance test, étape 1` ; `schedule: exemple headless, plusieurs ticks sans sortie` ; `verbum: réexporte verbum-schedule`.

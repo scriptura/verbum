@@ -1,17 +1,13 @@
 # Structure du Projet
 
-**Généré le:** 2026-10-16 15:20:07
+**Généré le:** 2026-10-16 15:30:43
 
 ## Racine du Workspace
 
 ```text
 /verbum
 ├── crates
-│   ├── verbum
-│   │   ├── src
-│   │   │   └── lib.rs
-│   │   └── Cargo.toml
-│   ├── verbum-ecs
+│   ├── ecs
 │   │   ├── src
 │   │   │   ├── command.rs
 │   │   │   ├── component_set.rs
@@ -31,24 +27,28 @@
 │   │   │   ├── resources.rs
 │   │   │   └── world_identity.rs
 │   │   └── Cargo.toml
-│   └── verbum-schedule
-│       ├── examples
-│       │   └── headless.rs
+│   ├── schedule
+│   │   ├── examples
+│   │   │   └── headless.rs
+│   │   ├── src
+│   │   │   ├── access.rs
+│   │   │   ├── contract.rs
+│   │   │   ├── data.rs
+│   │   │   ├── lib.rs
+│   │   │   ├── model.rs
+│   │   │   ├── order.rs
+│   │   │   ├── scheduler.rs
+│   │   │   └── system.rs
+│   │   ├── tests
+│   │   │   ├── support
+│   │   │   │   └── mod.rs
+│   │   │   ├── acceptance.rs
+│   │   │   ├── access.rs
+│   │   │   └── tick.rs
+│   │   └── Cargo.toml
+│   └── verbum
 │       ├── src
-│       │   ├── access.rs
-│       │   ├── contract.rs
-│       │   ├── data.rs
-│       │   ├── lib.rs
-│       │   ├── model.rs
-│       │   ├── order.rs
-│       │   ├── scheduler.rs
-│       │   └── system.rs
-│       ├── tests
-│       │   ├── support
-│       │   │   └── mod.rs
-│       │   ├── acceptance.rs
-│       │   ├── access.rs
-│       │   └── tick.rs
+│       │   └── lib.rs
 │       └── Cargo.toml
 ├── scripts
 │   └── tree.sh

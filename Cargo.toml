@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/verbum-ecs", "crates/verbum-schedule", "crates/verbum"]
+members = ["crates/ecs", "crates/schedule", "crates/verbum"]
 
 [workspace.package]
 version = "0.1.0"
@@ -13,8 +13,8 @@ keywords = ["ecs", "game-engine", "dod", "aot", "deterministic"]
 categories = ["game-engines", "data-structures"]
 
 [workspace.dependencies]
-verbum-ecs = { path = "crates/verbum-ecs", version = "0.1.0" }
-verbum-schedule = { path = "crates/verbum-schedule", version = "0.1.0" }
+verbum-ecs = { path = "crates/ecs", version = "0.1.0" }
+verbum-schedule = { path = "crates/schedule", version = "0.1.0" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

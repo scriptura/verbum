@@ -356,7 +356,7 @@ Uniquement des éléments qu'aucun invariant ni test de l'étape 1 n'exige : `Ph
 ## 8. Micro-phases
 
 ### Phase 0 — Crate et workspace
-Ajout de `crates/verbum-schedule` aux `members`. **Test** : `cargo test --workspace` inchangé. **Commit** : `workspace: crate verbum-schedule vide`.
+Ajout de `crates/schedule` aux `members`. **Test** : `cargo test --workspace` inchangé. **Commit** : `workspace: crate verbum-schedule vide`.
 
 ### Phase 1 — Données et contrat
 **Invariant** : I1, I15. **Tests** : `DataId::new(63)` → `Ok`, `new(64)` → `Err` ; bits distincts ; `DataSet` (`with`, `contains`, `intersects`, union) ; `Contract` répond par accesseurs aux cinq questions d'ADR-003 ; `emits_commands()` dérivé ; doctest `compile_fail` : `DataSet::of(64)` en `const` (E0080).
@@ -477,8 +477,8 @@ Arêtes de dépendance (A → B : B exige A) :
 ```
 | Phase | Dépend de | Touche |
 |---|---|---|
-| 0 | — | workspace (`Cargo.toml` racine, `Cargo.lock`), `crates/verbum-schedule` |
-| 1 à 5 | 0 ; séquence 1 → 2 → 3 → 4 → 5 | `crates/verbum-schedule` seul, aucune dépendance à `verbum-ecs` |
+| 0 | — | workspace (`Cargo.toml` racine, `Cargo.lock`), `crates/schedule` |
+| 1 à 5 | 0 ; séquence 1 → 2 → 3 → 4 → 5 | `crates/schedule` seul, aucune dépendance à `verbum-ecs` |
 | 6 `split_mut` | aucune | `verbum-ecs` : `world.rs` (+ tests) |
 | 6bis `RemoveComponent` | aucune ; **enchaînée après 6** (même `world.rs`, jamais en parallèle ni dans le même commit) | `verbum-ecs` : `component_set.rs`, `world.rs`, `command.rs`, `fixtures.rs`, tests, doctests |
 | 7a | 1, 6 ; **ordre pratique : après 6bis** (les implémenteurs de `ComponentSet` des tests du Scheduler seraient sinon à réécrire) | `verbum-schedule` |
