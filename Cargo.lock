@@ -7,6 +7,7 @@ name = "verbum"
 version = "0.1.0"
 dependencies = [
  "verbum-ecs",
+ "verbum-schedule",
 ]
 
 [[package]]

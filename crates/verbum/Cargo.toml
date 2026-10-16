@@ -12,6 +12,7 @@ categories.workspace = true
 
 [dependencies]
 verbum-ecs.workspace = true
+verbum-schedule.workspace = true
 
 [lints]
 workspace = true

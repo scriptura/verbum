@@ -7,3 +7,4 @@
 #![no_std]
 
 pub use verbum_ecs as ecs;
+pub use verbum_schedule as schedule;
