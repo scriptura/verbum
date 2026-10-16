@@ -96,7 +96,7 @@
 use core::fmt;
 use core::marker::PhantomData;
 
-use verbum_ecs::BufferFull;
+use verbum_ecs::{ApplyError, BufferFull, CommandBuffer, ComponentSet, World};
 
 use crate::contract::{Contract, StructuralEffects};
 use crate::data::DataSet;
@@ -114,6 +114,10 @@ pub enum TickError {
     Binding,
     /// A system found the command buffer full.
     Buffer(BufferFull),
+    /// The buffer was not empty when the tick started.
+    BufferNotEmpty,
+    /// The validation of a phase rejected its batch of commands.
+    Apply(ApplyError),
 }
 
 impl From<RunError> for TickError {
@@ -162,13 +166,36 @@ impl<B: Binding, L: SystemList<B>, const SYSTEMS: usize, const PHASES: usize>
 
     /// Runs one tick: the phases in order, and in each phase the systems in the order of the
     /// model. Each system binds its access from a fresh `B::parts` (see
-    /// [`SystemList::run`]).
+    /// [`SystemList::run`]). At the end of every phase, including a phase that emitted no
+    /// command, the commands of the buffer are validated and applied by `World::apply`: the
+    /// structural effects of a phase are visible from the next phase on, never inside it.
     ///
     /// The scheduler is only read: the model is the same after any number of ticks.
     ///
-    /// The first error stops the tick (see [`TickError`]). In this state, the commands a
-    /// system emits are kept in `buffer` and are not applied.
-    pub fn run_tick(&self, world: &mut B::World, buffer: &mut B::Buffer) -> Result<(), TickError> {
+    /// A buffer that is not empty on entry is refused with [`TickError::BufferNotEmpty`]
+    /// before any system runs. A tick that succeeds leaves the buffer empty.
+    ///
+    /// The first error stops the tick (see [`TickError`]). There is no rollback: the values
+    /// written by the systems already run and the phases already validated stay as they are;
+    /// the commands accepted so far stay in `buffer`, unapplied, until the caller empties it
+    /// with `clear`. A batch rejected by `World::apply` is kept intact. The systems and
+    /// phases that follow are not run.
+    pub fn run_tick<const ENTITIES: usize, const COMMANDS: usize, S, R>(
+        &self,
+        world: &mut B::World,
+        buffer: &mut B::Buffer,
+    ) -> Result<(), TickError>
+    where
+        B: Binding<
+                World = World<ENTITIES, S, R>,
+                Buffer = CommandBuffer<COMMANDS, S::Add, S::Remove>,
+            >,
+        S: ComponentSet,
+        R: Default,
+    {
+        if !buffer.is_empty() {
+            return Err(TickError::BufferNotEmpty);
+        }
         for phase in 0..PHASES {
             let Some(order) = self.model.phase(phase) else {
                 unreachable!("phase {phase} is below PHASES")
@@ -176,6 +203,7 @@ impl<B: Binding, L: SystemList<B>, const SYSTEMS: usize, const PHASES: usize>
             for &index in order {
                 L::run(index, world, buffer)?;
             }
+            world.apply(buffer).map_err(TickError::Apply)?;
         }
         Ok(())
     }

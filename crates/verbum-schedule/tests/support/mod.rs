@@ -474,3 +474,210 @@ impl Binding for MotionBinding {
         Parts::from_world(world).with_buffer(buffer)
     }
 }
+
+// ---------------------------------------------------------------------------
+// Phase 9, commit B: world, assembly and bindings of the tick tests
+// ---------------------------------------------------------------------------
+
+/// Entities the systems act on: systems are zero-sized types and cannot hold a handle, so
+/// the handles reach them through a resource (read-only: it creates no ordering edge).
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Targets {
+    pub a: EntityId,
+    pub b: EntityId,
+    pub c: EntityId,
+    pub d: EntityId,
+}
+
+/// A witness cell: a value written by a system and read back by the test.
+#[allow(dead_code)]
+#[derive(Debug, PartialEq)]
+pub struct Cell(pub i32);
+
+// Category identifiers of the tick world. `POSITION` and `VELOCITY` are those of `Motion`.
+#[allow(dead_code)]
+pub const TARGETS: u8 = 20;
+/// Written by the emitter of the dependency test, read by its observer.
+#[allow(dead_code)]
+pub const FLAG: u8 = 21;
+/// What the observer of the first phase saw.
+#[allow(dead_code)]
+pub const SEEN_B: u8 = 22;
+/// What the observer of the following phase saw.
+#[allow(dead_code)]
+pub const SEEN_C: u8 = 23;
+/// A value written by a system, to be found again after an error.
+#[allow(dead_code)]
+pub const VALUE: u8 = 24;
+/// Written by a system that must not run: stays at 0 when it did not.
+#[allow(dead_code)]
+pub const WITNESS: u8 = 25;
+/// Counts the runs of a system.
+#[allow(dead_code)]
+pub const TALLY: u8 = 26;
+
+#[allow(dead_code)]
+#[derive(Default)]
+pub struct TickGlobals {
+    pub targets: ResourceSlot<Targets>,
+    pub flag: ResourceSlot<Cell>,
+    pub seen_b: ResourceSlot<Cell>,
+    pub seen_c: ResourceSlot<Cell>,
+    pub value: ResourceSlot<Cell>,
+    pub witness: ResourceSlot<Cell>,
+    pub tally: ResourceSlot<Cell>,
+}
+
+#[allow(dead_code)]
+pub type TickWorld = World<4, Motion, TickGlobals>;
+
+/// Assembly of `TickWorld`: one `Option` per slot, taken once, built anew for each binding.
+#[allow(dead_code)]
+pub struct TickParts<'w> {
+    positions: Option<Positions<'w>>,
+    velocities: Option<Velocities<'w>>,
+    targets: Option<Slot<'w, Targets>>,
+    flag: Option<Slot<'w, Cell>>,
+    seen_b: Option<Slot<'w, Cell>>,
+    seen_c: Option<Slot<'w, Cell>>,
+    value: Option<Slot<'w, Cell>>,
+    witness: Option<Slot<'w, Cell>>,
+    tally: Option<Slot<'w, Cell>>,
+    commands: Option<&'w mut MotionBuffer>,
+}
+
+#[allow(dead_code)]
+impl<'w> TickParts<'w> {
+    pub fn from_world(world: &'w mut TickWorld, buffer: &'w mut MotionBuffer) -> Self {
+        let ((positions, velocities), globals) = world.split_mut();
+        let TickGlobals {
+            targets,
+            flag,
+            seen_b,
+            seen_c,
+            value,
+            witness,
+            tally,
+        } = globals;
+        Self {
+            positions: Some(positions),
+            velocities: Some(velocities),
+            targets: Some(targets),
+            flag: Some(flag),
+            seen_b: Some(seen_b),
+            seen_c: Some(seen_c),
+            value: Some(value),
+            witness: Some(witness),
+            tally: Some(tally),
+            commands: Some(buffer),
+        }
+    }
+
+    /// A deliberately faulty assembly: the `WITNESS` slot is missing.
+    pub fn without_witness(mut self) -> Self {
+        self.witness = None;
+        self
+    }
+}
+
+macro_rules! locate_slot {
+    ($($id:ident => $field:ident: $store:ty;)*) => {$(
+        impl<'w> Locate<'w, $id> for TickParts<'w> {
+            type Store = $store;
+            fn take(&mut self) -> Option<Self::Store> {
+                self.$field.take()
+            }
+        }
+    )*};
+}
+
+locate_slot! {
+    POSITION => positions: Positions<'w>;
+    VELOCITY => velocities: Velocities<'w>;
+    TARGETS => targets: Slot<'w, Targets>;
+    FLAG => flag: Slot<'w, Cell>;
+    SEEN_B => seen_b: Slot<'w, Cell>;
+    SEEN_C => seen_c: Slot<'w, Cell>;
+    VALUE => value: Slot<'w, Cell>;
+    WITNESS => witness: Slot<'w, Cell>;
+    TALLY => tally: Slot<'w, Cell>;
+    COMMANDS_BINDING => commands: &'w mut MotionBuffer;
+}
+
+/// The binding of the tick tests.
+#[allow(dead_code)]
+pub struct TickBinding;
+
+impl Binding for TickBinding {
+    type World = TickWorld;
+    type Buffer = MotionBuffer;
+    type Parts<'w> = TickParts<'w>;
+
+    fn parts<'w>(world: &'w mut TickWorld, buffer: &'w mut MotionBuffer) -> TickParts<'w> {
+        TickParts::from_world(world, buffer)
+    }
+}
+
+/// A binding whose `parts` forgets the `WITNESS` slot: an access that needs it cannot bind.
+#[allow(dead_code)]
+pub struct DefectiveBinding;
+
+impl Binding for DefectiveBinding {
+    type World = TickWorld;
+    type Buffer = MotionBuffer;
+    type Parts<'w> = TickParts<'w>;
+
+    fn parts<'w>(world: &'w mut TickWorld, buffer: &'w mut MotionBuffer) -> TickParts<'w> {
+        TickParts::from_world(world, buffer).without_witness()
+    }
+}
+
+/// Per-assembly aliases: the `Store` is deduced from `Locate`, never restated.
+#[allow(dead_code)]
+pub type TRead<'w, const ID: u8> = Read<ID, <TickParts<'w> as Locate<'w, ID>>::Store>;
+#[allow(dead_code)]
+pub type TWrite<'w, const ID: u8> = Write<ID, <TickParts<'w> as Locate<'w, ID>>::Store>;
+#[allow(dead_code)]
+pub type TCommands<
+    'w,
+    const SPAWN: bool,
+    const DESPAWN: bool,
+    const ADD: bool,
+    const REMOVE: bool,
+> = Commands<<TickParts<'w> as Locate<'w, COMMANDS_BINDING>>::Store, SPAWN, DESPAWN, ADD, REMOVE>;
+
+/// Tick world with four entities, `[a, b, c, d]`:
+/// `a` has a position (1) and a velocity (10); `b` has nothing; `c` has a position (3) and a
+/// velocity (30); `d` has a position (4). Every witness cell is at 0.
+#[allow(dead_code)]
+pub fn tick_world() -> (TickWorld, Targets) {
+    let mut world = TickWorld::new();
+    let [a, b, c, d] = [(); 4].map(|()| world.spawn().unwrap());
+    let mut buffer = CommandBuffer::<8, MotionAdd, MotionRemove>::new();
+    for (entity, x) in [(a, 1), (c, 3), (d, 4)] {
+        buffer
+            .add_component(entity, MotionAdd::Position(Position(x)))
+            .unwrap();
+    }
+    for (entity, x) in [(a, 10), (c, 30)] {
+        buffer
+            .add_component(entity, MotionAdd::Velocity(Velocity(x)))
+            .unwrap();
+    }
+    world.apply(&mut buffer).unwrap();
+    let targets = Targets { a, b, c, d };
+    let globals = world.resources_mut();
+    globals.targets.insert(targets);
+    for slot in [
+        &mut globals.flag,
+        &mut globals.seen_b,
+        &mut globals.seen_c,
+        &mut globals.value,
+        &mut globals.witness,
+        &mut globals.tally,
+    ] {
+        slot.insert(Cell(0));
+    }
+    (world, targets)
+}
