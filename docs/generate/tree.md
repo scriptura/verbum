@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-10-16 06:11:24
+**Généré le:** 2026-10-16 15:20:07
 
 ## Racine du Workspace
 
@@ -32,6 +32,8 @@
 │   │   │   └── world_identity.rs
 │   │   └── Cargo.toml
 │   └── verbum-schedule
+│       ├── examples
+│       │   └── headless.rs
 │       ├── src
 │       │   ├── access.rs
 │       │   ├── contract.rs
@@ -44,6 +46,7 @@
 │       ├── tests
 │       │   ├── support
 │       │   │   └── mod.rs
+│       │   ├── acceptance.rs
 │       │   ├── access.rs
 │       │   └── tick.rs
 │       └── Cargo.toml
@@ -53,13 +56,13 @@
 ├── Cargo.toml
 └── README.md
 
-12 directories, 35 files
+13 directories, 37 files
 ```
 
 ## Documentation du projet
 
 ```text
-/docs
+/verbum/docs
 ├── architecture
 │   ├── adr
 │   │   ├── ADR-000-language-and-material-invariants.md
