@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-10-18 00:28:03
+**Généré le:** 2026-10-18 00:48:37
 
 ## Racine du Workspace
 
@@ -26,6 +26,11 @@
 │   │   │   ├── query.rs
 │   │   │   ├── resources.rs
 │   │   │   └── world_identity.rs
+│   │   └── Cargo.toml
+│   ├── forge
+│   │   ├── src
+│   │   │   ├── lib.rs
+│   │   │   └── sprite.rs
 │   │   └── Cargo.toml
 │   ├── schedule
 │   │   ├── examples
@@ -56,7 +61,7 @@
 ├── Cargo.toml
 └── README.md
 
-13 directories, 37 files
+15 directories, 40 files
 ```
 
 ## Documentation du projet
@@ -111,6 +116,7 @@
 │   ├── 00-verbum-ecs.md
 │   ├── 01-verbum-scheduler-sessions.md
 │   ├── 01-verbum-scheduler.md
+│   ├── 02-verbum-forge-execution.md
 │   └── 02-verbum-forge.md
 └── reflexivity
     ├── filiation.md
@@ -119,6 +125,6 @@
     ├── when-context-leaves-the-conversation-to-enter-the-corpus.md
     └── why-the-name-verbum.md
 
-10 directories, 46 files
+10 directories, 47 files
 ```
 

@@ -18,5 +18,8 @@ toml = { version = "1", default-features = false, features = [
     "serde",
 ] }
 
+[dev-dependencies]
+verbum-ecs.workspace = true
+
 [lints]
 workspace = true
