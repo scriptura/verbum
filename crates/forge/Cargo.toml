@@ -1,0 +1,22 @@
+[package]
+name = "verbum-forge"
+description = "Verbum Forge: AOT compiler of human formats into runtime artifacts."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+verbum-assets = { path = "../assets", version = "0.1.0" }
+toml = { version = "1", default-features = false, features = [
+    "std",
+    "parse",
+    "serde",
+] }
+
+[lints]
+workspace = true

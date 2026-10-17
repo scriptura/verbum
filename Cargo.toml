@@ -1,6 +1,12 @@
 [workspace]
 resolver = "3"
-members = ["crates/ecs", "crates/schedule", "crates/verbum"]
+members = [
+    "crates/ecs",
+    "crates/schedule",
+    "crates/verbum",
+    "crates/assets",
+    "crates/forge",
+]
 
 [workspace.package]
 version = "0.1.0"
