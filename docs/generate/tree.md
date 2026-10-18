@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-10-18 12:52:10
+**Généré le:** 2026-10-18 21:33:08
 
 ## Racine du Workspace
 
@@ -121,7 +121,8 @@
 │   ├── 01-verbum-scheduler-sessions.md
 │   ├── 01-verbum-scheduler.md
 │   ├── 02-verbum-forge-execution.md
-│   └── 02-verbum-forge.md
+│   ├── 02-verbum-forge.md
+│   └── 03-verbum-shell.md
 └── reflexivity
     ├── filiation.md
     ├── methodological-lineage-from-marius-to-verbum.md
@@ -129,6 +130,6 @@
     ├── when-context-leaves-the-conversation-to-enter-the-corpus.md
     └── why-the-name-verbum.md
 
-10 directories, 47 files
+10 directories, 48 files
 ```
 
