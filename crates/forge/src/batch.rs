@@ -46,7 +46,34 @@ impl CompiledSet {
 /// Compile un lot d'assets avec l'identifiant FNV-1a 64 bits de la clé logique.
 ///
 /// `slot_count` est la capacité : la longueur du tableau statique de liaison de
-/// l'application.
+/// l'application. Aucun paramètre de hash : la signature publique est
+///
+/// ```
+/// use verbum_forge::{AssetSource, CompiledSet, ForgeError, compile_assets};
+///
+/// let _: fn(&[AssetSource<'_>], usize) -> Result<CompiledSet, ForgeError> = compile_assets;
+/// ```
+///
+/// Le point de test à calculateur injectable n'est pas accessible depuis l'extérieur
+/// du crate :
+///
+/// ```compile_fail,E0432
+/// use verbum_forge::compile_assets_with;
+/// ```
+///
+/// ```compile_fail,E0603
+/// let _ = verbum_forge::batch::compile_assets_with(&[], 0, |_: &[u8]| 0u64);
+/// ```
+///
+/// ```compile_fail,E0603
+/// let _ = verbum_forge::id::fnv1a_64(b"a");
+/// ```
+///
+/// Aucun calculateur ne se passe à `compile_assets` :
+///
+/// ```compile_fail,E0061
+/// let _ = verbum_forge::compile_assets(&[], 0, |_: &[u8]| 0u64);
+/// ```
 pub fn compile_assets(
     sources: &[AssetSource<'_>],
     slot_count: usize,
@@ -54,28 +81,70 @@ pub fn compile_assets(
     compile_assets_with(sources, slot_count, fnv1a_64)
 }
 
+/// Nombre d'entrées en `u32`, la largeur des index du layout.
+fn asset_count(len: usize) -> Result<u32, ForgeError> {
+    u32::try_from(len).map_err(|_| ForgeError::TooManyAssets)
+}
+
+/// Première paire `(first, second)`, `first < second`, d'entrées vérifiant `same`.
+fn first_pair(
+    sources: &[AssetSource<'_>],
+    same: impl Fn(&AssetSource<'_>, &AssetSource<'_>) -> bool,
+) -> Option<(usize, usize)> {
+    sources.iter().enumerate().find_map(|(second, later)| {
+        sources[..second]
+            .iter()
+            .position(|earlier| same(earlier, later))
+            .map(|first| (first, second))
+    })
+}
+
 /// Point de test privé : même compilation, calculateur d'identifiant injecté. Visibilité
 /// restreinte au crate, jamais réexporté ni accessible depuis l'API de production.
 pub(crate) fn compile_assets_with(
     sources: &[AssetSource<'_>],
-    _slot_count: usize,
+    slot_count: usize,
     hash: impl Fn(&[u8]) -> u64,
 ) -> Result<CompiledSet, ForgeError> {
+    let count = asset_count(sources.len())?;
+
+    // Rien n'est émis tant que tous les contrôles ne sont pas passés. La clé dupliquée est
+    // détectée avant la collision d'identifiants.
+    if let Some(entry) = sources.iter().position(|source| source.key.is_empty()) {
+        return Err(ForgeError::EmptyKey { entry });
+    }
+    if let Some((first, second)) = first_pair(sources, |a, b| a.key == b.key) {
+        return Err(ForgeError::DuplicateKey { first, second });
+    }
+    let within = |slot: SlotIndex| usize::try_from(slot.get()).is_ok_and(|s| s < slot_count);
+    if let Some(entry) = sources.iter().position(|source| !within(source.slot)) {
+        return Err(ForgeError::SlotOutOfRange { entry });
+    }
+    if let Some((first, second)) = first_pair(sources, |a, b| a.slot == b.slot) {
+        return Err(ForgeError::DuplicateSlot { first, second });
+    }
+    let id = |source: &AssetSource<'_>| hash(source.key.as_bytes());
+    if let Some((first, second)) = first_pair(sources, |a, b| id(a) == id(b)) {
+        return Err(ForgeError::IdCollision { first, second });
+    }
+
     let artifacts = sources
         .iter()
-        .map(|source| compile_sprite(source.toml))
+        .enumerate()
+        .map(|(entry, source)| {
+            compile_sprite(source.toml).map_err(|cause| ForgeError::InvalidSource {
+                entry,
+                cause: Box::new(cause),
+            })
+        })
         .collect::<Result<Vec<_>, _>>()?;
-
-    // Les index sont des `u32` dans le layout ; un lot de 2^32 assets ou plus est hors de
-    // portée d'une compilation en mémoire.
-    let count = u32::try_from(sources.len()).expect("moins de 2^32 assets par lot");
 
     let mut manifest = Vec::with_capacity(MANIFEST_HEADER_LEN + MANIFEST_ENTRY_LEN * sources.len());
     manifest.extend_from_slice(&MANIFEST_SIGNATURE);
     manifest.extend_from_slice(&MANIFEST_VERSION.to_le_bytes());
     manifest.extend_from_slice(&count.to_le_bytes());
     for (artifact_index, source) in (0..count).zip(sources) {
-        manifest.extend_from_slice(&hash(source.key.as_bytes()).to_le_bytes());
+        manifest.extend_from_slice(&id(source).to_le_bytes());
         manifest.extend_from_slice(&artifact_index.to_le_bytes());
         manifest.extend_from_slice(&source.slot.get().to_le_bytes());
     }
@@ -242,6 +311,154 @@ mod tests {
 
         let [first, second] = two_ids(precomposed, decomposed);
         assert_ne!(first, second);
+    }
+
+    fn source<'a>(key: &'a str, toml: &'a str, slot: u32) -> AssetSource<'a> {
+        AssetSource {
+            key,
+            toml,
+            slot: SlotIndex::new(slot),
+        }
+    }
+
+    #[test]
+    fn f4_an_empty_key_is_rejected() {
+        let result = compile_assets(
+            &[source("a", SPRITE_32X16, 0), source("", SPRITE_96X48, 1)],
+            2,
+        );
+        assert_eq!(result, Err(ForgeError::EmptyKey { entry: 1 }));
+    }
+
+    #[test]
+    fn f4_a_duplicate_key_is_rejected() {
+        let result = compile_assets(
+            &[
+                source("a", SPRITE_32X16, 0),
+                source("foobar", SPRITE_96X48, 1),
+                source("a", SPRITE_96X48, 2),
+            ],
+            3,
+        );
+        assert_eq!(
+            result,
+            Err(ForgeError::DuplicateKey {
+                first: 0,
+                second: 2
+            })
+        );
+    }
+
+    #[test]
+    fn f4_a_duplicate_slot_index_is_rejected() {
+        let result = compile_assets(
+            &[
+                source("a", SPRITE_32X16, 1),
+                source("foobar", SPRITE_96X48, 1),
+            ],
+            2,
+        );
+        assert_eq!(
+            result,
+            Err(ForgeError::DuplicateSlot {
+                first: 0,
+                second: 1
+            })
+        );
+    }
+
+    #[test]
+    fn f4_a_slot_index_at_or_above_the_capacity_is_rejected() {
+        for slot in [2, 3, u32::MAX] {
+            let result = compile_assets(
+                &[
+                    source("a", SPRITE_32X16, 0),
+                    source("foobar", SPRITE_96X48, slot),
+                ],
+                2,
+            );
+            assert_eq!(
+                result,
+                Err(ForgeError::SlotOutOfRange { entry: 1 }),
+                "slot {slot}"
+            );
+        }
+    }
+
+    #[test]
+    fn f4_one_invalid_source_among_valid_ones_yields_no_output() {
+        let result = compile_assets(
+            &[
+                source("a", SPRITE_32X16, 0),
+                source("broken", "width = ", 1),
+                source("foobar", SPRITE_96X48, 2),
+            ],
+            3,
+        );
+        let Err(ForgeError::InvalidSource { entry, cause }) = result else {
+            panic!("attendu : source invalide, obtenu {result:?}");
+        };
+        assert_eq!(entry, 1);
+        assert!(matches!(*cause, ForgeError::Syntax(_)));
+
+        let result = compile_assets(
+            &[
+                source("a", SPRITE_32X16, 0),
+                source("zero", "width = 0\nheight = 4", 1),
+            ],
+            2,
+        );
+        assert_eq!(
+            result,
+            Err(ForgeError::InvalidSource {
+                entry: 1,
+                cause: Box::new(ForgeError::ZeroValue("width")),
+            })
+        );
+    }
+
+    #[test]
+    fn f6_two_distinct_keys_with_the_same_id_are_rejected_as_a_collision() {
+        let constant = |_: &[u8]| 7u64;
+        let result = compile_assets_with(
+            &[source("x", SPRITE_32X16, 0), source("y", SPRITE_96X48, 1)],
+            2,
+            constant,
+        );
+        assert_eq!(
+            result,
+            Err(ForgeError::IdCollision {
+                first: 0,
+                second: 1
+            })
+        );
+    }
+
+    #[test]
+    fn f6b_duplicate_keys_take_precedence_over_a_collision() {
+        let constant = |_: &[u8]| 7u64;
+        let result = compile_assets_with(
+            &[source("x", SPRITE_32X16, 0), source("x", SPRITE_96X48, 1)],
+            2,
+            constant,
+        );
+        assert_eq!(
+            result,
+            Err(ForgeError::DuplicateKey {
+                first: 0,
+                second: 1
+            })
+        );
+    }
+
+    #[test]
+    #[cfg(target_pointer_width = "64")]
+    fn an_entry_count_above_u32_max_is_a_typed_error_not_a_panic() {
+        let largest = usize::try_from(u32::MAX).expect("usize de 64 bits");
+        assert_eq!(asset_count(0), Ok(0));
+        assert_eq!(asset_count(largest), Ok(u32::MAX));
+        assert_eq!(asset_count(largest + 1), Err(ForgeError::TooManyAssets));
+        assert_eq!(asset_count(usize::MAX), Err(ForgeError::TooManyAssets));
     }
 
     #[test]

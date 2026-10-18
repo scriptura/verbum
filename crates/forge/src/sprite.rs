@@ -22,6 +22,23 @@ pub enum ForgeError {
     ZeroValue(&'static str),
     /// Le champ est négatif ou dépasse `u16::MAX`.
     OutOfRange(&'static str),
+    /// Compilation en lot : la source de l'entrée `entry` est rejetée (position base zéro).
+    InvalidSource {
+        entry: usize,
+        cause: Box<ForgeError>,
+    },
+    /// Compilation en lot : la clé logique de l'entrée `entry` est vide.
+    EmptyKey { entry: usize },
+    /// Compilation en lot : deux entrées portent la même clé logique.
+    DuplicateKey { first: usize, second: usize },
+    /// Compilation en lot : deux clés distinctes donnent le même identifiant.
+    IdCollision { first: usize, second: usize },
+    /// Compilation en lot : le `slot_index` de l'entrée `entry` dépasse `slot_count`.
+    SlotOutOfRange { entry: usize },
+    /// Compilation en lot : deux entrées visent le même slot.
+    DuplicateSlot { first: usize, second: usize },
+    /// Compilation en lot : le lot compte plus d'entrées qu'un `u32` ne peut en numéroter.
+    TooManyAssets,
 }
 
 /// Compile une source `sprite.toml` en octets d'artefact.
