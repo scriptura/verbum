@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-10-18 00:48:37
+**Généré le:** 2026-10-18 07:34:21
 
 ## Racine du Workspace
 
@@ -29,8 +29,12 @@
 │   │   └── Cargo.toml
 │   ├── forge
 │   │   ├── src
+│   │   │   ├── batch.rs
+│   │   │   ├── id.rs
 │   │   │   ├── lib.rs
 │   │   │   └── sprite.rs
+│   │   ├── tests
+│   │   │   └── pipeline.rs
 │   │   └── Cargo.toml
 │   ├── schedule
 │   │   ├── examples
@@ -61,7 +65,7 @@
 ├── Cargo.toml
 └── README.md
 
-15 directories, 40 files
+16 directories, 43 files
 ```
 
 ## Documentation du projet

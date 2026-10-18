@@ -5,6 +5,9 @@
 //! Crate `std`, extérieur au runtime : aucun crate runtime n'en dépend (I9). Seule la
 //! Forge lit et valide les formats humains (I1, I2).
 
+mod batch;
+mod id;
 mod sprite;
 
+pub use batch::{AssetSource, CompiledSet, compile_assets};
 pub use sprite::{ForgeError, compile_sprite};
