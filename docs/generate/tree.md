@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-10-18 21:33:08
+**Généré le:** 2026-10-26 21:57:44
 
 ## Racine du Workspace
 
@@ -88,6 +88,7 @@
 │   │   ├── ADR-R02-pipeline-production.md
 │   │   ├── ADR-R03-backend.md
 │   │   ├── ADR-S01-shell-responsabilites.md
+│   │   ├── ADR-S03-acquisition-evenements.md
 │   │   ├── ADR-SV01-sauvegarde.md
 │   │   └── ADR-Sc01-scripts.md
 │   ├── concepts
@@ -113,6 +114,7 @@
 ├── generate
 │   └── tree.md
 ├── handoffs
+│   ├── 03-verbum-shell-implementation-handoff.md
 │   ├── HANDOFF-stage-0.md
 │   ├── HANDOFF-stage-1.md
 │   └── HANDOFF-stage-2-forge.md
@@ -122,6 +124,7 @@
 │   ├── 01-verbum-scheduler.md
 │   ├── 02-verbum-forge-execution.md
 │   ├── 02-verbum-forge.md
+│   ├── 03-verbum-shell-execution.md
 │   └── 03-verbum-shell.md
 └── reflexivity
     ├── filiation.md
@@ -130,6 +133,6 @@
     ├── when-context-leaves-the-conversation-to-enter-the-corpus.md
     └── why-the-name-verbum.md
 
-10 directories, 48 files
+10 directories, 51 files
 ```
 
