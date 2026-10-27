@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-10-26 21:57:44
+**Généré le:** 2026-10-27 13:31:53
 
 ## Racine du Workspace
 
@@ -55,6 +55,20 @@
 │   │   │   ├── access.rs
 │   │   │   └── tick.rs
 │   │   └── Cargo.toml
+│   ├── shell
+│   │   ├── examples
+│   │   │   └── console.rs
+│   │   ├── src
+│   │   │   ├── inbox.rs
+│   │   │   ├── lib.rs
+│   │   │   ├── pacing.rs
+│   │   │   └── shell.rs
+│   │   ├── tests
+│   │   │   ├── acceptance.rs
+│   │   │   ├── acquisition.rs
+│   │   │   ├── lifecycle.rs
+│   │   │   └── pacing.rs
+│   │   └── Cargo.toml
 │   └── verbum
 │       ├── src
 │       │   └── lib.rs
@@ -65,7 +79,7 @@
 ├── Cargo.toml
 └── README.md
 
-16 directories, 43 files
+20 directories, 53 files
 ```
 
 ## Documentation du projet
