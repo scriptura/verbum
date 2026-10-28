@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-10-27 13:31:53
+**Généré le:** 2026-10-28 12:44:19
 
 ## Racine du Workspace
 
@@ -35,6 +35,10 @@
 │   │   │   └── sprite.rs
 │   │   ├── tests
 │   │   │   └── pipeline.rs
+│   │   └── Cargo.toml
+│   ├── render
+│   │   ├── src
+│   │   │   └── lib.rs
 │   │   └── Cargo.toml
 │   ├── schedule
 │   │   ├── examples
@@ -79,7 +83,7 @@
 ├── Cargo.toml
 └── README.md
 
-20 directories, 53 files
+22 directories, 55 files
 ```
 
 ## Documentation du projet
@@ -129,6 +133,7 @@
 │   └── tree.md
 ├── handoffs
 │   ├── 03-verbum-shell-implementation-handoff.md
+│   ├── 04-verbum-renderer-implementation-handoff.md
 │   ├── HANDOFF-stage-0.md
 │   ├── HANDOFF-stage-1.md
 │   └── HANDOFF-stage-2-forge.md
@@ -139,7 +144,9 @@
 │   ├── 02-verbum-forge-execution.md
 │   ├── 02-verbum-forge.md
 │   ├── 03-verbum-shell-execution.md
-│   └── 03-verbum-shell.md
+│   ├── 03-verbum-shell.md
+│   ├── 04-verbum-renderer-execution.md
+│   └── 04-verbum-renderer.md
 └── reflexivity
     ├── filiation.md
     ├── methodological-lineage-from-marius-to-verbum.md
@@ -147,6 +154,6 @@
     ├── when-context-leaves-the-conversation-to-enter-the-corpus.md
     └── why-the-name-verbum.md
 
-10 directories, 51 files
+10 directories, 54 files
 ```
 

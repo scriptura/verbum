@@ -153,6 +153,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "verbum-render"
+version = "0.1.0"
+dependencies = [
+ "verbum-ecs",
+ "verbum-schedule",
+]
+
+[[package]]
 name = "verbum-schedule"
 version = "0.1.0"
 dependencies = [

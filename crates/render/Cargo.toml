@@ -1,0 +1,20 @@
+[package]
+name = "verbum-render"
+description = "Renderer data model of the Verbum engine: render contributions and frame representation, no_std and allocation-free."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+
+[dev-dependencies]
+verbum-ecs.workspace = true
+verbum-schedule.workspace = true
+
+[lints]
+workspace = true
