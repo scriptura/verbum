@@ -1,9 +1,9 @@
-# Plan de construction — étape 4 : Renderer minimal (`verbum-render`) — r3.1, 28 octobre 2026
+# Plan de construction — étape 4 : Renderer minimal (`verbum-render`) — r3.2, 28 octobre 2026
 
 ## Statut
 Document de planification interne, non normatif, révisable sans ADR (même statut que `ROADMAP.md` et `03-verbum-shell.md`). Il détaille l'étape 4 en unités. Il n'introduit aucun invariant : chaque exigence cite sa source, et tout ce qui ne découle pas du corpus est signalé comme tel. **Aucun code, aucune commande, aucun commit, aucune modification de la Roadmap, des ADR, du code ou des documents des étapes précédentes.** Le document d'exécution et le handoff sont rédigés : ils suivent la validation explicite de ce plan.
 
-**État de validation : r3.1 (livraison corrective du 28 octobre 2026) ; r3.1 est validé.**
+**État de validation : r3.2 (révision minimale du 28 octobre 2026, limitée à RP-5 : les codes d'erreur des doctests `compile_fail` ne sont pas épinglables sur Rust stable) ; r3.1 était validé ; r3.2 est soumis à la validation de l'utilisateur.**
 
 Légende : **[Lu]** texte vérifié dans un document lu dans cette session · **[Imposé]** disposition normative citée · **[Déduit]** conséquence que je tire de textes lus · **[L]** choix local, non invariant, révisable · **[C]** ambiguïté, contradiction ou lacune réelle · **[A]** arbitrage requis de l'utilisateur · **[Ouvert]** laissé ouvert, non résolu par ce plan.
 
@@ -144,7 +144,7 @@ Option retenue : **Y**, pour la raison de Q4 ; passer à X supprime RN-1 et RN-3
 | RP-2 | Au-delà de `CAP`, `push` est refusé par `Err(Full)` ; contenu et ordre inchangés ; capacité inchangée | E14 | `Full` (`Debug`, `PartialEq`) |
 | RP-3 | Après `clear`, le contenu est vide et l'accumulateur est réutilisable ; l'état initial et l'état vidé sont indiscernables | E13 | `clear` |
 | RP-4 | `Frame::compose` conserve toutes les contributions, sans écart, sans arbitrage et **sans déduplication** : même longueur, mêmes valeurs, y compris pour des contributions identiques | E10 | `Frame::compose`, `as_slice`, `len` |
-| RP-5 | Aucune modification d'une `Frame` à travers `&Frame` : doctests `compile_fail` avec **code d'erreur épinglé** (affectation à travers `&` ; appel d'une méthode de modification absente de l'API ; fermeture `FnMut(&Frame)` jouant le rôle d'un Backend qui tente de modifier la Frame) ; l'API publique de `Frame` ne contient aucun `&mut self` (revue) | E1 | absence de mutateurs |
+| RP-5 | Aucune modification d'une `Frame` à travers `&Frame` : doctests `compile_fail` **sans code d'erreur** (le code n'est pas contrôlé par rustdoc sur Rust stable) : (a) affectation à travers `&` ; (b) appel de `push` sur une `Frame` **possédée et mutable** : le doctest échoue à la compilation tant que l'API ne contient aucun mutateur, et c'est cette sensibilité (un `push(&mut self, …)` ajouté à `Frame` le fait compiler, donc échouer) qui est vérifiée ; (c) fermeture `FnMut(&Frame)` jouant le rôle d'un Backend qui tente de modifier la Frame ; l'API publique de `Frame` ne contient aucun `&mut self` (revue) | E1 | absence de mutateurs |
 | RP-6 | `Frame::empty()` est l'état initial déterministe : vide, comparable, sans notion d'« absent » | E13 | `Frame::empty`, `PartialEq` |
 | RP-7 | La Frame composée est une valeur indépendante de sa source : `clear` ou `push` ultérieurs sur l'accumulateur ne modifient pas la Frame | E1 | possession des copies (aucune référence dans `Frame`) |
 
@@ -205,7 +205,7 @@ Méthode de l'étape 3 : rouge avant vert (squelettes `unimplemented!()`), une v
 Découpage en sessions proposé [L] : session A = U1 à U3 (types et pipeline, sans Shell) ; session B = U4 et U5 (assemblage). Le choix (une session ou deux) revient à l'utilisateur selon sa limite de contexte ; le document d'exécution le fixera.
 
 ## 9. Contrôles communs
-Quatre contrôles à chaque unité : `cargo build --workspace`, `cargo test --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --all -- --check`. Résultats réels de l'utilisateur uniquement ; contrôles non exécutés (Miri, MSRV 1.85, doctests `compile_fail` sous une autre chaîne) signalés comme tels. `tree.md` est régénéré par l'utilisateur. Les doctests `compile_fail` pinnent le code d'erreur ; leur validité est confirmée par le jumeau qui compile.
+Quatre contrôles à chaque unité : `cargo build --workspace`, `cargo test --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --all -- --check`. Résultats réels de l'utilisateur uniquement ; contrôles non exécutés (Miri, MSRV 1.85, doctests `compile_fail` sous une autre chaîne) signalés comme tels. `tree.md` est régénéré par l'utilisateur. Les doctests `compile_fail` ne pinnent aucun code d'erreur (non contrôlé sur Rust stable) ; leur validité est confirmée par le jumeau qui compile et leur sensibilité par mutation. Les codes observés par compilation directe (E0594, E0599, E0594) sont un constat ponctuel de la session, non une assertion de test.
 
 ## 10. Ce qui reste non démontré à la clôture
 - **Durée de vie logique de l'accumulateur** (C4) : interprétation propre à l'étape 4 (fin de vie à la consommation par `Compose`, remise à l'état initial par `Clear` avant les lectures déclarées par les systèmes) ; non imposée par les types ; contrôle de composition (RN-2 (c), (d)) et revue ; limites : le contrôle de composition porte sur les systèmes assemblés ; l'absence de lecture de l'accumulateur hors des systèmes (assemblage, fermeture d'infrastructure, instruments, observateurs) après `Compose` n'est établie ni par les types ni par les contrats du Scheduler : elle relève de la **revue de l'assemblage de référence** (aucune relecture de `ACC` par l'assemblage, ses instruments ou ses observateurs) ; aucun amendement d'ADR-R01, aucune sémantique générale des données transitoires prétendue.
