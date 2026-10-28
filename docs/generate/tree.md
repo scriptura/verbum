@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-10-28 12:44:19
+**Généré le:** 2026-10-28 22:59:56
 
 ## Racine du Workspace
 
@@ -38,7 +38,11 @@
 │   │   └── Cargo.toml
 │   ├── render
 │   │   ├── src
-│   │   │   └── lib.rs
+│   │   │   ├── accumulator.rs
+│   │   │   ├── contribution.rs
+│   │   │   ├── frame.rs
+│   │   │   ├── lib.rs
+│   │   │   └── representation.rs
 │   │   └── Cargo.toml
 │   ├── schedule
 │   │   ├── examples
@@ -83,7 +87,7 @@
 ├── Cargo.toml
 └── README.md
 
-22 directories, 55 files
+22 directories, 59 files
 ```
 
 ## Documentation du projet
