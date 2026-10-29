@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-10-29 12:37:28
+**Généré le:** 2026-10-29 23:13:30
 
 ## Racine du Workspace
 
@@ -154,6 +154,7 @@
 ├── handoffs
 │   ├── 03-verbum-shell-implementation-handoff.md
 │   ├── 04-verbum-renderer-implementation-handoff.md
+│   ├── 05-verbum-assets-implementation-handoff.md
 │   ├── HANDOFF-stage-0.md
 │   ├── HANDOFF-stage-1.md
 │   └── HANDOFF-stage-2-forge.md
@@ -166,7 +167,9 @@
 │   ├── 03-verbum-shell-execution.md
 │   ├── 03-verbum-shell.md
 │   ├── 04-verbum-renderer-execution.md
-│   └── 04-verbum-renderer.md
+│   ├── 04-verbum-renderer.md
+│   ├── 05-verbum-assets-execution.md
+│   └── 05-verbum-assets.md
 └── reflexivity
     ├── filiation.md
     ├── methodological-lineage-from-marius-to-verbum.md
@@ -174,6 +177,6 @@
     ├── when-context-leaves-the-conversation-to-enter-the-corpus.md
     └── why-the-name-verbum.md
 
-10 directories, 54 files
+10 directories, 57 files
 ```
 

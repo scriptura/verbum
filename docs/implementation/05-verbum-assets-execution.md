@@ -1,0 +1,293 @@
+# Exécution — étape 5 : Assets réels (tileset, map, font)
+
+Document d'exécution, non normatif. **Il ne contient aucune règle de conception.** Source de vérité unique : `docs/implementation/05-verbum-assets.md`, **r1.2 (29 octobre 2026), soumise à la validation finale de l'utilisateur** (r1.1 était validée ; r1.2 en est une révision minimale), arbitrages A-1 à A-6 arrêtés. En cas de divergence entre ce document et le plan, **le plan prévaut** ; la divergence est signalée à l'utilisateur, jamais résolue par la session. Les écarts d'exécution connus à la rédaction sont listés au § 9 et **soumis à validation avec ce document**. Ce document n'est modifié que sur décision explicite de l'utilisateur. Le normatif est `ADR-000`, `ADR-004`, `ADR-005`, `ADR-A01`, `ADR-R01` à `ADR-R03` et `00-principes.md`.
+
+**État : révisé le 29 octobre 2026 après deux audits et les décisions de l'utilisateur sur E-8, E-10 et E-11 (alignement sur le plan r1.2), soumis à la validation finale de l'utilisateur avec le plan r1.2 et le handoff. Aucune unité ne démarre avant instruction explicite : « démarrez l'unité U1 ». Aucun code n'est écrit à ce stade.**
+
+Légende, appliquée dans chaque unité :
+- **[Vérifié]** : fait constaté dans un document lu ou dans le code réel, avec sa source. Revérifié au démarrage de l'unité ; une divergence est un arrêt (§ 6).
+- **[Plan]** : décision du plan r1.2. Ce n'est pas un fait.
+- **[Exécution]** : précision opérationnelle de ce document, sans effet sur un invariant (liste des écarts : § 9).
+- **[L]** : choix local provisoire (nom, layout, champ de source), révisable sans ADR.
+- **[À démontrer]** : point que l'unité doit établir, ou qu'elle ne peut pas établir et qui reste signalé au rapport.
+
+## 0. Consigne d'amorce (à coller au début de la session)
+
+*Si le handoff `05-verbum-assets-implementation-handoff.md` est fourni, sa consigne d'amorce (§ 13) prévaut ; celle-ci sert quand le document d'exécution est fourni seul.*
+
+> Vous implémentez l'étape 5 de Verbum (assets réels : tileset, map, font ; extension de `verbum-assets` et `verbum-forge`). Lisez, dans cet ordre : `docs/implementation/05-verbum-assets-execution.md` (règles de session), puis `docs/implementation/05-verbum-assets.md` (plan r1.2 ; à lire une seule fois en entier), puis `docs/implementation/02-verbum-forge.md` §3, §5.3 et §5.4 et `02-verbum-forge-execution.md` (tableau des vérifications et contrôles de l'étape 2), puis `docs/architecture/adr/ADR-A01-assets.md` et `ADR-000-language-and-material-invariants.md` (points 1, 3 et 4), puis `tree.md` (fait foi sur les chemins). Les autres ADR ne se relisent que si une unité les cite. Ne demandez pas le dépôt en entier : demandez par nom de fichier ce qui manque.
+
+## 1. Règles de session
+
+1. **Une unité à la fois.** Le § 4 reprend U1 à U5 du plan, sans les fusionner ni les réordonner. À la fin d'une unité, la session s'arrête et rédige le rapport (§ 5). Elle ne commence la suivante que sur validation explicite (« unité Un validée, démarrez Un+1 »). **Découpage en sessions [Exécution, recommandation]** : session A = U1 et U2 (mécanisme généralisé, premier nouveau type) ; session B = U3 et U4 ; session C = U5. Le choix revient à l'utilisateur ; le handoff décrira l'état à chaque coupure.
+2. **Rouge avant vert quand un rouge est possible.** Tests écrits contre des squelettes d'API (signatures, corps `unimplemented!()`), constat d'un échec pour la raison attendue, puis implémentation. **Un échec de compilation n'est pas un rouge valide.** Le rouge est rapporté (test, motif d'échec observé), ou « sans rouge possible » avec motif. Les doctests `compile_fail` n'ont pas de rouge : leur sensibilité est établie par leur jumeau valide et par mutation. **Les codes d'erreur de `compile_fail` ne s'épinglent pas** (non vérifiés par rustdoc sur Rust stable).
+3. **Sensibilité par mutation** : sur copie isolée **hors de l'arbre de travail**, une seule mutation à la fois, jamais présentée comme rouge initial. Pour chaque mutation, le rapport nomme **le test qui la détecte et les autres assertions qui échouent**. Une mutation non détectée est un arrêt (§ 6). **Une détection par échec de compilation n'est pas admise**, sauf mention contraire dans la mutation.
+4. **Contrôles réels.** À chaque unité : `cargo build --workspace`, `cargo test --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --all -- --check`, exécutés **par l'utilisateur** (la session n'a pas accès au dépôt) ; la session les exécute dans un espace de travail reconstitué et distingue les deux résultats. Le rapport donne les lignes de résultat réelles. Aucun résultat n'est déduit, estimé ni rapporté sans avoir été produit. Les échecs de doctests de `verbum-schedule` dus à un **stub** de l'espace de travail sont un artefact, à confirmer sur le dépôt réel, jamais à corriger dans le dépôt.
+5. **Miri et MSRV 1.85 sont exécutés par l'utilisateur, en U5** (et en fin d'U1 pour Miri, voir U1). La session fournit les commandes exactes. **Deux commandes séparées pour MSRV** : `cargo +1.85.0 build --workspace`, puis `cargo +1.85.0 test --workspace`.
+6. **Compatibilité MSRV 1.85 dès l'écriture** : pas de chaînes `if let … && …` (let-chains stables à partir de 1.88) ; `let … else` à la place. Aucune assertion sur l'horloge murale dans les tests ; cadence = fermeture vide ; seul l'exemple (U5) utilise `FixedStepPacing`.
+7. **Pas de commit par la session.** Elle propose, en fin d'unité, un regroupement par invariant démontré ; messages et commits restent à la charge de l'utilisateur. `tree.md` est régénéré par le script de l'utilisateur : la session signale les fichiers créés, sans y toucher.
+8. **Livraison.** Fichiers `.rs` livrés **complets** via `SendUserFile`, première ligne = commentaire de chemin (`// crates/assets/src/tileset.rs`) puis ligne vide ; les `Cargo.toml` sont exemptés du commentaire. Documentation des sources `.rs` **en français** ; champ `description` des `Cargo.toml` en anglais. Style de réponse : vouvoiement, concis, structuré, opérationnel.
+9. **Noms provisoires [L].** Les noms et layouts du § 3.3 et du § 4 sont provisoires ; tout ajustement est listé au rapport, sans changement de sémantique. **Aucun trait public de chargement** ; aucun test ni aucune API au-delà du plan.
+10. **Économie de contexte.** Lire le plan une fois en entier, puis seulement la section de l'unité en cours ; ne pas relire les fichiers que la session vient d'écrire ; rapports concis.
+11. **Résultats séparés.** Tout résultat de l'espace de travail de la session est étiqueté « espace de travail » ; seuls les résultats rapportés par l'utilisateur sont étiquetés « dépôt réel ».
+
+## 2. Interdits sans arbitrage explicite de l'utilisateur
+
+- Rouvrir un arbitrage clos du plan (A-1 option 1, A-2 option a, A-3 option i, A-4 option R1, A-5 O0 avec G-ORD, A-6 font incluse) ou modifier le plan, les ADR, `ROADMAP.md`, les documents `00` à `04` ou les handoffs.
+- **Modifier `crates/render/**`, `crates/ecs/**`, `crates/schedule/**`, `crates/verbum/**`**, ou tout fichier existant de `crates/shell/src/**` **à une seule exception strictement documentaire** (E-9) : l'ajout de lignes `//!` à la documentation de `crates/shell/src/lib.rs` en U1 (et U3), pour héberger les doctests de G-LT ; **aucun changement de code exécutable, d'API ou de comportement**, vérifié par un diff ne montrant que des lignes de commentaire de documentation ajoutées ; modifier un test d'une étape antérieure autrement que par **adaptation de signature consignée** (§ 3.1, règle R-ADAPT).
+- Ajouter une dépendance normale à `verbum-assets` (son `[dependencies]` reste **vide**) ; y ajouter `alloc` (`extern crate alloc`, `Vec`, `Box`, `String`) ; y ajouter un `[dev-dependencies]` (`cargo tree` d'un membre inclut ses dev-dependencies : l'audit « aucune dépendance » en serait faussé). Ajouter une dépendance externe autre que `toml` (forge).
+- Utiliser `unsafe` (lint du workspace), un cast d'octets, `transmute`, `Box::leak`, `include_bytes!` ou un `static` pour **contourner** une question de durée de vie (G-LT).
+- Créer un **nouveau niveau** de contrôle, changer leur **ordre**, déposer avant la fin du niveau 3, modifier les constantes ou le layout de `VMAN`, introduire une allocation dans `load`, modifier le modèle d'identité (`AssetId` opaque, `ArtifactIndex` et `SlotIndex` distincts, aucune chaîne ni chemin dans un artefact) : **G-CM** (§ 3.2).
+- Rendre public un constructeur d'`AssetId` à partir d'un entier (le constructeur interne reste `pub(crate)`).
+- Écrire dans un artefact, un manifeste ou une Ressource une chaîne, un chemin, un nom de couche, de partie, de pièce, d'équipement ou de jeu ; introduire un champ de pixels, de couleur ou d'image dans un format d'artefact (A-1).
+- Ajouter à `Contribution`, `Frame` ou `Contributions` une clé, un ordre, un `Ord`, un `Hash` (A-5) ; **affirmer un ordre de `Frame::as_slice()`** dans un test, un exemple ou une API ; comparer par un ensemble qui efface les doublons (multiplicité conservée).
+- Streaming, déchargement, cache, atlas, animation, caméra, Backend graphique, accès disque hors des tests d'intégration qui le simulaient déjà à l'étape 2.
+- Ajouter un test ou une assertion non listés au plan ou à ce document.
+
+## 3. Faits vérifiés communs à toutes les unités
+
+### 3.1 Faits [Vérifié]
+- **F1. Workspace.** `Cargo.toml` racine courant (reçu le 29 octobre 2026, remplace toute copie antérieure) : `resolver = "3"` ; `members` = `crates/{ecs, schedule, verbum, assets, forge, shell, render}` ; `[workspace.package]` : édition 2024, `rust-version = "1.85"` ; **`[workspace.dependencies]` = `verbum-ecs`, `verbum-schedule`, `verbum-render`** (aucune entrée pour `verbum-assets`, `verbum-forge`, `verbum-shell`) ; `[workspace.lints.rust] unsafe_code = "deny"`.
+- **F2. Shell.** `crates/shell/Cargo.toml` courant : `[dependencies]` **vide** ; `[dev-dependencies]` = `verbum-ecs`, `verbum-render`, `verbum-schedule` (`.workspace = true`). Ni `verbum-assets` ni `verbum-forge` n'y figurent.
+- **F3. Assets.** `crates/assets/Cargo.toml` : `[dependencies]` vide, `[lints] workspace = true`. `lib.rs` : `#![no_std]`, expose `LoadError, load`, `ArtifactIndex, AssetId, BindingError, Entries, MANIFEST_*, Manifest, ManifestEntry, ManifestError, SlotIndex`, `ARTIFACT_LEN, FORMAT_ID, FORMAT_VERSION, HEADER_LEN, PAYLOAD_LEN, ReadError, Sprite`.
+- **F4. `load` (étape 2).** `pub fn load(manifest: &[u8], artifacts: &[&[u8]], slot_count: usize, mut deposit: impl FnMut(SlotIndex, Sprite)) -> Result<(), LoadError>` ; niveaux : 1 `Manifest::parse` ; 2 `check_bindings(artifacts.len(), slot_count)` ; 3 `Sprite::read` de chaque artefact, résultat abandonné ; 4 redécodage et `deposit` ; seconde lecture en échec = `unreachable!`. `LoadError` ∈ {`Manifest(ManifestError)`, `Binding(BindingError)`, `Artifact { index: ArtifactIndex, error: ReadError }`}. Source : `load.rs`.
+- **F5. Manifeste.** `AssetId(u64)` avec `from_raw` **`pub(crate)`** ; `ArtifactIndex::get`, `SlotIndex::{new, get}` ; `ManifestEntry::{id, artifact_index, slot_index}` ; `Manifest::<'a>::{parse, len, is_empty, entries, find, check_bindings}`. `VMAN` : en-tête 10 octets + 16 octets par entrée. Source : `manifest.rs`.
+- **F6. Lecteur de sprite.** Préfixe commun de 10 octets (identité 4, version `u16`, longueur de charge utile `u32`), little-endian lu champ à champ ; ordre des contrôles : en-tête complet (`Truncated`), identité (`FormatIdentity`), version (`Version`), longueur déclarée (`PayloadLength`), puis longueur totale (`Truncated`, `TrailingBytes`). `ReadError` ∈ {`Truncated`, `FormatIdentity`, `Version`, `PayloadLength`, `TrailingBytes`}. Source : `sprite.rs`.
+- **F7. Forge.** `AssetSource<'a> { key: &str, toml: &str, slot: SlotIndex }` (`Clone, Copy, Debug, PartialEq, Eq`) ; `compile_assets(&[AssetSource<'_>], usize) -> Result<CompiledSet, ForgeError>` dont **la signature est épinglée par un doctest** ; `CompiledSet::{manifest, artifacts}` ; `compile_sprite(&str) -> Result<Vec<u8>, ForgeError>` ; `compile_assets_with` et `fnv1a_64` sont `pub(crate)` (doctests `compile_fail` de non-fuite). `ForgeError` : variantes de source (`Syntax`, `MissingField`, `UnknownField`, `WrongType`, `ZeroValue`, `OutOfRange`) et de lot (`InvalidSource`, `EmptyKey`, `DuplicateKey`, `IdCollision`, `SlotOutOfRange`, `DuplicateSlot`, `TooManyAssets`). `verbum-forge` : `[dependencies]` = `verbum-assets` (par `path` direct) et `toml` ; `[dev-dependencies]` = `verbum-ecs`.
+- **F8. Tests de l'étape 2 (référence de non-régression).** `assets` : `l1` à `l5` (load), `m1` à `m8` (manifeste), `p1_1` à `p1_6` (sprite). `forge` : `f1` à `f8`, `f6b`, `p2_1`, `p2_2`, `p2_3*`, et `tests/pipeline.rs` : `p3_1`, `p3_2`, `t6_1` à `t6_6`. Dans `t6_4` (corps lu), les rejets de niveau 3 sont des troncatures et aucune identité altérée n'est passée à `load` ; **le corps de `l1` à `l5` n'a été lu que par les noms de test** (à confirmer au démarrage d'U1 par recherche d'une identité altérée dans les appels à `load`). Ce fait fonde l'écart E-2.
+- **F9. Ressource.** `ResourceSlot<T>` : aucune contrainte sur `T` (ni `Copy`, ni `Default`, ni `'static`) ; `new`, `insert` (remplace et rend l'ancienne valeur), `get`, `get_mut`. `World<const ENTITIES, S: ComponentSet = (), R = ()>` ; les méthodes de construction exigent `R: Default`. Source : `resource.rs`, `world.rs`.
+- **F10. Scheduler.** Le Scheduler raisonne sur des **catégories** (`DataId` < 64, `DataSet` = un `u64`), jamais sur le type d'une Ressource. `Scheduler<B, L, SYSTEMS, PHASES>` ne porte `B` et `L` que par `PhantomData<fn() -> (B, L)>`. `Binding` : `type World`, `type Buffer`, `type Parts<'w>`, `fn parts<'w>(&'w mut World, &'w mut Buffer) -> Parts<'w>`. `System<B>` : `type Access<'w>`, `fn run(Access) -> Result<(), BufferFull>`. `run_tick::<ENTITIES, COMMANDS, S, R>(&self, &mut B::World, &mut B::Buffer) -> Result<(), TickError>` avec `R: Default`. Sources : `scheduler.rs` (lu jusqu'à la définition de `Scheduler`), `system.rs` (lu jusqu'à `Binding` et `System`), `data.rs`. **Le comportement de ce motif avec un type de Ressource portant un paramètre de durée de vie n'est pas vérifié** : c'est l'objet de G-LT.
+- **F11. Étape 4 (clos).** `Contribution { x: i32, y: i32, width: u32, height: u32, color: [u8; 4] }` (`Copy`, sans `Ord`, sans `Hash`) ; `Contributions<CAP>::{new, push -> Result<(), Full>, as_slice, len, is_empty, capacity, clear}` ; `Frame<CAP>::{empty, compose, as_slice, len, is_empty, capacity}`, `PartialEq` manuel par multi-ensemble. Les systèmes (`Clear`, `Compose`, `Witness`, producteurs) sont des systèmes **de test** recopiés dans `crates/shell/tests/frame_loop.rs`, non exportés. Politique de saturation du montage : `panic!` explicite sur `Err(Full)` (étape 4, § 3.2), borne vérifiée par `const _: () = assert!(MAX_PAR_TICK <= CAP)`.
+- **F12. Shell.** `run_loop(cadence: FnMut(), stop: FnMut() -> bool, inbox: &mut Inbox<Ev>, infrastructure: FnMut(&[Ev]) -> Result<(), E>) -> Result<u64, E>` ; le montage de l'étape 4 (`frame_loop.rs`, `examples/headless_frame.rs`) en est le modèle.
+- **F13. ADR-000.** Le noyau est `no_std` sans `alloc` ; la Plateforme (Shell, infrastructure de chargement) peut allouer. `verbum-assets` suit la règle du noyau (décision de l'étape 2, I10).
+
+**Règle R-ADAPT (adaptation de signature).** Seules sont admises, dans un test de l'étape 2, les modifications **purement mécaniques** imposées par la signature de `load` (A-3 i : `slot_count` remplacé par la table des formats ; `deposit` reçoit un `Asset`) ou par le champ `kind` d'`AssetSource` (U2) : remplacement de l'argument, ajout d'une branche de `match` sur la variante `Sprite`. **Toute modification d'une assertion, d'une valeur littérale attendue, du nom ou du motif d'un test est un arrêt G-CM.** Chaque adaptation est consignée au rapport (fichier, ligne, nature).
+
+### 3.2 Portes opérationnelles [Plan, plan §1.3, §4.5, §5]
+
+**G-CM — préservation des mécanismes.** Sont admises sans arrêt les validations propres aux nouveaux types **à l'intérieur** des niveaux 1 à 4 existants : contrôle de format du slot (niveau 2), fermeture et type des références (niveau 3), contrôles de longueur propres à un layout (niveau 3). Sont un **arrêt avec rapport** : création ou suppression d'un niveau, changement de leur ordre, dépôt avant la fin du niveau 3, modification de `VMAN` (constantes, layout, octets produits pour un ensemble donné), allocation dans le chargement, modification du modèle d'identité. Le rapport d'arrêt nomme la modification que la solution exigerait et la disposition touchée.
+
+**G-LT — durée de vie sur le véritable `World` et le véritable Scheduler.** Preuve effective, par compilation et exécution d'un montage réel (U1, puis reprise sur le type réel `Map<'a>` en U3). Le résultat est binaire :
+- **Passe** : un type de Ressource portant un paramètre de durée de vie **non `'static`**, dont les octets sont possédés par un tampon construit à l'exécution qui survit au `World`, est déposé dans un vrai `World`, lu par un vrai système sous un vrai `Scheduler::run_tick`, sans `unsafe` et **sans aucune modification** de `ecs` ni de `schedule`.
+- **Échec = arrêt** : le montage ne compile pas ou ne peut pas s'exécuter. La session rapporte le message exact du compilateur, le type ou l'`impl` en cause (`Binding`, `System`, `Scheduler`, borne de `World`), et **s'arrête sans contournement** : ni `'static`, ni fuite de mémoire, ni `unsafe`, ni changement de la propriété des octets, ni repli sur les options b, c ou d d'A-2.
+- **Un montage qui ne compile qu'avec `'static` n'est pas un succès** : il est rapporté tel quel comme échec du cas non `'static`.
+
+**G-ORD — indépendance de l'ordre.** Aucun test, exemple ou API de l'étape 5 n'affirme ni n'exige un ordre de `Frame::as_slice()` ni de l'émission. La scène de U5 est **disjointe par construction et par contrôle** (SC-2) et son verdict est invariant par permutation de l'ordre de déclaration des producteurs (SC-3). Si une exigence ne peut pas être énoncée sans ordre : arrêt, rapport, option O1 du plan §4.5 proposée ; aucune modification d'office.
+
+### 3.3 Layouts et sources [L] (champs exacts demandés par le plan § 6)
+
+Tous les entiers sont little-endian, lus champ à champ, sans cast. Préfixe commun à tous les formats (identique à celui de `VSPR`) : identité (4 octets) ∥ version `u16` = 1 ∥ longueur de charge utile `u32`. Le layout et l'API publique de `Sprite` sont **inchangés**. **Préfixe factorisé (plan §8, U1)** : une fonction interne de `crates/assets/src/header.rs`, partagée par tous les lecteurs, contrôle dans cet ordre la complétude du préfixe de 10 octets (`Truncated`), l'identité (`FormatIdentity`) et la version (`Version`), puis rend la longueur déclarée et les octets restants ; la suite des contrôles (longueur déclarée, longueur totale) reste dans le lecteur de chaque format.
+
+| Format | Identité | Charge utile | Longueur de charge utile |
+|---|---|---|---|
+| Tileset | `VTLS` | `tile_width u16`, `tile_height u16`, `columns u16`, `count u16` | 8 (fixe) |
+| Map | `VMAP` | `tileset u64` (`AssetId` du tileset référencé), `width u16`, `height u16`, puis `width × height` indices `u16` | `12 + 2·width·height` |
+| Font | `VFNT` | `glyph_count u16`, `line_height u16`, puis `glyph_count` enregistrements de 8 octets : `codepoint u32`, `width u16`, `advance u16` | `4 + 8·glyph_count` |
+
+**Ordre des contrôles d'un lecteur à charge fixe (tileset)** : celui de `Sprite::read` (F6), à l'identique.
+**Ordre des contrôles d'un lecteur à charge variable (map, font)** : (1) préfixe de 10 octets complet, sinon `Truncated` ; (2) identité ; (3) version ; (4) longueur déclarée inférieure à la partie fixe de la charge utile (12 pour la map, 4 pour la font) : `PayloadLength` ; (5) octets restants inférieurs à la longueur déclarée : `Truncated` ; supérieurs : `TrailingBytes` ; (6) longueur déduite des champs de l'en-tête de charge utile (calculée en `u64`, **jamais** de débordement ni de panique) différente de la longueur déclarée : `PayloadLength`. Aucune valeur n'est validée sémantiquement (zéros, indices quelconques, codepoints quelconques : conformes si la longueur l'est ; I2, cf. P1.6).
+
+**Vues (A-2 option a)** : `Map<'a>` et `Font<'a>` portent les champs d'en-tête décodés et une tranche `&'a [u8]` de la charge utile ; les accès (`tile`, `glyph`) décodent à la demande par `from_le_bytes` et rendent `None` hors bornes ; aucun accès ne lit au-delà de la charge utile validée. `Sprite` et `Tileset` sont des valeurs `Copy`.
+
+**Types publics du chargement [L]** : `Format` (`Sprite`, puis `Tileset`, `Map`, `Font` au fil des unités), `Asset<'a>` (une variante par format), `LoadError` étendu de `SlotFormat { slot: SlotIndex }` (U2) et `Reference { index: ArtifactIndex, error: ReferenceError }` (U3), `ReferenceError` ∈ {`Unresolved`, `WrongFormat`}. Nouvelle signature (A-3 i) :
+`load<'a>(manifest: &[u8], artifacts: &[&'a [u8]], slot_formats: &[Format], deposit: impl FnMut(SlotIndex, Asset<'a>)) -> Result<(), LoadError>` ; la capacité est `slot_formats.len()`.
+
+**Sources de la Forge [L]** (TOML, un par type ; validation sémantique par la Forge seule, I2) :
+- `kind` n'est **pas** un champ TOML : `AssetSource` reçoit un champ `kind: AssetKind` (`Sprite`, `Tileset`, `Map`, `Font`) (E-4).
+- Tileset : `tile_width`, `tile_height`, `columns`, `count`, entiers dans `1..=65535` ; `columns <= count`.
+- Map : `tileset` (chaîne : **clé logique** d'une entrée de même lot et de genre `Tileset`, jamais écrite dans la sortie), `width`, `height` dans `1..=65535`, `cells` (tableau de `width × height` entiers dans `0..=65535`, chacun **strictement inférieur** au `count` du tileset référencé) ; `12 + 2·width·height` doit tenir dans un `u32`.
+- Font : `line_height` dans `1..=65535` ; `[[glyph]]` (au moins un, au plus 65535) avec `codepoint` (scalaire Unicode valide, strictement croissant), `width` dans `0..=65535`, `advance` dans `1..=65535`.
+- Erreurs de lot supplémentaires (provisoires) : référence à une clé absente du lot, référence à une entrée d'un autre genre (y compris à soi-même), indice de case hors du `count` du tileset, taille de charge utile excédant `u32`. Le champ `tileset` de la map est résolu en `AssetId` par le **même** calcul de hachage que celui des clés d'entrée (y compris le calculateur injectable de test). Le tableau d'octets produit ne dépend pas de l'ordre d'entrée sauf par les `artifact_index` du manifeste.
+
+## 4. Unités
+
+### U1 — Généralisation du chargement et preuve G-LT (sprite seul)
+
+**Objectif [Plan §8].** Généraliser `load` selon A-3 i (table de formats par slot, `deposit` recevant un `Asset`), **sans nouveau type d'asset**, établir G-LT sur le véritable `World` et le véritable Scheduler, et prouver la non-régression complète de l'étape 2.
+
+**Fichiers** [Exécution] : `crates/assets/src/lib.rs`, `load.rs`, `sprite.rs` (modifiés ; `sprite.rs` : **adaptation interne seulement**, appel du préfixe partagé, API publique, constantes et layout inchangés) ; `crates/assets/src/format.rs` (créé : `Format`, `Asset`, identification du format par l'identité) ; `crates/assets/src/header.rs` (créé : préfixe commun partagé) ; adaptation des appelants de `load` (**liste exhaustive établie par recherche au démarrage et rapportée** ; a priori `load.rs` (tests `l1` à `l5`) et `crates/forge/tests/pipeline.rs` (`t6_*`)) ; `crates/shell/tests/borrowed_resource.rs` (créé : tests d'exécution positifs) ; `crates/shell/src/lib.rs` (**documentation `//!` seulement**, E-9 : doctests LT-3 et LT-3t). Aucun autre fichier. `manifest.rs` : **inchangé**. Le préfixe commun **est factorisé**, conformément au plan (E-8).
+
+**Contenu.**
+1. `Format::Sprite` et `Asset::Sprite(Sprite)` seuls ; **dispatch par identité (E-10)** : le format d'un artefact est celui que désigne son identité lorsque son préfixe de 10 octets est complet et son identité connue, sinon le format attendu par la table pour son slot ; **un seul décodeur** `décoder(format, octets)` sert aux niveaux 3 et 4 (aucun second mécanisme) ; la capacité est `slot_formats.len()`.
+1bis. **Préfixe commun** : `Sprite::read` appelle la fonction partagée de `header.rs` (§ 3.3) ; ses constantes publiques, sa signature, l'ordre de ses contrôles et leurs résultats sont inchangés ; **aucune assertion de `p1_1` à `p1_6` n'est modifiée**.
+2. **Niveau 2** : `check_bindings(artifacts.len(), slot_formats.len())` inchangé ; **puis** contrôle du format du slot (règle E-2 : seule une identité **connue** différente du format attendu du slot est rejetée par `SlotFormat`, et seulement si le préfixe de 10 octets de l'artefact est complet ; une identité inconnue ou un préfixe incomplet est laissé au niveau 3, qui rend l'erreur de l'étape 2). **Ce contrôle est livré en U1** (E-3) ; avec un seul format connu il ne peut pas encore rejeter : **son test de rejet (SF-1) et sa mutation (M-2.1) sont repris en U2** (E-3).
+3. Niveaux 1, 3 et 4 : mêmes contrôles, même ordre, même atomicité.
+4. G-LT : montage décrit ci-dessous.
+
+**Montage G-LT [Exécution].** Fichier `crates/shell/tests/borrowed_resource.rs`, dépendances de développement existantes (`verbum-ecs`, `verbum-schedule`) : aucune modification de `Cargo.toml`. Type de vue **synthétique et générique** (une tranche d'octets empruntée plus un entier ; aucun vocabulaire d'asset) ; `World<_, (), Rs<'a>>` où `Rs<'a>` contient un `ResourceSlot` de la vue et un `ResourceSlot` de sortie, `Rs<'a>: Default` ; un `Binding` paramétré par `'a` ; un système réel déclarant sa lecture par `Read` et sa production par `Produce` ; `Scheduler` réel et `run_tick` réel. **Exécution effective par Cargo** : les doctests ne sont traités par `cargo test` que pour la **cible bibliothèque** ; LT-3 et LT-3t vivent donc dans la documentation de la bibliothèque `verbum-shell` (E-9), où les dev-dependencies (`verbum-ecs`, `verbum-schedule`) sont disponibles, et **non** dans `tests/borrowed_resource.rs`. Ce dernier ne porte que les tests d'exécution positifs LT-1, LT-2, LT-4. Le montage des deux doctests peut masquer son code d'amorce par des lignes `# ` ; il construit un véritable `World`, jamais une explication ni un type synthétique sans `World`. Le tampon d'octets est **construit à l'exécution** (par exemple un `Vec<u8>` issu d'une fonction non `const`), déclaré **avant** le `World`, jamais un littéral promu en `'static`.
+
+| Test | Établit |
+|---|---|
+| LT-1 | Le montage compile et `run_tick` s'exécute *N* fois ; la production du système égale un littéral calculé à la main sur les octets du tampon |
+| LT-2 | Les octets lus par le système sont ceux du tampon emprunté (modifier le littéral du tampon change la sortie) : le système lit bien la vue, non une copie constante |
+| LT-3 | **Doctest `compile_fail`** (sans code d'erreur) **dans la documentation `//!` de `crates/shell/src/lib.rs`** (E-9) : le même montage réel que LT-1 (véritable `World` à Ressource empruntant le tampon, véritable `Binding`, système et `Scheduler`) ; le tampon est **détruit** (`drop`) après le dépôt de la vue, puis `run_tick` est appelé ou la Ressource est lue : rejeté par le compilateur |
+| LT-3t | **Doctest jumeau valide**, même fichier de documentation, **identique à LT-3 à une ligne près** (la ligne `drop`, absente) : le tampon survit, le doctest compile et s'exécute. Prouve que le rejet de LT-3 vient bien de la durée de vie et non d'une autre erreur |
+| LT-4 | Variante `'static` : compile (information) ; **ne vaut pas succès de G-LT** (§ 3.2) |
+
+**Tests de `load` (U1).** (a) Non-régression : tous les tests de F8, adaptés par R-ADAPT, passent, assertions inchangées. (b) **SF-2** : un artefact dont l'identité n'est celle d'aucun format connu (par exemple le texte d'un `sprite.toml` de longueur suffisante), lié à un slot `Sprite`, donne `LoadError::Artifact { error: ReadError::FormatIdentity, .. }`, aucun dépôt. (c) **TB-1** : la longueur de la table fait la capacité (une table de longueur 1 pour 2 entrées → `Binding(CapacityExceeded)`). (d) **LD-1** : le `deposit` reçoit `Asset::Sprite` avec les valeurs de `l1`, et les octets du `Sprite` déposé ne dépendent pas de la vue.
+
+**Rouge.** SF-2, TB-1, LD-1 contre squelette de la nouvelle signature ; LT-* : « sans rouge possible » (échec de compilation = résultat de G-LT, pas un rouge). Non-régression : **sans rouge** (tests existants).
+
+**Mutations (copies isolées).**
+- **M-1.1** : le niveau 3 est supprimé (aucun décodage avant le dépôt) → détecté par `l3_*` et `t6_4` (rejet après dépôt). 
+- **M-1.2** : `deposit` appelé pendant la boucle du niveau 3 → détecté par `l3_*`, `t6_4` (compteur de dépôts non nul).
+- **M-1.3** : la capacité est ignorée (`slot_formats.len()` remplacé par `usize::MAX`) → détecté par `TB-1` et `t6_4` (`CapacityExceeded`).
+- **M-1.4** : **retirée** (mutation équivalente en U1 : avec un seul format connu, aucun test ne peut distinguer le choix du lecteur) ; remplacée par M-2.1 reformulée en U2.
+- **M-1.5** : dans LT-3, suppression de la ligne `drop` (le cas invalide devient valide) → **LT-3 échoue** (« should have failed to compile »), détection par échec du doctest, non par échec de compilation du dépôt.
+- **M-1.6** : dans LT-3t, ajout de la ligne `drop` (le jumeau devient invalide) → **LT-3t échoue** (échec de compilation du doctest : c'est la détection attendue pour un doctest qui doit compiler, rapportée comme telle).
+- **M-1.7** : la fonction partagée omet le contrôle de version → `p1_4` (non-régression de l'étape 2, assertion inchangée).
+- **M-1.8** : la fonction partagée accepte un préfixe de 9 octets (seuil de complétude décalé) → `p1_2` et `l3_*`/`t6_4` (troncatures).
+
+**Contrôles.** Les quatre contrôles du § 1.4 ; `cargo tree -p verbum-assets` : aucune dépendance (**par l'utilisateur**) ; **Miri par l'utilisateur** sur `verbum-assets` et sur `crates/shell/tests/borrowed_resource.rs` (aucun `unsafe` dans le code de la session ; contrôle de non-régression de l'étape 2) ; **LT-3 et LT-3t effectivement exécutés** : `cargo test -p verbum-shell --doc` (par l'utilisateur) liste les deux doctests de `crates/shell/src/lib.rs` ; leurs lignes de résultat réelles figurent au rapport ; revue : diff de `crates/shell/src/lib.rs` limité à des lignes `//!` ; diff de `manifest.rs` vide ; diff de `sprite.rs` limité à l'appel du préfixe partagé (aucune modification de l'API publique, des constantes, du layout ni des tests `p1_*`) ; `git diff --stat` ne touche aucun crate interdit (§ 2) ; chargement sans allocation : **le même contrôle qu'à l'étape 2** (à relire dans `02-verbum-forge.md` §5.4 et `02-verbum-forge-execution.md` au démarrage de l'unité ; non rejoué de mémoire).
+
+**Portes.** G-LT : voir § 3.2 ; son échec arrête l'étape. G-CM : toute modification d'assertion d'un test de F8 arrête l'unité.
+
+### U2 — Tileset (charge fixe)
+
+**Fichiers** [Exécution] : `crates/assets/src/tileset.rs` (créé), `format.rs`, `load.rs`, `lib.rs` (modifiés) ; `crates/forge/src/tileset.rs` (créé), `batch.rs`, `sprite.rs` (pour `ForgeError`), `lib.rs` (modifiés : `AssetKind`, champ `kind`, aiguillage) ; `crates/forge/tests/pipeline.rs` (adaptation R-ADAPT du champ `kind` et extension). `Cargo.toml` : aucun changement.
+
+**Tests (batterie commune, plan § 7.1).**
+
+| Famille | Tests |
+|---|---|
+| Lecteur (`assets`) | TLS-R1 artefact littéral écrit à la main (valeurs distinctes par champ) ; TLS-R2 chaque préfixe tronqué rejeté (`Truncated`) ; TLS-R3 identité altérée octet par octet (`FormatIdentity`) ; TLS-R4 versions inconnues (`Version`) ; TLS-R5 longueur de charge utile erronée et surplus (`PayloadLength`, `TrailingBytes`) ; TLS-R6 valeurs limites (zéros, `0xFFFF`) conformes et acceptées |
+| Forge | TLS-F1 une source valide produit exactement les octets littéraux ; TLS-F2 la sortie est relue par le lecteur runtime ; TLS-F3 refus : champ manquant, zéro, hors `u16`, mauvais type, champ inconnu, TOML invalide, `columns > count` ; TLS-F4 déterminisme (mêmes sources, mêmes octets) ; TLS-F5 la sortie ne contient aucune chaîne |
+| Chaîne | TS-1 lot `{sprite, tileset}` → manifeste et artefacts → `load` avec table `[Sprite, Tileset]` → deux `ResourceSlot` typés dans un `World` d'essai (accès par accesseurs statiques, F1 de l'étape 2) ; TS-2 identifiants résolus vers le bon artefact et le bon slot ; TS-3 ordre de compilation inversé : mêmes résultats, indices d'artefact permutés ; TS-4 chaque rejet (manifeste, liaisons, **format du slot**, artefact) survient **avant le premier dépôt** ; TS-5 un TOML de source passé comme manifeste est rejeté ; TS-6 capacité supérieure au nombre d'assets : les autres slots restent vides |
+| Format du slot | **SF-1** un artefact `Sprite` lié à un slot `Tileset`, et réciproquement, **dans un lot où `artifact_index ≠ slot_index`** → `LoadError::SlotFormat { slot }`, aucun dépôt ; **SF-3** priorité : une erreur de liaison (`check_bindings`) l'emporte sur `SlotFormat` ; **SF-4** une identité inconnue reste `Artifact { FormatIdentity }` (reprise de SF-2 sur deux formats) ; **SF-5** un artefact dont le préfixe est incomplet (moins de 10 octets) mais portant l'identité d'un **autre format connu** donne `Artifact { Truncated }` (chemin de l'étape 2), non `SlotFormat` |
+
+**Mutations.**
+- **M-2.1** : la table des formats est indexée par l'`artifact_index` au lieu du `slot_index` → SF-1 (lot où `artifact_index ≠ slot_index` pour l'entrée en cause) ; **reprend M-1.4** (E-3).
+- **M-2.2** : le contrôle de format du slot est supprimé → SF-1 ; SF-4 doit rester vert.
+- **M-2.3** : le contrôle de format du slot est déplacé après le niveau 3 et rejette aussi les identités inconnues → SF-2 et SF-4 (la sortie `FormatIdentity` de l'étape 2 est préservée).
+- **M-2.4** : inversion de l'endianness d'un champ du tileset → TLS-R1 et TLS-F1.
+- **M-2.5** : le contrôle de longueur du tileset est supprimé (surplus accepté) → TLS-R5.
+- **M-2.6** : la Forge permute `columns` et `count` à l'écriture → TLS-F1 et TLS-F2.
+- **M-2.7** : le contrôle de niveau 2 lit l'identité sur les 4 premiers octets sans exiger le préfixe complet → SF-5.
+
+**Contrôles.** Les quatre ; `cargo tree -p verbum-assets` (vide) ; `cargo tree -i toml --workspace` : seul `verbum-forge` ; revue : `manifest.rs` inchangé ; `sprite.rs` (assets) inchangé depuis U1.
+
+### U3 — Map (charge variable et référence au tileset)
+
+**Fichiers** [Exécution] : `crates/assets/src/map.rs` (créé), `format.rs`, `load.rs`, `lib.rs` (modifiés : `Format::Map`, `Asset::Map`, `LoadError::Reference`, `ReferenceError`) ; `crates/forge/src/map.rs` (créé), `batch.rs`, `lib.rs` (aiguillage, résolution et validation inter-assets en deux temps : analyse de chaque source, puis résolution des références et validation croisée, puis encodage) ; `crates/forge/tests/pipeline.rs` (extension). `crates/shell/tests/borrowed_resource.rs` (extension : LT-5) ; `crates/shell/src/lib.rs` (**documentation `//!` seulement**, E-9 : LT-5n et LT-5t) ; `crates/shell/Cargo.toml` (`[dev-dependencies]` : ajout de `verbum-assets`) ; `Cargo.toml` racine (`[workspace.dependencies]` : ajout de `verbum-assets`, E-6).
+
+**Résolution des références (A-4 R1) [Exécution].** Au niveau 3, pour chaque artefact `Map` : lecture pure de l'identifiant du tileset dans la charge utile ; `Manifest::find` ; contrôle que l'entrée trouvée existe (sinon `Reference { Unresolved }`) et que le **format attendu du slot de cette entrée** est `Tileset` (sinon `Reference { WrongFormat }`) ; la valeur déposée porte le `SlotIndex` du référent. **Aucune référence n'est suivie au runtime.** Le niveau 4 refait la même résolution (fonction pure ; seconde exécution impossible à faire échouer). Aucune allocation, aucun nouveau niveau, aucune modification de `VMAN`.
+
+**Tests.**
+
+| Famille | Tests |
+|---|---|
+| Lecteur | MAP-R1 artefact littéral à la main (carte 3×2, identifiant de tileset distinct) ; MAP-R2 chaque préfixe tronqué ; MAP-R3 identité altérée par octet ; MAP-R4 versions inconnues ; MAP-R5 longueur déclarée inférieure à 12, longueur déclarée ≠ octets restants (`Truncated` / `TrailingBytes`), puis déclarée ≠ déduite des champs (`PayloadLength`) ; MAP-R6 carte de 0×0 case (charge utile de 12 octets) conforme si la longueur l'est, charge utile de longueur nulle rejetée ; **MAP-R7** `width = height = 0xFFFF` avec peu d'octets : rejet sans panique ni débordement ; **MAP-R8** accès par vue : valeurs égales au littéral, `None` hors bornes, jamais de lecture au-delà de la charge utile (dernier indice accessible, premier inaccessible) |
+| Forge | MAP-F1 source valide → octets littéraux ; MAP-F2 relue par le lecteur runtime (l'identifiant écrit est celui de la clé du tileset) ; MAP-F3 refus : champ manquant, zéro, hors `u16`, `cells` de mauvaise longueur, mauvais type, champ inconnu, TOML invalide ; MAP-F4 **référence** : clé absente du lot, référent d'un autre genre, auto-référence, indice de case ≥ `count` ; MAP-F5 déterminisme et **invariance par permutation de l'entrée** (seuls les `artifact_index` changent, jamais l'identifiant de référence ni les octets des artefacts) ; MAP-F6 aucune chaîne dans la sortie (la clé du tileset n'y figure pas) |
+| Références (`load`) | **RF-1** référent absent du manifeste → `Reference { Unresolved }`, **compteur de dépôts nul** ; **RF-2** référent d'un autre format (une map référant une map, un sprite, une font) → `Reference { WrongFormat }`, compteur nul ; **RF-3** auto-référence → `WrongFormat`, compteur nul ; **RF-4** référence valide → la map déposée porte le `SlotIndex` attendu ; **RF-5** ce `SlotIndex` est celui du **slot** et non de l'**artefact** (ensemble où `artifact_index ≠ slot_index` pour le référent) ; **RF-6** une référence invalide d'une map placée **après** des artefacts valides ne laisse aucun dépôt (tout-ou-rien) |
+| Mécanisme (A-4, plan §7.2) | **VM-1** `VMAN` inchangé : constantes de layout et octets du manifeste du lot de référence de l'étape 2 (`f2`) identiques (opérationnalisation de « mêmes octets de manifeste pour un même ensemble » du plan §7.2 : `f2` est la seule référence d'octets de manifeste existante), longueur `10 + 16·n` pour un lot mixte ; **AL-1** l'échec de résolution n'introduit aucune allocation : constaté par construction (`verbum-assets` `no_std` sans `alloc` et sans dépendance : `cargo tree -p verbum-assets` vide, revue des fichiers créés) et par le contrôle d'absence d'allocation de l'étape 2 repris tel quel |
+| Chaîne | MS-1 lot `{sprite, tileset, map}` sur disque simulé → `load` → trois `ResourceSlot` typés ; MS-2 à MS-6 : analogues de TS-2 à TS-6 sur le lot ; MS-7 rejet avant dépôt pour **chaque** niveau, y compris référence |
+| G-LT sur type réel | **LT-5** (`borrowed_resource.rs`) : même montage que LT-1 et LT-2 avec le `Map<'a>` réel, tampon `Vec<u8>` construit à l'exécution à partir des octets littéraux de MAP-R1 (sans Forge), survivant au `World` ; **LT-5n** (doctest `compile_fail`, documentation de `crates/shell/src/lib.rs`) : même montage, tampon détruit avant l'usage ; **LT-5t** (doctest jumeau valide, identique à une ligne près) |
+
+**Mutations.**
+- **M-3.1** : la fermeture de référence est supprimée → RF-1.
+- **M-3.2** : le format du référent n'est pas contrôlé → RF-2 et RF-3.
+- **M-3.3** : le `SlotIndex` déposé est l'`artifact_index` du référent → RF-5 (RF-4 peut rester vert : c'est pourquoi RF-5 existe).
+- **M-3.4** : le niveau 3 résout, le niveau 4 ne résout pas (valeur déposée mise à `SlotIndex::new(0)`) → RF-4, RF-5.
+- **M-3.5** : la longueur déduite est calculée en `u32` (débordement) → MAP-R7.
+- **M-3.6** : le contrôle de longueur déduite de la map est supprimé → MAP-R5.
+- **M-3.7** : l'accès par vue autorise l'indice `len` (décalage d'un) → MAP-R8.
+- **M-3.8** : la Forge écrit l'`artifact_index` du tileset au lieu de son `AssetId` → MAP-F5 (permutation) et MAP-F2.
+- **M-3.9** : la Forge écrit l'`AssetId` en big-endian → MAP-F1 et MAP-F2.
+- **M-3.10** : la Forge ne valide pas `cell < count` → MAP-F4.
+- **M-3.11** : le niveau 3 abandonne la résolution (pas de contrôle de référence mais dépôt) et `deposit` est appelé dès le niveau 3 → RF-6 et MS-7.
+
+**Contrôles.** Les quatre ; arbres `cargo tree` (verbum-assets vide ; `toml` ← forge seul) ; VM-1 ; revue : constantes `MANIFEST_*` inchangées.
+
+**Portes.** G-CM : si la résolution exige de sortir des limites du § 3.2 → arrêt. G-LT sur le type réel : LT-5 ; un échec arrête l'étape sans contournement.
+
+### U4 — Font (charge variable, sans référence)
+
+**Fichiers** [Exécution] : `crates/assets/src/font.rs` (créé), `format.rs`, `load.rs`, `lib.rs` ; `crates/forge/src/font.rs` (créé), `batch.rs`, `lib.rs` ; `crates/forge/tests/pipeline.rs` (extension).
+
+**Tests.** FNT-R1 à FNT-R8 : analogues de MAP-R1 à MAP-R8 (charge `4 + 8·n`, enregistrements de 8 octets, 0 glyphe conforme (charge utile de 4 octets), charge utile de longueur nulle rejetée, débordement de `8·glyph_count`, accès `glyph(i)` borné) ; FNT-F1 à FNT-F6 : analogues de MAP-F1 à MAP-F3, MAP-F5 et MAP-F6, plus refus de codepoint non scalaire, non strictement croissant, `advance` nul, tableau `glyph` vide ; FS-1 lot `{sprite, tileset, map, font}` complet → `load` → quatre `ResourceSlot` typés ; FS-2 à FS-6 : analogues de TS-2 à TS-6 sur le lot ; FS-7 **format du slot** étendu aux quatre formats (chaque paire non diagonale rejetée par `SlotFormat`, avant dépôt) ; FS-8 le lot compte **plusieurs** assets de même format (deux tilesets, deux maps référant chacune le sien) : chaque map reçoit le `SlotIndex` de son tileset (RF-5 généralisé).
+
+**Mutations.** M-4.1 (longueur déduite en `u32`) → FNT-R7 ; M-4.2 (taille d'enregistrement 7 au lieu de 8 dans la déduction) → FNT-R5 et FNT-R1 ; M-4.3 (accès `glyph(len)` permis) → FNT-R8 ; M-4.4 (Forge n'impose pas la croissance des codepoints) → FNT-F3 ; M-4.5 (champ `advance` écrit à la place de `width`) → FNT-F1 ; M-4.6 (`Format::Font` absent de la matrice de `SlotFormat`) → FS-7.
+
+**Contrôles.** Les quatre ; arbres `cargo tree`.
+
+### U5 — Niveau chargé et affiché, contrôles de clôture
+
+**Fichiers** [Exécution] : `crates/shell/tests/level_loaded.rs` et `crates/shell/examples/level_headless.rs` (créés) ; `crates/shell/Cargo.toml` (`[dev-dependencies]` : ajout de `verbum-forge` ; `verbum-assets` est déjà ajouté en U3) ; `Cargo.toml` racine (`[workspace.dependencies]` : ajout de `verbum-forge` ; `verbum-assets` est déjà ajouté en U3, au motif `{ path = "crates/…", version = "0.1.0" }` ; **la dépendance par `path` direct de `verbum-forge` vers `verbum-assets` reste inchangée**) ; `Cargo.lock` (par Cargo seulement). Voir E-1 pour la lecture de l'audit I9.
+
+**Scène [Exécution].** Chaîne : sources TOML (littéraux du test) → `compile_assets` → `CompiledSet` → `load` (table `[Sprite, Tileset, Map, Font]`, un `ResourceSlot` par asset, bindings statiques) → *N* itérations de `run_loop` → `run_tick` → `Frame` → fermeture de présentation `FnMut(&Frame)` (Backend headless, montage de test comme à l'étape 4). Le `CompiledSet` est déclaré **avant** le `World` : les vues du `World` empruntent ses octets (forme réelle de G-LT).
+Systèmes (copiés du motif de l'étape 4 pour `Clear`, `Compose`, `Witness`) : phase 0 `Clear` ; phase 1 trois producteurs (tuiles, sprite, texte) qui lisent les Ressources et émettent des `Contribution`, `Compose`, `Witness`. **Règle de dérivation synthétique, propre au test et hors de tout format d'artefact** : tuile `(cx, cy)` d'indice `t` → rectangle de taille `tile_width × tile_height` en `(cx·tile_width, cy·tile_height)`, couleur fonction affine de `t` ; sprite → un rectangle de ses dimensions, à une position constante sous la grille ; texte → un rectangle par glyphe, de largeur `width`, de hauteur `line_height`, placé à l'abscisse cumulée des `advance` précédents, sur une ligne distincte. Le producteur de tuiles vérifie que `map.tileset()` est le `SlotIndex` du slot du tileset qu'il lit. Constantes : `CAP` supérieure ou égale au nombre de contributions du scénario, `const _: () = assert!(MAX_PAR_TICK <= CAP)`, politique de saturation = `panic!` (étape 4, § 3.2). **Aucun nom de partie, de couche ou de jeu** : les clés logiques et les noms de systèmes sont génériques.
+
+| Test | Établit |
+|---|---|
+| SC-1 | Sur *N* ticks, le Backend reçoit *N* `Frame`, chacune **égale en multi-ensemble** à `EXPECTED`, tableau littéral **calculé à la main** à partir des valeurs des sources TOML, indépendamment du code testé ; multiplicité conservée |
+| SC-2 (G-ORD) | Les contributions de `EXPECTED`, et celles de chaque `Frame` reçue, sont **deux à deux disjointes** (fonction de test locale) : le résultat visuel ne dépend d'aucun ordre d'empilement |
+| SC-3 (G-ORD) | Deux assemblages dont **l'ordre de déclaration des trois producteurs est inversé** produisent des `Frame` égales en multi-ensemble ; aucun test n'affirme l'ordre de `as_slice()` |
+| SC-4 | Avant le premier tick : exactement quatre dépôts ; chaque Ressource égale aux littéraux ; `map.tileset()` égal au `SlotIndex` du slot du tileset (identifiant résolu avant le hot path) |
+| SC-5 | Un artefact corrompu dans le lot (troncature, puis format de slot erroné, puis référence invalide) : `load` échoue, **aucun tick, aucune présentation** (compteur du Backend nul) |
+| SC-6 | Séquence tick → présentation sur le journal d'événements de la Plateforme (comme RA-1) et signature `FnMut(&Frame)` sans retour (comme RA-2) : **tests de l'étape 4 inchangés** ; `crates/render/**` sans diff |
+
+**Mutations.**
+- **M-5.1** : le sprite est décalé sur la grille (recouvrement) → SC-2 (et SC-1).
+- **M-5.2** : la Forge résout la référence de la map vers le mauvais tileset (deux tilesets de tailles de tuile distinctes dans le lot de SC-1 pour rendre la mutation visible) → SC-1.
+- **M-5.3** : les largeurs et hauteurs de tuile sont permutées dans le producteur → SC-1.
+- **M-5.4** : le producteur de texte ignore `advance` → SC-1.
+- **CI-5 (contrôle d'invariance, famille « tri ou ordre introduit dans la scène (doit rester sans effet) », plan §7.4)** : sur copie isolée, deux variantes introduisent un ordre dans la chaîne de composition de la scène : (a) le composeur copié trie les contributions par une clé locale ; (b) il inverse l'ordre d'émission. **Résultat attendu : SC-1 à SC-6 restent tous verts** ; la session le constate et le rapporte (ce n'est pas une mutation détectée mais une preuve d'indépendance à l'ordre). Un échec d'un test sous (a) ou (b) prouve une dépendance à l'ordre : arrêt G-ORD. Complément de revue : aucune comparaison de séquence de `as_slice()` dans les fichiers de U5 (recherche textuelle rapportée).
+
+**Contrôles de clôture (par l'utilisateur, dépôt réel).** `cargo fmt --all -- --check` ; `cargo build --workspace` ; `cargo test --workspace` (doctests compris) ; `cargo clippy --workspace --all-targets -- -D warnings` ; `cargo tree -p verbum-assets` (aucune dépendance) ; `cargo tree -p verbum-forge` (dépendances : `verbum-assets`, `toml` ; dev : `verbum-ecs`) ; `cargo tree -i toml --workspace` (seul `verbum-forge`) ; `cargo tree -i verbum-forge --workspace -e normal` (aucun dépendant) ; Miri : `cargo +nightly miri test -p verbum-assets` et `-p verbum-forge` et `-p verbum-shell` (commande exacte à confirmer avec le dispositif de l'utilisateur) ; MSRV en **deux commandes** : `cargo +1.85.0 build --workspace`, puis `cargo +1.85.0 test --workspace` ; diff : `crates/render/**`, `crates/ecs/**`, `crates/schedule/**`, `crates/verbum/**` vides ; liste des adaptations R-ADAPT consignées et assertions des tests de F8 inchangées.
+
+## 5. Rapport de fin d'unité (gabarit, rien de narratif)
+1. Unité, état (livrée, en attente de validation). 2. Fichiers créés, modifiés (chemins complets) et fichiers livrés par `SendUserFile`. 3. Rouge : test, motif d'échec observé (ou « sans rouge possible », motif). 4. Résultats des contrôles : lignes réelles, **espace de travail de la session** et **dépôt réel** séparés ; contrôles non exécutés nommés. 5. Mutations : mutation, test qui la détecte, autres assertions qui échouent. 6. Portes : G-CM (aucun arrêt, ou arrêt rapporté), G-LT (résultat binaire, message du compilateur le cas échéant), G-ORD ; liste R-ADAPT. 7. Garanties statiques / revue / non démontré (§ 7). 8. Écarts constatés avec le plan ou ce document (§ 6).
+
+## 6. Arrêt, reprise
+**Arrêt immédiat, rapport à l'utilisateur, aucun contournement** : un fait [Vérifié] qui diverge ; une mutation non détectée ; une contradiction entre ce document et le plan ; un besoin de modifier un fichier interdit (§ 2), un crate du noyau, le Scheduler ou le Renderer ; un besoin d'`unsafe`, d'allocation, d'un trait public de chargement, d'un ordre, d'une clé ; **un échec de G-LT** ; **une situation de G-CM** ; une exigence de la scène qui ne peut s'énoncer sans ordre (**G-ORD**) ; une modification d'assertion d'un test de F8 ; un test hors liste ; une mutation qui fait échouer d'autres assertions que celles annoncées sans explication ; un code d'erreur de compilation épinglé. À l'arrêt : état exact (fichiers, derniers résultats réels), cause, options minimales, aucune modification d'office. **Reprise** : seulement sur instruction explicite.
+
+## 7. Non démontré à la clôture (à reproduire tel quel au rapport de U5)
+- **Contenu raster et chemin vers un Backend graphique** (A-1) : hors périmètre ; les assets sont structurels ; « affiché » = circulation des contributions jusqu'au Backend headless.
+- **Règle d'ordre d'empilement** (D-ord-1 à D-ord-3, Q8) : point ouvert **avant tout Backend graphique ou toute scène qui en dépend** ; la scène de l'étape 5 est disjointe et indépendante de l'ordre (G-ORD) ; aucune clé, aucun tri.
+- **Streaming et déchargement** d'assets (ADR-A01) ; performances sur assets de taille réaliste.
+- **Cohérence métier au-delà de ce que la Forge valide** ; la règle de dérivation de la scène (indice → couleur, placement du sprite et du texte) est **synthétique** et ne préjuge d'aucune sémantique d'asset.
+- **Propriété des octets d'artefact** : possédés par l'infrastructure de chargement (ici le test) et survivant au `World` ; **non imposée par les types du `World`** : garantie du compilateur (durée de vie), non d'une API.
+- **Absence d'allocation** de `load` : structurelle (`no_std` sans `alloc`, `[dependencies]` vide) et par le contrôle de l'étape 2 ; limite de preuve d'ADR-000 (blocs `unsafe`, appels externes) inchangée.
+- **Unicité des identifiants de format** (`VSPR`, `VTLS`, `VMAP`, `VFNT`) : choix locaux, non invariants.
+
+## 8. Clôture de l'étape (U5)
+L'utilisateur déclare l'étape close ; la session ne la déclare pas. Critères : plan § 14 (1 à 7). Aucun travail de l'étape 6 n'est entrepris.
+
+## 9. Écarts entre le plan et ce document (à valider avec lui)
+
+**E-1 — Lieu de l'assemblage de U5 et lecture de l'audit I9 — RÉSOLU (O-a).**
+- *Constat* [Vérifié, F2] : le plan §7.3 place l'exemple et le test d'acceptation dans `crates/shell/`. Cela impose à `verbum-shell` une dev-dependency sur `verbum-forge`. L'audit de l'étape 2 (« aucun crate runtime ne dépend de la Forge », I9) devient `cargo tree -i verbum-forge --workspace -e normal` (arêtes normales) : la dev-dependency n'est pas une dépendance du binaire ni de la bibliothèque. `cargo tree -i verbum-forge --workspace` **sans** `-e normal` listerait désormais `verbum-shell`.
+- *Retenu* : option O-a (conforme au plan), audit lu en arêtes normales, dev-dependency explicitement documentée au rapport de U5.
+- *Alternative O-b* : placer l'assemblage dans `crates/forge/tests/` (dev-dependencies de `verbum-forge` sur `verbum-shell`, `verbum-schedule`, `verbum-render`), sans arête vers `verbum-forge` ; écarte tout doute sur I9 mais s'écarte du plan §13 et inverse la lecture « Shell pilote ». **RÉSOLU (décision de l'utilisateur, 29 octobre 2026) : O-a retenue.**
+
+**E-2 — Contrôle du format du slot : règle de précédence.** Le plan place le contrôle au niveau 2 avec une classe d'erreur propre. Pour que les rejets de l'étape 2 gardent leur résultat à l'identique (`Artifact { FormatIdentity }` pour une identité altérée, `Truncated` pour un préfixe incomplet), le contrôle de niveau 2 ne rejette que l'identité **d'un autre format connu** que celui du slot, et seulement si le préfixe de 10 octets est complet ; une identité inconnue et un préfixe incomplet restent au niveau 3. **SF-3** (priorité de `check_bindings` sur `SlotFormat`) et **SF-5** (préfixe incomplet) sont les vérifications opérationnelles de cette précédence, non des tests de conception nouveaux. Dispatch : voir E-10.
+
+**E-3 — SF-1 livré en U2 — ACCEPTÉ (29 octobre 2026) ; justification à reproduire au rapport et au handoff.** Le plan §7.2 range le test de format du slot en U1 ; il n'existe qu'un format en U1, donc aucun artefact « d'un autre type connu » ne peut être construit. La table et le contrôle sont livrés en U1 ; leur test de rejet (SF-1) et la mutation M-2.1 (M-1.4 est retirée) sont repris en U2. SF-2 et TB-1 sont en U1.
+
+**E-4 — Champ `kind` d'`AssetSource`.** Le plan §5 (A-3) laissait ouvert [L] « champ explicite ou discriminant dans le TOML ». Retenu : champ `AssetKind` d'`AssetSource` (aucun changement de la grammaire des sources de sprite ; le test `p2_3` « champ inconnu refusé » reste valable). Les littéraux `AssetSource { key, toml, slot }` des tests de l'étape 2 sont adaptés par R-ADAPT en U2 ; la signature de `compile_assets` (épinglée par doctest) est **inchangée**.
+
+**E-5 — G-LT en deux temps — ACCEPTÉ (29 octobre 2026).** Plan §8 : preuve G-LT en U1. Aucun type de vue réel n'existe avant U3 : U1 établit G-LT sur une **vue synthétique générique** (preuve de représentabilité sur le véritable `World`/Scheduler) ; U3 la **répète sur le type réel** (LT-5, LT-5n, LT-5t). Un échec à l'un ou l'autre arrête l'étape.
+
+**E-6 — Manifestes racine et Shell.** `[workspace.dependencies]` reçoit `verbum-assets` en U3 (premier besoin : LT-5 sur le `Map<'a>` réel) et `verbum-forge` en U5, au motif de `verbum-render` à l'étape 4 ; `crates/shell/Cargo.toml` reçoit `verbum-assets` en U3 et `verbum-forge` en U5 ; `verbum-forge` continue de référencer `verbum-assets` par `path` direct.
+
+**E-7 — Validation croisée de la Forge.** Les indices de case sont validés contre le `count` du tileset référencé : c'est une validation sémantique de la Forge (I2) rendue possible par la connaissance de l'ensemble (I12). Choix local [L] ; sa suppression n'affecterait aucun mécanisme (le runtime ne la fait pas).
+
+**E-8 — Factorisation du préfixe commun — RÉSOLU (décision de l'utilisateur, 29 octobre 2026 : le plan prévaut).** Le plan §8 (U1) prévoit « préfixe commun factorisé » ; ce document s'y conforme : fonction interne partagée de `header.rs`, adaptation interne de `Sprite::read`, API publique et assertions des tests de l'étape 2 inchangées ; toute adaptation mécanique de signature reste soumise à R-ADAPT. L'écart de la version précédente de ce document (« pas de factorisation ») est supprimé.
+
+**E-9 — Exception documentaire à l'interdiction de modifier `crates/shell/src/**` (audit du 29 octobre 2026).** *Constat* : les doctests ne sont exécutés par `cargo test --workspace` que pour la cible bibliothèque ; un doctest placé dans `crates/shell/tests/*.rs` ne serait jamais exécuté. *Décision* : LT-3, LT-3t, LT-5n et LT-5t sont des doctests de la bibliothèque `verbum-shell`, ajoutés à la documentation `//!` de `crates/shell/src/lib.rs`, et rien d'autre dans ce fichier : aucun code exécutable, aucune API, aucun comportement modifié. La phrase existante « n'a aucune dépendance » du texte de documentation concerne les dépendances normales ; les doctests utilisent des dev-dependencies existantes (et `verbum-assets` à partir d'U3). Le diff du fichier est contrôlé (lignes `//!` ajoutées seulement) et l'exécution effective des doctests est contrôlée par `cargo test -p verbum-shell --doc`.
+
+**E-10 — Dispatch par identité — RÉSOLU (décision de l'utilisateur, 29 octobre 2026 : la formulation du plan prévaut).** Le lecteur est sélectionné par l'identité du format de l'artefact. Règle unique : le format est celui désigné par l'identité si le préfixe de 10 octets est complet et l'identité connue ; sinon, c'est le format attendu par la table pour le slot, dont le lecteur rend l'erreur de l'étape 2 (`Truncated`, `FormatIdentity`). Un seul décodeur sert aux niveaux 3 et 4. Niveau 2 : identité connue ≠ format attendu → `SlotFormat`. Aucun changement des niveaux, de leur ordre, de l'atomicité, de `VMAN` ni de l'absence d'allocation.
+
+**E-11 — Charge contenant zéro élément — RÉSOLU (décision de l'utilisateur, 29 octobre 2026 ; plan r1.2 §7.2 reformulé).** « Zéro » désigne l'absence d'éléments variables : une map `0 × 0` reste constituée de sa partie fixe de 12 octets, une font avec `glyph_count = 0` de sa partie fixe de 4 octets (conformes si la longueur l'est : MAP-R6, FNT-R6). Une charge utile de **longueur nulle** (déclarée 0 ou absente) reste invalide (`PayloadLength` ou `Truncated` : MAP-R5, FNT-R5). Aucun layout, aucun résultat attendu modifié.
+
+## 10. Relevé des points non vérifiés à la rédaction
+1. **Exécution de LT-3 et LT-3t par Cargo** : établie à la lecture de la règle (doctests de la cible bibliothèque) ; **à constater** par `cargo test -p verbum-shell --doc` sur le dépôt réel.
+2. **Durée de vie dans le motif `Binding` / `System` / `Scheduler` / `World`** : non vérifiée ; objet de G-LT (aucune hypothèse de réussite dans ce document).
+3. **Contrôle d'absence d'allocation de l'étape 2** : le texte exact de `02-verbum-forge.md` §5.4 et de son contrôle n'a pas été relu pour ce document ; U1 le relit et le reprend tel quel.
+4. **Sites d'appel de `load`** : la liste exhaustive n'est pas établie (vus : tests de `load.rs`, `crates/forge/tests/pipeline.rs`) ; recherche au démarrage d'U1.
+5. **Contraintes de `Scheduler::run_tick`** au-delà de `R: Default` : `scheduler.rs` lu jusqu'à la définition de `Scheduler` ; couvert par G-LT.
+6. **Corps de `l1` à `l5`** : lus par leurs noms seulement ; l'absence d'identité altérée dans les appels à `load` (fondement de E-2) n'est établie que sur `t6_4`.
+7. **`#[non_exhaustive]`** sur `LoadError` ou `ReadError` : non constaté dans les extraits lus ; sans effet sur les variantes ajoutées dans le crate.
+8. **Commande Miri exacte** du dispositif de l'utilisateur (étape 4 : exécutée par l'utilisateur) : à confirmer à la fourniture des commandes en U1 et U5.
+9. **ADR-001, ADR-002, ADR-003, ADR-006** : non relus (cités par le plan 02 seulement).
+10. **Résultats sur le dépôt réel** : aucun, par construction (aucun code écrit à ce stade).
