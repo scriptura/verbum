@@ -1,12 +1,24 @@
 # Structure du Projet
 
-**Généré le:** 2026-10-29 06:38:08
+**Généré le:** 2026-10-29 12:37:28
 
 ## Racine du Workspace
 
 ```text
 /verbum
+│   ├── chaumière.png
+│   ├── phare_1.png
+│   ├── player.png
+│   ├── pont_5.png
+│   └── test1.png
 ├── crates
+│   ├── assets
+│   │   ├── src
+│   │   │   ├── lib.rs
+│   │   │   ├── load.rs
+│   │   │   ├── manifest.rs
+│   │   │   └── sprite.rs
+│   │   └── Cargo.toml
 │   ├── ecs
 │   │   ├── src
 │   │   │   ├── command.rs
@@ -67,7 +79,8 @@
 │   │   └── Cargo.toml
 │   ├── shell
 │   │   ├── examples
-│   │   │   └── console.rs
+│   │   │   ├── console.rs
+│   │   │   └── headless_frame.rs
 │   │   ├── src
 │   │   │   ├── inbox.rs
 │   │   │   ├── lib.rs
@@ -90,7 +103,7 @@
 ├── Cargo.toml
 └── README.md
 
-23 directories, 61 files
+26 directories, 72 files
 ```
 
 ## Documentation du projet

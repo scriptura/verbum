@@ -23,8 +23,10 @@ cat > "$OUTPUT" << EOF
 \`\`\`text
 EOF
 
-tree "$PROJECT_ROOT" -I "docs|doc|target|build|artifacts|assets|logs" --dirsfirst \
-    | sed "1s|.*|/$PROJECT_NAME|" >> "$OUTPUT"
+tree "$PROJECT_ROOT" -I "docs|doc|target|build|artifacts|logs" --dirsfirst \
+    | grep -v -E '^[├└]── assets$' \
+    | sed "1s|.*|/$PROJECT_NAME|" \
+    >> "$OUTPUT"
 
 cat >> "$OUTPUT" << EOF
 \`\`\`
