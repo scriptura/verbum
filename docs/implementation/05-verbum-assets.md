@@ -3,7 +3,7 @@
 ## Statut
 Document de planification interne, non normatif, révisable sans ADR (même statut que `ROADMAP.md` et les plans des étapes 2 à 4). Il détaille l'étape 5 en unités. Il n'introduit aucun invariant : chaque exigence cite sa source, et tout ce qui ne découle pas du corpus est signalé comme tel. **Aucun code, aucune modification d'ADR, aucune modification d'un document validé.**
 
-**État de validation : r1.2 (révision minimale du 29 octobre 2026 de r1.1, qui était validée ; voir « Révision r1.2 » ci-dessous). r1.2 et les documents qui en dépendent (document d'exécution, handoff) sont soumis à la validation finale de l'utilisateur. Le document d'exécution et le handoff sont rédigés ; aucune unité ne démarre avant instruction explicite.**
+**État : validé.**
 
 **Révision r1.2 — passages modifiés, et seulement ceux-ci (décisions de l'utilisateur du 29 octobre 2026 après audits de cohérence) :** (1) en-tête et état ; (2) §5, A-3 option i : précision du dispatch par identité (le format est identifié par l'identité lorsque le préfixe de 10 octets est complet et l'identité connue, sinon le format attendu du slot est retenu, ce qui reproduit le chemin d'erreur de l'étape 2 ; un seul décodeur ; contrôle de niveau 2 : identité connue différente du format attendu → `SlotFormat`) ; (3) §7.2, « charge variable » : « charge de longueur zéro conforme » reformulé en charge **contenant zéro élément variable**, la charge utile de longueur nulle restant invalide ; (4) §8 (ligne U1) et §13 : précision sur la factorisation du préfixe commun (fonction interne partagée ; adaptation interne de `Sprite::read` ; API et assertions de non-régression inchangées) ; (5) §15. Layouts, résultats attendus des tests, unités, arbitrages : inchangés.
 

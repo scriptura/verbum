@@ -2,7 +2,7 @@
 
 Document d'exécution, non normatif. **Il ne contient aucune règle de conception.** Source de vérité unique : `docs/implementation/05-verbum-assets.md`, **r1.2 (29 octobre 2026), soumise à la validation finale de l'utilisateur** (r1.1 était validée ; r1.2 en est une révision minimale), arbitrages A-1 à A-6 arrêtés. En cas de divergence entre ce document et le plan, **le plan prévaut** ; la divergence est signalée à l'utilisateur, jamais résolue par la session. Les écarts d'exécution connus à la rédaction sont listés au § 9 et **soumis à validation avec ce document**. Ce document n'est modifié que sur décision explicite de l'utilisateur. Le normatif est `ADR-000`, `ADR-004`, `ADR-005`, `ADR-A01`, `ADR-R01` à `ADR-R03` et `00-principes.md`.
 
-**État : révisé le 29 octobre 2026 après deux audits et les décisions de l'utilisateur sur E-8, E-10 et E-11 (alignement sur le plan r1.2), soumis à la validation finale de l'utilisateur avec le plan r1.2 et le handoff. Aucune unité ne démarre avant instruction explicite : « démarrez l'unité U1 ». Aucun code n'est écrit à ce stade.**
+**État : validé.**
 
 Légende, appliquée dans chaque unité :
 - **[Vérifié]** : fait constaté dans un document lu ou dans le code réel, avec sa source. Revérifié au démarrage de l'unité ; une divergence est un arrêt (§ 6).
