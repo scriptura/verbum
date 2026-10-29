@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-10-29 06:27:03
+**Généré le:** 2026-10-29 06:38:08
 
 ## Racine du Workspace
 
@@ -76,6 +76,7 @@
 │   │   ├── tests
 │   │   │   ├── acceptance.rs
 │   │   │   ├── acquisition.rs
+│   │   │   ├── frame_loop.rs
 │   │   │   ├── lifecycle.rs
 │   │   │   └── pacing.rs
 │   │   └── Cargo.toml
@@ -89,7 +90,7 @@
 ├── Cargo.toml
 └── README.md
 
-23 directories, 60 files
+23 directories, 61 files
 ```
 
 ## Documentation du projet
