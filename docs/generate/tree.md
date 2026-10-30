@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-10-30 09:30:43
+**Généré le:** 2026-10-30 09:38:33
 
 ## Racine du Workspace
 
@@ -95,9 +95,10 @@
 ├── scripts
 │   └── tree.sh
 ├── Cargo.lock
-└── Cargo.toml
+├── Cargo.toml
+└── README.md
 
-25 directories, 66 files
+25 directories, 67 files
 ```
 
 ## Documentation du projet

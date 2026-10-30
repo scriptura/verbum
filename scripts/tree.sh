@@ -26,12 +26,11 @@ EOF
 (
     cd "$PROJECT_ROOT"
     {
-        # Sous-arbres retenus (avec prune ciblé sur target/build)
+        # Tous les fichiers de la racine (pas les dossiers)
+        find . -maxdepth 1 -type f -print
+        # Sous-arbres retenus
         find crates  \( -name target -o -name build \) -prune -o -print 2>/dev/null
         find scripts \( -name target -o -name build \) -prune -o -print 2>/dev/null
-        # Fichiers racine optionnels
-        [ -f Cargo.toml ] && echo Cargo.toml
-        [ -f Cargo.lock ] && echo Cargo.lock
     } | tree --fromfile --dirsfirst
 ) | sed "1s|.*|/$PROJECT_NAME|" >> "$OUTPUT"
 
