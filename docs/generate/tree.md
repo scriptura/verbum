@@ -1,16 +1,11 @@
 # Structure du Projet
 
-**Généré le:** 2026-10-29 23:27:05
+**Généré le:** 2026-10-30 09:30:43
 
 ## Racine du Workspace
 
 ```text
 /verbum
-│   ├── chaumière.png
-│   ├── phare_1.png
-│   ├── player.png
-│   ├── pont_5.png
-│   └── test1.png
 ├── crates
 │   ├── assets
 │   │   ├── src
@@ -100,10 +95,9 @@
 ├── scripts
 │   └── tree.sh
 ├── Cargo.lock
-├── Cargo.toml
-└── README.md
+└── Cargo.toml
 
-26 directories, 72 files
+25 directories, 66 files
 ```
 
 ## Documentation du projet

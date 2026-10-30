@@ -23,10 +23,17 @@ cat > "$OUTPUT" << EOF
 \`\`\`text
 EOF
 
-tree "$PROJECT_ROOT" -I "docs|doc|target|build|artifacts|logs" --dirsfirst \
-    | grep -v -E '^[├└]── assets$' \
-    | sed "1s|.*|/$PROJECT_NAME|" \
-    >> "$OUTPUT"
+(
+    cd "$PROJECT_ROOT"
+    {
+        # Sous-arbres retenus (avec prune ciblé sur target/build)
+        find crates  \( -name target -o -name build \) -prune -o -print 2>/dev/null
+        find scripts \( -name target -o -name build \) -prune -o -print 2>/dev/null
+        # Fichiers racine optionnels
+        [ -f Cargo.toml ] && echo Cargo.toml
+        [ -f Cargo.lock ] && echo Cargo.lock
+    } | tree --fromfile --dirsfirst
+) | sed "1s|.*|/$PROJECT_NAME|" >> "$OUTPUT"
 
 cat >> "$OUTPUT" << EOF
 \`\`\`
