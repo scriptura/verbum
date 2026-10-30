@@ -23,14 +23,27 @@ cat > "$OUTPUT" << EOF
 \`\`\`text
 EOF
 
+declare -A PRUNE=(
+    [crates]="target build artifacts"
+    [scripts]=""
+    [db]=""
+)
+
 (
     cd "$PROJECT_ROOT"
     {
-        # Tous les fichiers de la racine (pas les dossiers)
         find . -maxdepth 1 -type f -print
-        # Sous-arbres retenus
-        find crates  \( -name target -o -name build \) -prune -o -print 2>/dev/null
-        find scripts \( -name target -o -name build \) -prune -o -print 2>/dev/null
+        for d in "${!PRUNE[@]}"; do
+            [ -d "$d" ] || continue
+            if [ -n "${PRUNE[$d]}" ]; then
+                args=()
+                for n in ${PRUNE[$d]}; do args+=( -name "$n" -o ); done
+                unset 'args[${#args[@]}-1]'
+                find "$d" \( "${args[@]}" \) -prune -o -print 2>/dev/null
+            else
+                find "$d" -print 2>/dev/null
+            fi
+        done
     } | tree --fromfile --dirsfirst
 ) | sed "1s|.*|/$PROJECT_NAME|" >> "$OUTPUT"
 
