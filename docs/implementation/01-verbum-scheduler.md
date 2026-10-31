@@ -22,7 +22,7 @@ Reprise de `00-verbum-ecs.md` : un concept n'est codé que s'il est porté par u
 Légende : **[Invariant]** texte normatif cité · **[Conséquence]** ce que l'implémentation doit respecter · **[Choix local]** décision de conception non-invariant · **[Limite]** garantie volontairement absente, justifiée · **[Arbitrage]** question pour l'utilisateur.
 
 ## Sources et statut de vérification
-Je n'ai pas accès au dépôt : tout ce qui suit a été lu dans les **copies jointes à la session**, pas dans les fichiers du dépôt. Cette provenance ne rend pas le statut normatif incertain : l'utilisateur a **confirmé** que ADR-000 est adopté (10 octobre 2026) dans le dépôt, et ADR-000 est donc une source adoptée dont les contraintes (I12 à I15) s'appliquent à la conception du noyau. Les chemins du dépôt sont ceux rapportés par `HANDOFF-Stage-1.md` §3. Les ADR 001 à 006 sont lues avec le statut qu'indiquent leurs copies.
+Je n'ai pas accès au dépôt : tout ce qui suit a été lu dans les **copies jointes à la session**, pas dans les fichiers du dépôt. Cette provenance ne rend pas le statut normatif incertain : l'utilisateur a **confirmé** que ADR-000 est adopté (10 octobre 2026) dans le dépôt, et ADR-000 est donc une source adoptée dont les contraintes (I12 à I15) s'appliquent à la conception du noyau. Les chemins du dépôt sont ceux rapportés par `01-verbum-scheduler-handoff.md` §3. Les ADR 001 à 006 sont lues avec le statut qu'indiquent leurs copies.
 
 | Statut | Documents |
 |---|---|

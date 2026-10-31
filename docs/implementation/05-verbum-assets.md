@@ -18,7 +18,7 @@ Légende : **[Lu]** texte vérifié dans un document lu dans cette session · **
 ## 0. Sources et limites
 
 **[Lu] normatif** : `00-principes.md`, `01-runtime-ecs.md`, `02-concepts.md`, ADR-000, ADR-004, ADR-005, ADR-A01, ADR-R01, ADR-R02, ADR-R03, `README.md` d'architecture.
-**[Lu] non normatif** : `ROADMAP.md`, `02-verbum-forge.md` (r8), `02-verbum-forge-execution.md`, `HANDOFF-stage-2-forge.md` (§3 à §5, §8), plan, exécution et handoff de l'étape 4 (r3.2), `tree.md` régénéré le 29 octobre 2026 (12:13) complété de la partie `crates/assets`.
+**[Lu] non normatif** : `ROADMAP.md`, `02-verbum-forge.md` (r8), `02-verbum-forge-execution.md`, `02-verbum-forge-handoff..md` (§3 à §5, §8), plan, exécution et handoff de l'étape 4 (r3.2), `tree.md` régénéré le 29 octobre 2026 (12:13) complété de la partie `crates/assets`.
 **[Lu] code réel** : `crates/assets/{Cargo.toml, src/lib.rs, src/load.rs, src/manifest.rs, src/sprite.rs}` ; `crates/forge/{Cargo.toml, src/lib.rs, src/id.rs, src/sprite.rs, src/batch.rs, tests/pipeline.rs}` ; `crates/ecs/src/resource.rs` (`ResourceSlot<T>` : aucune contrainte sur `T`) ; en-têtes de `world.rs` (`World<_, _, R>`, `R: Default`) ; code de l'étape 4 (livré par cette session).
 
 **Non lus, donc non vérifiés** :

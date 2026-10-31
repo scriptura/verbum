@@ -15,7 +15,7 @@ Légende : **[Lu]** texte vérifié dans un document lu dans cette session · **
 **Mémoire de projet (déclarations de l'utilisateur, non relues dans le dépôt)** : l'évolutivité du Renderer vers plusieurs contributions visuelles ordonnées pour un même ensemble logique (cas cible multi-couches, moteur agnostique, aucun vocabulaire de ce cas dans le noyau) est un **point de vigilance pour le cadrage de l'étape 4**, pas une exigence ; ne pas présumer `FrameResource { layers: Vec<Layer> }`.
 
 **Non lus dans cette session, donc non vérifiés** :
-- **Lus depuis r1** : **ADR-000** (lu intégralement, version du 27 octobre 2026 ; les marques « second main » de r1 sont levées) ; **`HANDOFF-stage-2-forge.md`** (version du 16 octobre 2026, non commitée ; ses §4 et §5 sont traités en §11.1) ; `system.rs`, `access.rs`, `data.rs`, `command.rs` (lus pour la rédaction du document d'exécution).
+- **Lus depuis r1** : **ADR-000** (lu intégralement, version du 27 octobre 2026 ; les marques « second main » de r1 sont levées) ; **`02-verbum-forge-handoff..md`** (version du 16 octobre 2026, non commitée ; ses §4 et §5 sont traités en §11.1) ; `system.rs`, `access.rs`, `data.rs`, `command.rs` (lus pour la rédaction du document d'exécution).
 - **Non lus** : ADR-002, ADR-006, ADR-A01, `02-verbum-forge*.md`, `world.rs` (signatures publiques seulement, par leurs usages), `HANDOFF-stage-0/1`, documents de réflexivité, brouillons multi-couches.
 - Le `Cargo.toml` racine réel (avec `crates/shell` dans `members`) a été reçu le 27 octobre 2026 : `[workspace.dependencies]` ne liste que `verbum-ecs` et `verbum-schedule`.
 

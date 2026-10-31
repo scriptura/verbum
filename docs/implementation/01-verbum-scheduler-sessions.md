@@ -9,7 +9,7 @@ Les numéros de phase, de section (§) et de test renvoient à `01-verbum-schedu
 
 ## 1. Règles communes à toutes les sessions
 
-### 1.1 Discipline (reprise de `HANDOFF-Stage-1.md` et de l'étape 0)
+### 1.1 Discipline (reprise de `01-verbum-scheduler-handoff.md` et de l'étape 0)
 Une phase à la fois, dans l'ordre. Le test précède le code. Un commit par invariant démontré. Quatre contrôles verts à chaque commit. Alarme « tant que j'y suis » : on s'arrête. Aucune modification d'ADR. Si une information manque : s'arrêter et demander. Si une difficulté est structurelle : l'exposer avant de contourner. Les ADR sont traitées comme une spécification : on n'en remet une en cause que si plusieurs implémentations indépendantes échouent pour la même raison structurelle.
 
 ### 1.2 Commandes de vérification (indicatives ; à adapter à votre commande habituelle)
@@ -35,7 +35,7 @@ Le rapport de sortie distingue les deux décomptes.
 
 ### 1.3 Fichiers interdits à toutes les sessions
 - tout ADR et tout document de `docs/architecture/` (corpus figé) ;
-- `ROADMAP.md`, `00-verbum-ecs.md`, `HANDOFF-Stage-0.md`, `HANDOFF-Stage-1.md`, `01-verbum-scheduler.md` : **non modifiés** par les sessions d'implémentation. Une session consigne ses constats dans son rapport de sortie (§1.5) ; l'utilisateur décide de les reporter dans le plan ;
+- `ROADMAP.md`, `00-verbum-ecs.md`, `00-verbum-ecs-handoff..md`, `01-verbum-scheduler-handoff.md`, `01-verbum-scheduler.md` : **non modifiés** par les sessions d'implémentation. Une session consigne ses constats dans son rapport de sortie (§1.5) ; l'utilisateur décide de les reporter dans le plan ;
 - `crates/ecs/**` pour toute session autre que S2a et S2b ;
 - `Cargo.toml` racine et `Cargo.lock` pour toute session autre que S1 (phase 0) et S5 (phase 10c).
 
@@ -166,7 +166,7 @@ Prochaine session : <id> ; prérequis satisfaits : <oui|non, lesquels>
 ```
 HANDOFF D'ENTRÉE — session <id>
 Mission : <phases, d'après §3>. Rôle : implémenteur. Plan : 01-verbum-scheduler.md r5 (validé). Sessions : 01-verbum-scheduler-sessions.md.
-Documents à lire : HANDOFF-Stage-1.md ; 01-verbum-scheduler.md : <sections citées pour ces phases> ; ADR-000 à ADR-006, dont **ADR-001** (stockage, isolation, capacité) et **ADR-002** (Query, modes d'accès), en plus des références du plan §1 ; sources de verbum-ecs : <fichiers utiles>.
+Documents à lire : 01-verbum-scheduler-handoff.md ; 01-verbum-scheduler.md : <sections citées pour ces phases> ; ADR-000 à ADR-006, dont **ADR-001** (stockage, isolation, capacité) et **ADR-002** (Query, modes d'accès), en plus des références du plan §1 ; sources de verbum-ecs : <fichiers utiles>.
 Socle de décisions : <§1.6, recopié>
 État attendu à l'entrée : <commits déjà fusionnés> ; tests : <décomptes par crate> ; Miri : <vert pour quels commits>.
   → À renseigner depuis le rapport de la session précédente : <hash, décomptes, écarts, choix locaux>.

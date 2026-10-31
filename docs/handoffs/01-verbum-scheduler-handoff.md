@@ -85,8 +85,8 @@ verbum/docs$ tree
 │       ├── longsword.contract.yaml
 │       └── trident.contract.yaml
 ├── handoffs
-│   ├── HANDOFF-Stage-0.md
-│   └── HANDOFF-Stage-1.md
+│   ├── 00-verbum-ecs-handoff..md
+│   └── 01-verbum-scheduler-handoff.md
 ├── implementation
 │   └── 00-verbum-ecs.md
 └── reflexivity
@@ -97,9 +97,9 @@ verbum/docs$ tree
     └── why-the-name-verbum.md
 ```
 
-- Rôle de ce document (`docs/handoffs/HANDOFF-Stage-1.md`) : **journal de construction de l'étape 0** (non normatif, révisable sans ADR). Il contient, par phase, l'invariant cité, le test, l'API, le journal des décisions locales et le commit. La section « Critère de sortie » porte le statut de l'étape 0. Le journal de la Phase 4b et celui de la Phase 6 sont les plus denses. C'est le modèle à suivre pour le plan de l'étape 1.
+- Rôle de ce document (`docs/handoffs/01-verbum-scheduler-handoff.md`) : **journal de construction de l'étape 0** (non normatif, révisable sans ADR). Il contient, par phase, l'invariant cité, le test, l'API, le journal des décisions locales et le commit. La section « Critère de sortie » porte le statut de l'étape 0. Le journal de la Phase 4b et celui de la Phase 6 sont les plus denses. C'est le modèle à suivre pour le plan de l'étape 1.
 - `docs/architecture/ROADMAP.md` : séquence des étapes ; l'étape 0 est terminée.
-- `docs/handoffs/HANDOFF-Stage-0.md` (session précédente) : discipline de travail, toujours valable (voir §7).
+- `docs/handoffs/00-verbum-ecs-handoff..md` (session précédente) : discipline de travail, toujours valable (voir §7).
 
 ## 4. Décisions structurantes de l'étape 0
 

@@ -174,7 +174,7 @@ Aucune représentation de rendu, aucun format de binaire, aucun format source, a
 
 ## 9. Marche à suivre pour la session suivante
 
-1. L'utilisateur relit ce handoff, puis fournit les documents du §0 non lus : `ADR-A01`, `ADR-R01`, `ADR-R02`, `ADR-R03`, `ADR-S01`, `ADR-001`, `ADR-005`, `ADR-000`, `00-principes.md`, `01-runtime-ecs.md`, `02-concepts.md`, `README.md` d'architecture, `ROADMAP.md` courant du dépôt, `HANDOFF-Stage-1.md`. Les brouillons LPC (`LPC-Paradigm.md`, `LPC_YAML/*`) uniquement comme cas d'usage de généricité, après les autres.
+1. L'utilisateur relit ce handoff, puis fournit les documents du §0 non lus : `ADR-A01`, `ADR-R01`, `ADR-R02`, `ADR-R03`, `ADR-S01`, `ADR-001`, `ADR-005`, `ADR-000`, `00-principes.md`, `01-runtime-ecs.md`, `02-concepts.md`, `README.md` d'architecture, `ROADMAP.md` courant du dépôt, `01-verbum-scheduler-handoff.md`. Les brouillons LPC (`LPC-Paradigm.md`, `LPC_YAML/*`) uniquement comme cas d'usage de généricité, après les autres.
 2. La session lit ces sources, cite avant de juger, et répond aux questions Q1 à Q10 en séparant [Lu], [Déduit], [Non vérifié].
 3. Elle rédige un plan de construction de l'étape 2 (invariants cités, tests, API minimale, fichiers, risques, découpage en sessions), **sans code**, y inclut la vérification de non-fermeture du §5, et s'arrête pour validation.
 4. Aucune implémentation, aucune modification de Roadmap ou d'ADR avant validation du plan.

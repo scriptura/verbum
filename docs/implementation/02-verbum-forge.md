@@ -11,7 +11,7 @@ Légende : **[D]** décision architecturale (source normative citée) ; **[L]** 
 
 ## 0. Sources et limites
 
-**[Lu]** `ROADMAP.md`, `00-principes.md`, `01-runtime-ecs.md`, `02-concepts.md`, `README.md` d'architecture, ADR-000, ADR-001, ADR-005, ADR-A01, ADR-R01, ADR-R02, ADR-R03, ADR-S01, `00-verbum-ecs.md`, `HANDOFF-stage-1.md`, `HANDOFF-stage-2-forge.md`, `tree.md`, `Cargo.toml` et `Cargo.lock` du workspace, `crates/ecs/Cargo.toml`, `lib.rs`, `resource.rs`, `world.rs`, `component_set.rs`.
+**[Lu]** `ROADMAP.md`, `00-principes.md`, `01-runtime-ecs.md`, `02-concepts.md`, `README.md` d'architecture, ADR-000, ADR-001, ADR-005, ADR-A01, ADR-R01, ADR-R02, ADR-R03, ADR-S01, `00-verbum-ecs.md`, `01-verbum-scheduler-handoff.md`, `02-verbum-forge-handoff..md`, `tree.md`, `Cargo.toml` et `Cargo.lock` du workspace, `crates/ecs/Cargo.toml`, `lib.rs`, `resource.rs`, `world.rs`, `component_set.rs`.
 
 **RFC 9923 (« The FNV Non-Cryptographic Hash Algorithm », Informational, février 2026)** : §2 pseudocode de FNV-1a ; §5 constantes FNV ; §8.2.2 code de référence FNV64 ; §8.3 code de test, qui contient les entrées `""`, `"a"` et `"foobar"` et leurs valeurs attendues. Les §2, §5 et §8.2.2 sont lus par moi ; le tableau de test du §8.3 est vérifié par l'utilisateur.
 

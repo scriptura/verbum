@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-10-31 09:52:42
+**Généré le:** 2026-10-31 10:03:02
 
 ## Racine du Workspace
 
@@ -156,12 +156,12 @@
 ├── generate
 │   └── tree.md
 ├── handoffs
+│   ├── 00-verbum-ecs-handoff.md
+│   ├── 01-verbum-scheduler-handoff.md
+│   ├── 02-verbum-forge-handoff.md
 │   ├── 03-verbum-shell-implementation-handoff.md
 │   ├── 04-verbum-renderer-implementation-handoff.md
-│   ├── 05-verbum-assets-implementation-handoff.md
-│   ├── HANDOFF-stage-0.md
-│   ├── HANDOFF-stage-1.md
-│   └── HANDOFF-stage-2-forge.md
+│   └── 05-verbum-assets-implementation-handoff.md
 ├── implementation
 │   ├── 00-verbum-ecs.md
 │   ├── 01-verbum-scheduler-sessions.md
