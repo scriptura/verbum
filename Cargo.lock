@@ -171,6 +171,7 @@ dependencies = [
 name = "verbum-shell"
 version = "0.1.0"
 dependencies = [
+ "verbum-assets",
  "verbum-ecs",
  "verbum-render",
  "verbum-schedule",

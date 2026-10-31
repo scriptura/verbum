@@ -86,7 +86,14 @@ pub trait Binding {
     /// The caller's command buffer.
     type Buffer;
     /// The assembly of the world and of the buffer, bound by accesses.
-    type Parts<'w>;
+    ///
+    /// `where Self: 'w` lets an implementor whose world carries a lifetime (a resource
+    /// borrowing bytes owned by the caller) name that lifetime in its `Parts<'w>`: such a
+    /// `Parts<'w>` holds `&'w mut` slots of that world, hence needs `'a: 'w`. A binding
+    /// type without lifetime parameter is `'static` and satisfies the bound at once.
+    type Parts<'w>
+    where
+        Self: 'w;
 
     /// Splits `world` into its parts and gives them the `buffer` (under
     /// [`COMMANDS_BINDING`](crate::access::COMMANDS_BINDING)).
@@ -99,7 +106,11 @@ pub trait Binding {
 /// access and reports a full command buffer, the only failure a system can raise.
 pub trait System<B: Binding> {
     /// What the system reads, writes, produces and emits, as a typed access.
-    type Access<'w>: Bind<'w, B::Parts<'w>>;
+    ///
+    /// `where B: 'w` is required to name `B::Parts<'w>`, itself bounded by `B: 'w`.
+    type Access<'w>: Bind<'w, B::Parts<'w>>
+    where
+        B: 'w;
 
     /// Runs the system on its bound access.
     fn run(access: Self::Access<'_>) -> Result<(), BufferFull>;
@@ -108,9 +119,10 @@ pub trait System<B: Binding> {
 /// The contract of system `S`, derived from its access type alone.
 ///
 /// Evaluable in a `const` context. The lifetime of the access is irrelevant to its
-/// contract: `'static` is used to name the type.
-pub const fn contract_of<B: Binding, S: System<B>>() -> Contract {
-    <S::Access<'static> as Part>::CONTRACT
+/// contract: any lifetime `'a` that `B` outlives names the type, so that a binding type
+/// carrying a lifetime is accepted (`'static` would require `B: 'static`).
+pub const fn contract_of<'a, B: Binding + 'a, S: System<B>>() -> Contract {
+    <S::Access<'a> as Part>::CONTRACT
 }
 
 /// Why a system run did not complete.

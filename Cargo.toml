@@ -21,6 +21,7 @@ keywords = ["ecs", "game-engine", "dod", "aot", "deterministic"]
 categories = ["game-engines", "data-structures"]
 
 [workspace.dependencies]
+verbum-assets = { path = "crates/assets", version = "0.1.0" }
 verbum-ecs = { path = "crates/ecs", version = "0.1.0" }
 verbum-schedule = { path = "crates/schedule", version = "0.1.0" }
 verbum-render = { path = "crates/render", version = "0.1.0" }

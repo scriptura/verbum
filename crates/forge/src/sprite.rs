@@ -22,6 +22,20 @@ pub enum ForgeError {
     ZeroValue(&'static str),
     /// Le champ est négatif ou dépasse `u16::MAX`.
     OutOfRange(&'static str),
+    /// Tileset : `columns` dépasse `count` (incohérence refusée par la Forge seule, I2).
+    ColumnsExceedCount,
+    /// Map : `cells` ne compte pas exactement `width × height` éléments.
+    CellCount,
+    /// Map : la charge utile `12 + 2·width·height` ne tient pas dans un `u32`.
+    PayloadTooLarge,
+    /// Map, compilation en lot : la clé du tileset référencé ne figure pas dans le lot.
+    ReferenceNotFound,
+    /// Map, compilation en lot : l'entrée référencée n'est pas un tileset (y compris la
+    /// référence d'une map à elle-même).
+    ReferenceKind,
+    /// Map, compilation en lot : un indice de case est supérieur ou égal au `count` du
+    /// tileset référencé.
+    CellOutOfRange,
     /// Compilation en lot : la source de l'entrée `entry` est rejetée (position base zéro).
     InvalidSource {
         entry: usize,
@@ -70,8 +84,8 @@ pub fn compile_sprite(source: &str) -> Result<Vec<u8>, ForgeError> {
     Ok(bytes)
 }
 
-/// Extrait un champ entier non nul tenant dans un `u16`.
-fn dimension(table: &toml::Table, field: &'static str) -> Result<u16, ForgeError> {
+/// Extrait un champ entier non nul tenant dans un `u16` (partagé avec les autres sources).
+pub(crate) fn dimension(table: &toml::Table, field: &'static str) -> Result<u16, ForgeError> {
     let value = table.get(field).ok_or(ForgeError::MissingField(field))?;
     let toml::Value::Integer(integer) = value else {
         return Err(ForgeError::WrongType(field));

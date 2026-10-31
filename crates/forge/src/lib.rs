@@ -7,7 +7,10 @@
 
 mod batch;
 mod id;
+mod map;
 mod sprite;
+mod tileset;
 
-pub use batch::{AssetSource, CompiledSet, compile_assets};
+pub use batch::{AssetKind, AssetSource, CompiledSet, compile_assets};
 pub use sprite::{ForgeError, compile_sprite};
+pub use tileset::compile_tileset;

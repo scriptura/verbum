@@ -15,6 +15,8 @@
 //! Le lecteur ne contrôle que la conformité binaire (I5). Il n'applique aucune
 //! validation de cohérence métier : une largeur nulle est conforme (I2, P1.6).
 
+use crate::header::read_prefix;
+
 /// Identité du format, en tête d'artefact. Choix local provisoire, non invariant.
 pub const FORMAT_ID: [u8; 4] = *b"VSPR";
 
@@ -66,19 +68,11 @@ impl Sprite {
     /// Ordre des contrôles : en-tête complet, identité, version, longueur de charge
     /// utile déclarée, puis longueur totale (troncature, surplus).
     pub fn read(bytes: &[u8]) -> Result<Self, ReadError> {
-        let [i0, i1, i2, i3, v0, v1, l0, l1, l2, l3, rest @ ..] = bytes else {
-            return Err(ReadError::Truncated);
-        };
-        if [*i0, *i1, *i2, *i3] != FORMAT_ID {
-            return Err(ReadError::FormatIdentity);
-        }
-        if u16::from_le_bytes([*v0, *v1]) != FORMAT_VERSION {
-            return Err(ReadError::Version);
-        }
-        if u32::from_le_bytes([*l0, *l1, *l2, *l3]) != PAYLOAD_LEN as u32 {
+        let prefix = read_prefix(bytes, FORMAT_ID, FORMAT_VERSION)?;
+        if prefix.declared_len != PAYLOAD_LEN as u32 {
             return Err(ReadError::PayloadLength);
         }
-        match rest {
+        match prefix.rest {
             [w0, w1, h0, h1] => Ok(Self {
                 width: u16::from_le_bytes([*w0, *w1]),
                 height: u16::from_le_bytes([*h0, *h1]),

@@ -1,9 +1,13 @@
-# Plan de construction — étape 5 : Assets réels — r1.2, 29 octobre 2026
+# Plan de construction — étape 5 : Assets réels — r1.3, 30 octobre 2026
 
 ## Statut
-Document de planification interne, non normatif, révisable sans ADR (même statut que `ROADMAP.md` et les plans des étapes 2 à 4). Il détaille l'étape 5 en unités. Il n'introduit aucun invariant : chaque exigence cite sa source, et tout ce qui ne découle pas du corpus est signalé comme tel. **Aucun code, aucune modification d'ADR, aucune modification d'un document validé.**
+Document de planification interne, non normatif, révisable sans ADR (même statut que `ROADMAP.md` et les plans des étapes 2 à 4). Il détaille l'étape 5 en unités. Il n'introduit aucun invariant : chaque exigence cite sa source, et tout ce qui ne découle pas du corpus est signalé comme tel. **Aucun code, aucune modification d'ADR, aucune modification d'un document validé.** (r1.3 : seule exception de périmètre, `crates/schedule/src/system.rs`, voir §13.)
 
-**État : validé.**
+**État : validé (r1.2) ; révision r1.3 soumise à validation.**
+
+**Révision r1.3 — passages modifiés, et seulement ceux-ci (décision de l'utilisateur du 30 octobre 2026, après l'échec constaté de G-LT sur le dépôt réel) :** (1) en-tête et état ; (2) §0, « Non lus » : la faisabilité de la vue empruntée avec le Scheduler était **[Non vérifié]** et s'est révélée fausse tel quel (E0478, E0491) ; (3) §5, A-2 option a, réserve ; (4) §7.2, preuve G-LT ; (5) §8, ligne U1, porte d'arrêt ; (6) §11 risque 2 ; (7) §13, **exception explicite et strictement limitée à `crates/schedule/src/system.rs`** (trois bornes de durée de vie, voir ci-dessous) ; (8) §14, critère 6 ; (9) §15. Layouts, unités, arbitrages A-1 à A-6, autres résultats attendus : inchangés ; aucun ADR modifié.
+
+*Nature du correctif de `system.rs`* : `Binding::Parts<'w>` reçoit `where Self: 'w` ; `System::Access<'w>` reçoit `where B: 'w` ; `contract_of` devient `contract_of<'a, B: Binding + 'a, S: System<B>>()` et nomme `S::Access<'a>` au lieu de `S::Access<'static>`. Ces bornes ne changent ni les contrats Read/Write/Produce, ni les dépendances, ni l'ordre d'exécution ; les impls existantes (sans paramètre de durée de vie, donc `'static`) les satisfont sans modification. Aucune modification de `crates/ecs`, de `World`, de `ResourceSlot`, ni des autres fichiers de `crates/schedule`. Ce correctif **ne valide pas U1** : G-LT est réexaminé conjointement après livraison.
 
 **Révision r1.2 — passages modifiés, et seulement ceux-ci (décisions de l'utilisateur du 29 octobre 2026 après audits de cohérence) :** (1) en-tête et état ; (2) §5, A-3 option i : précision du dispatch par identité (le format est identifié par l'identité lorsque le préfixe de 10 octets est complet et l'identité connue, sinon le format attendu du slot est retenu, ce qui reproduit le chemin d'erreur de l'étape 2 ; un seul décodeur ; contrôle de niveau 2 : identité connue différente du format attendu → `SlotFormat`) ; (3) §7.2, « charge variable » : « charge de longueur zéro conforme » reformulé en charge **contenant zéro élément variable**, la charge utile de longueur nulle restant invalide ; (4) §8 (ligne U1) et §13 : précision sur la factorisation du préfixe commun (fonction interne partagée ; adaptation interne de `Sprite::read` ; API et assertions de non-régression inchangées) ; (5) §15. Layouts, résultats attendus des tests, unités, arbitrages : inchangés.
 
@@ -19,7 +23,8 @@ Légende : **[Lu]** texte vérifié dans un document lu dans cette session · **
 
 **Non lus, donc non vérifiés** :
 - **Le `Cargo.toml` racine courant.** La copie reçue liste `ecs, schedule, verbum, assets, forge, shell` en `members` et `ecs, schedule` en `[workspace.dependencies]` : elle ne contient pas `crates/render`, alors que `tree.md` le contient. Elle est donc **antérieure à l'étape 4** ou incomplète. À fournir avant le document d'exécution.
-- ADR-001, ADR-002, ADR-003, ADR-006 (relus seulement par les citations des plans 02 et 04).
+- ADR-001, ADR-002, ADR-006 (relus seulement par les citations des plans 02 et 04). **r1.3** : ADR-003, ADR-004, ADR-005, `01-verbum-scheduler.md` (r5) et `01-verbum-scheduler-sessions.md` relus : aucune contradiction avec le correctif de `system.rs` (la représentation Rust y est hors périmètre ; la faisabilité du §10 de `01-verbum-scheduler.md` avait été vérifiée sur des substituts, sans Ressource empruntée ni vrai `World`).
+- **r1.3 — constat** : la réserve ci-dessous (effet sur `World`, Scheduler, contrats) a été levée par exécution : G-LT a **échoué** sur le dépôt réel avec les bornes d'origine, puis est vérifiable avec les trois bornes du §13.
 - Les contraintes exactes que `World`, `Scheduler` et les contrats posent sur un type de Ressource (en particulier : un paramètre de durée de vie dans `R`, voir A-2 option a) — **[Non vérifié]**.
 - L'usage effectif de `verbum-assets` / `verbum-forge` par `crates/shell` : `tree.md` n'en montre pas ; à confirmer par `Cargo.toml` de `crates/shell`.
 
@@ -110,7 +115,7 @@ Pour chaque point : options, conséquences, recommandation. Une recommandation n
 Si vous retenez l'option 1, le terme « assets réels » est interprété comme « types d'assets réels (tileset, map, font) avec leur structure réelle », ce que ce plan consigne comme limite (§10).
 
 ### A-2 [A] — Charge utile de longueur variable, sans allocation
-- **a (recommandée, sous réserve [Non vérifié])** — *Vue empruntée validée.* Les octets de l'artefact restent possédés par l'infrastructure de chargement (Shell) ; la Ressource porte une vue `{champs d'en-tête décodés, &'a [u8] de charge utile}` dont la longueur est validée au niveau 3 ; les accès décodent à la demande (`from_le_bytes`, comme `Sprite::read`). Aucun `unsafe`, aucun cast, aucune allocation ; le double décodage reste valable (construction pure). **Réserve** : le type de Ressource porte un paramètre de durée de vie ; `ResourceSlot<T>` ne contraint pas `T`, mais l'effet sur `World<…, R>`, le Scheduler et les contrats est **[Non vérifié]** → fait l'objet d'une preuve exécutable en U1 (porte G-LT).
+- **a (recommandée, sous réserve [Non vérifié])** — *Vue empruntée validée.* Les octets de l'artefact restent possédés par l'infrastructure de chargement (Shell) ; la Ressource porte une vue `{champs d'en-tête décodés, &'a [u8] de charge utile}` dont la longueur est validée au niveau 3 ; les accès décodent à la demande (`from_le_bytes`, comme `Sprite::read`). Aucun `unsafe`, aucun cast, aucune allocation ; le double décodage reste valable (construction pure). **Réserve** : le type de Ressource porte un paramètre de durée de vie ; `ResourceSlot<T>` ne contraint pas `T`. **r1.3** : l'effet sur le Scheduler a été **constaté** : sans bornes `Self: 'w` / `B: 'w` sur `Binding::Parts<'w>` et `System::Access<'w>`, un `Binding` générique sur `'a` est refusé (E0478, E0491). Le correctif est limité à `crates/schedule/src/system.rs` (§13) ; `World`, `ResourceSlot` et `crates/ecs` sont inchangés. La preuve exécutable reste la porte G-LT.
 - **b** — *Types inline à capacité const-générique* (grille `W×H` maximale). Dépôt par valeur, aucun emprunt ; mais capacité maximale gaspillée, taille de type dépendante du niveau, dépassement = erreur de configuration (I13) à définir par type.
 - **c** — *Arène à capacité fixe fournie par l'application ; la Ressource porte une plage `(offset, longueur)`.* Même philosophie que la famille 4 du handoff ; ajoute un paramètre à `load` et une Ressource d'arène : plus proche d'un changement de mécanisme.
 - **d** — *Allocation dans l'infrastructure de chargement (`std`, hors noyau).* Permise par ADR-000 pt 5 pour la Plateforme, mais **renverse la décision r7 de l'étape 2** (chargement sans allocation, I10) : changement de mécanisme, **écartée** sauf décision explicite.
@@ -150,7 +155,7 @@ Pour chaque type, sur le modèle des preuves de l'étape 2 (P1.x pour le lecteur
 - **Format du slot (U1)** : artefact d'un type lié à un slot d'un autre type → rejet niveau 2, avant tout dépôt.
 - **Références (U3)** : référent absent du manifeste, référent d'un autre type, référence à soi-même, référence valide → `SlotIndex` attendu ; aucune référence suivie au runtime. **Le test de fermeture doit démontrer** (i) qu'un référent absent ou d'un type incorrect provoque un échec **avant tout dépôt** (compteur de dépôts nul), (ii) que cet échec n'implique **aucune nouvelle allocation** (même contrôle d'absence d'allocation que le chargement), (iii) que **`VMAN` est inchangé** (mêmes constantes de layout, mêmes octets de manifeste pour un même ensemble qu'en r1, test de non-régression du layout).
 - **Régression de l'étape 2 (U1)** : l'intégralité des tests de l'étape 2 passe, **sans changement de leur sémantique** ; seules des adaptations de signature (A-3 i) sont admises et consignées une à une.
-- **Preuve de durée de vie (U1, porte G-LT)** : une Ressource portant une vue empruntée est insérée dans un `World` du Scheduler de l'étape 1 et lue par un système sous `run_tick`.
+- **Preuve de durée de vie (U1, porte G-LT)** : une Ressource portant une vue empruntée est insérée dans un `World` du Scheduler de l'étape 1 et lue par un système sous `run_tick`. **r1.3** : les octets sont construits à l'exécution (jamais un littéral promu), possédés par l'appelant et déclarés avant le `World`. Tests : **LT-1** (montage réel exécuté sous `run_tick`, plusieurs ticks) ; **LT-2** (la sortie dépend des octets empruntés : deux tampons distincts, deux sorties distinctes) ; **LT-3** (doctest `compile_fail` : libérer les octets après le dépôt est refusé) ; **LT-3t** (jumeau valide, identique sans la ligne `drop`, compile et s'exécute) ; **LT-4** (cas `'static` : compile et s'exécute, **non compté** comme preuve G-LT). LT-1, LT-2 et LT-4 dans `crates/shell/tests/borrowed_resource.rs` ; LT-3 et LT-3t en doctests de `crates/shell/src/lib.rs` (documentation seule). Invariance : suites existantes de `ecs` et `schedule` inchangées et vertes ; contrats, dépendances et ordre d'exécution inchangés. Mutations : M-1.5 (suppression du `drop` de LT-3 → LT-3 échoue) et M-1.6 (ajout du `drop` à LT-3t → LT-3t échoue).
 
 ### 7.3 Acceptation : niveau chargé et affiché (U5)
 Assemblage d'exemple dans `crates/shell/examples/` + test d'acceptation dans `crates/shell/tests/` : sources → Forge → manifeste et artefacts → `load` → Ressources ; N ticks du Shell ; systèmes producteurs lisant les Ressources et émettant des contributions ; composeur de l'étape 4 ; Backend headless. Le contenu attendu de la `Frame` est calculé **à la main, en littéral**, indépendamment du code testé, et comparé en multi-ensemble (O0). Contrôles : `verbum-render` et ses tests inchangés ; aucun chemin de retour (RA-2 inchangé).
@@ -161,7 +166,7 @@ Protocole des étapes 2 et 4. Familles retenues : omission d'un contrôle de niv
 ## 8. Unités (une session d'implémentation chacune ; validation de l'utilisateur entre unités)
 | Unité | Contenu | Porte d'arrêt |
 |---|---|---|
-| **U1** | Généralisation du chargement (A-3), préfixe commun factorisé (fonction interne partagée ; adaptation interne de `Sprite::read`, API publique et assertions des tests de l'étape 2 inchangées), table de formats par slot, preuve G-LT ; **sprite seul** ; régression complète de l'étape 2 | Si un test de l'étape 2 doit changer de **sémantique** → arrêt (G-CM) ; **si G-LT échoue** (la durée de vie de la vue ne peut pas être représentée avec le `World` et le Scheduler existants) → **arrêt et rapport, sans contournement** (pas de repli sur b, c ou d sans décision) |
+| **U1** | Généralisation du chargement (A-3), préfixe commun factorisé (fonction interne partagée ; adaptation interne de `Sprite::read`, API publique et assertions des tests de l'étape 2 inchangées), table de formats par slot, preuve G-LT ; **sprite seul** ; régression complète de l'étape 2 | Si un test de l'étape 2 doit changer de **sémantique** → arrêt (G-CM) ; **si G-LT échoue** (la durée de vie de la vue ne peut pas être représentée avec le `World` et le Scheduler **tels que corrigés en r1.3**) → **arrêt et rapport, sans contournement** (pas de repli sur b, c ou d sans décision) |
 | **U2** | Tileset : Forge + lecteur + batterie commune | — |
 | **U3** | Map : charge variable (A-2) + référence au tileset (A-4) + batterie commune et tests propres | Si la résolution de référence exige de sortir des limites du §1.3 point 1 (nouveau niveau, ordre modifié, atomicité perdue, `VMAN` modifié, allocation, modèle d'identité modifié) → arrêt (G-CM) |
 | **U4** | Font : charge variable + batterie commune (ou différée, A-6) | — |
@@ -179,7 +184,7 @@ Protocole des étapes 2 et 4. Familles retenues : omission d'un contrôle de niv
 
 ## 11. Risques de fermeture prématurée
 1. **Validation de fermeture de référence ou de format de slot débordant des niveaux existants** (nouveau niveau, dépôt anticipé, allocation, effet sur `VMAN`) sans être reconnue comme changement de mécanisme : atténuation, définition de G-CM (§1.3), tests dédiés (§7.2) et porte G-CM.
-2. **Vue empruntée acceptée sans preuve exécutable** : atténuation, porte G-LT en U1.
+2. **Vue empruntée acceptée sans preuve exécutable** : atténuation, porte G-LT en U1. **r1.3** : le risque s'est réalisé (G-LT échouée avec les bornes d'origine) ; la preuve exécutable a joué son rôle de porte d'arrêt.
 3. **Table de formats ajoutée par commodité** : elle répond à une classe d'erreur réelle (C3), testée en U1 ; à défaut, elle serait écartée (X11).
 4. **Sur-anticipation du multi-couches** (clé, tri, regroupement) : atténuation, O0 et G-ORD.
 5. **Pollution du moteur par un vocabulaire de jeu** : atténuation, X10 ; revue des noms de types, champs et fixtures.
@@ -189,6 +194,7 @@ Protocole des étapes 2 et 4. Familles retenues : omission d'un contrôle de niv
 Backend graphique ; données raster ; caméra, animation, atlas, compression ; streaming ; scripts (étape 6) ; clé ou tri de composition (sauf O1 autorisé) ; vocabulaire ou règles de jeu ; modification d'un ADR ; modification de l'étape 4 (sauf O1 autorisé).
 
 ## 13. Fichiers (prévisions, à confirmer au document d'exécution)
+- **`crates/schedule/src/system.rs` — exception r1.3, strictement limitée à ce fichier** : les trois bornes de durée de vie décrites en en-tête. Aucun autre fichier de `crates/schedule`, aucun fichier de `crates/ecs`, ni `access.rs`, `model.rs`, `order.rs`, `contract.rs`, `data.rs`, `scheduler.rs`, `World`, `ResourceSlot`. Toute autre adaptation exigée par le compilateur est exposée avant d'être faite.
 - `crates/assets/src/` : `lib.rs`, `load.rs`, `manifest.rs` (a priori inchangé), `sprite.rs` (adaptation interne seulement : appel du préfixe partagé) ; nouveaux `header.rs`, `tileset.rs`, `map.rs`, `font.rs` ; `Cargo.toml` inchangé (aucune dépendance).
 - `crates/forge/src/` : `lib.rs`, `batch.rs`, `sprite.rs` ; nouveaux `tileset.rs`, `map.rs`, `font.rs` ; `tests/pipeline.rs` étendu ou nouveaux tests d'intégration.
 - `crates/shell/examples/` et `crates/shell/tests/` : scène d'acceptation ; `crates/shell/Cargo.toml` (dépendances de développement : `verbum-assets`, `verbum-forge`) — **[Non vérifié]**.
@@ -201,11 +207,11 @@ Backend graphique ; données raster ; caméra, animation, atlas, compression ; s
 3. `verbum-assets` : `no_std`, sans `alloc`, `[dependencies]` vide ; aucun parseur de format humain.
 4. Le niveau d'acceptation circule jusqu'au Backend headless et correspond au littéral attendu (§7.3) ; `crates/render/**` inchangé.
 5. Mutations détectées selon le protocole (§7.4).
-6. Aucun invariant ni ADR modifié ; limites du §10 consignées.
+6. Aucun invariant ni ADR modifié ; limites du §10 consignées ; seule modification hors `assets`/`forge`/`shell` : `crates/schedule/src/system.rs` (r1.3).
 7. Contrôles du §9 verts sur le dépôt réel, par vous.
 
 ## 15. Décisions restantes pour valider ce plan
-A-1 à A-6 sont retenus (§5). Restent : (1) validation de la révision r1.2 ; (2) fourniture du **`Cargo.toml` racine courant** et de `crates/shell/Cargo.toml` avant le document d'exécution (la copie antérieure à l'étape 4 n'est pas utilisée).
+A-1 à A-6 sont retenus (§5). Restent : (1) validation de la révision r1.3 et examen conjoint du résultat de G-LT (U1 ne reprend qu'après preuve positive) ; (2) fourniture du **`Cargo.toml` racine courant** et de `crates/shell/Cargo.toml` avant le document d'exécution (la copie antérieure à l'étape 4 n'est pas utilisée).
 
 ## 16. Fin de l'étape
 L'étape 5 se clôt quand le §14 est satisfait et que vous l'avez déclaré après exécution des contrôles sur le dépôt réel. Le document d'exécution suit la validation de ce plan ; le handoff suit la validation du document d'exécution.

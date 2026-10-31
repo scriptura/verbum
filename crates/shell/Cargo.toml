@@ -13,6 +13,7 @@ categories.workspace = true
 [dependencies]
 
 [dev-dependencies]
+verbum-assets.workspace = true
 verbum-ecs.workspace = true
 verbum-render.workspace = true
 verbum-schedule.workspace = true

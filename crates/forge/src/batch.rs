@@ -8,17 +8,33 @@
 
 use verbum_assets::{
     MANIFEST_ENTRY_LEN, MANIFEST_HEADER_LEN, MANIFEST_SIGNATURE, MANIFEST_VERSION, SlotIndex,
+    Tileset,
 };
 
 use crate::id::fnv1a_64;
-use crate::{ForgeError, compile_sprite};
+use crate::map::{MapSource, encode_map, parse_map};
+use crate::{ForgeError, compile_sprite, compile_tileset};
 
-/// Un asset à compiler : clé logique, source TOML, slot cible.
+/// Genre d'un asset à compiler. Ce n'est pas un champ TOML : il est fourni à côté de la
+/// source, et la Forge n'en déduit jamais le genre du contenu.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AssetKind {
+    /// Source `sprite.toml`, artefact `VSPR`.
+    Sprite,
+    /// Source `tileset.toml`, artefact `VTLS`.
+    Tileset,
+    /// Source `map.toml`, artefact `VMAP` ; référence un tileset du même lot par sa clé.
+    Map,
+}
+
+/// Un asset à compiler : genre, clé logique, source TOML, slot cible.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct AssetSource<'a> {
+    /// Genre de l'asset : détermine le compilateur de la source.
+    pub kind: AssetKind,
     /// Clé logique, fournie séparément de la source TOML ; jamais écrite dans la sortie.
     pub key: &'a str,
-    /// Texte du `sprite.toml`.
+    /// Texte de la source TOML du genre `kind`.
     pub toml: &'a str,
     /// Ordinal du slot dans la configuration statique de l'application.
     pub slot: SlotIndex,
@@ -99,6 +115,37 @@ fn first_pair(
     })
 }
 
+/// Artefact prêt, ou carte analysée dont la référence reste à résoudre.
+enum Pending {
+    Ready(Vec<u8>),
+    Map(MapSource),
+}
+
+/// Résout la référence d'une carte dans le lot, valide ses indices et l'encode. La clé du
+/// tileset désigne une entrée du lot de genre `Tileset` (une clé absente, une entrée d'un
+/// autre genre ou la carte elle-même sont refusées) ; chaque indice doit être strictement
+/// inférieur au `count` de ce tileset. L'identifiant écrit est celui de la clé, calculé
+/// par le même calculateur que les identifiants du manifeste.
+fn resolve_map(
+    sources: &[AssetSource<'_>],
+    counts: &[Option<u16>],
+    map: &MapSource,
+    id: &impl Fn(&AssetSource<'_>) -> u64,
+) -> Result<Vec<u8>, ForgeError> {
+    let position = sources
+        .iter()
+        .position(|source| source.key == map.tileset_key)
+        .ok_or(ForgeError::ReferenceNotFound)?;
+    let referent = &sources[position];
+    let Some(count) = counts[position].filter(|_| referent.kind == AssetKind::Tileset) else {
+        return Err(ForgeError::ReferenceKind);
+    };
+    if map.cells.iter().any(|cell| *cell >= count) {
+        return Err(ForgeError::CellOutOfRange);
+    }
+    Ok(encode_map(id(referent), map))
+}
+
 /// Point de test privé : même compilation, calculateur d'identifiant injecté. Visibilité
 /// restreinte au crate, jamais réexporté ni accessible depuis l'API de production.
 pub(crate) fn compile_assets_with(
@@ -128,14 +175,41 @@ pub(crate) fn compile_assets_with(
         return Err(ForgeError::IdCollision { first, second });
     }
 
-    let artifacts = sources
+    // Premier temps : analyse de chaque source seule (les cartes ne sont pas encore encodées).
+    let wrap = |entry: usize| {
+        move |cause: ForgeError| ForgeError::InvalidSource {
+            entry,
+            cause: Box::new(cause),
+        }
+    };
+    let pending = sources
         .iter()
         .enumerate()
         .map(|(entry, source)| {
-            compile_sprite(source.toml).map_err(|cause| ForgeError::InvalidSource {
-                entry,
-                cause: Box::new(cause),
-            })
+            match source.kind {
+                AssetKind::Sprite => compile_sprite(source.toml).map(Pending::Ready),
+                AssetKind::Tileset => compile_tileset(source.toml).map(Pending::Ready),
+                AssetKind::Map => parse_map(source.toml).map(Pending::Map),
+            }
+            .map_err(wrap(entry))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    // Second temps : résolution des références et validation croisée, puis encodage.
+    // `count` de chaque tileset, lu sur l'artefact déjà compilé.
+    let counts: Vec<Option<u16>> = pending
+        .iter()
+        .map(|item| match item {
+            Pending::Ready(bytes) => Tileset::read(bytes).ok().map(|tileset| tileset.count),
+            Pending::Map(_) => None,
+        })
+        .collect();
+    let artifacts = pending
+        .into_iter()
+        .enumerate()
+        .map(|(entry, item)| match item {
+            Pending::Ready(bytes) => Ok(bytes),
+            Pending::Map(map) => resolve_map(sources, &counts, &map, &id).map_err(wrap(entry)),
         })
         .collect::<Result<Vec<_>, _>>()?;
 
@@ -162,7 +236,7 @@ pub(crate) fn compile_assets_with(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use verbum_assets::{Manifest, load};
+    use verbum_assets::{Format, Manifest, load};
 
     const SPRITE_32X16: &str = "width = 32\nheight = 16\n";
     const SPRITE_96X48: &str = "width = 96\nheight = 48\n";
@@ -179,6 +253,7 @@ mod tests {
 
     fn a() -> AssetSource<'static> {
         AssetSource {
+            kind: AssetKind::Sprite,
             key: "a",
             toml: SPRITE_32X16,
             slot: SlotIndex::new(1),
@@ -187,6 +262,7 @@ mod tests {
 
     fn foobar() -> AssetSource<'static> {
         AssetSource {
+            kind: AssetKind::Sprite,
             key: "foobar",
             toml: SPRITE_96X48,
             slot: SlotIndex::new(0),
@@ -249,6 +325,7 @@ mod tests {
         let small = compile_assets(&[a()], 2).expect("lot valide");
         let large = compile_assets(
             &[AssetSource {
+                kind: AssetKind::Sprite,
                 key: "a",
                 toml: SPRITE_96X48,
                 slot: SlotIndex::new(1),
@@ -273,11 +350,13 @@ mod tests {
         let set = compile_assets(
             &[
                 AssetSource {
+                    kind: AssetKind::Sprite,
                     key: first,
                     toml: SPRITE_32X16,
                     slot: SlotIndex::new(0),
                 },
                 AssetSource {
+                    kind: AssetKind::Sprite,
                     key: second,
                     toml: SPRITE_32X16,
                     slot: SlotIndex::new(1),
@@ -315,6 +394,7 @@ mod tests {
 
     fn source<'a>(key: &'a str, toml: &'a str, slot: u32) -> AssetSource<'a> {
         AssetSource {
+            kind: AssetKind::Sprite,
             key,
             toml,
             slot: SlotIndex::new(slot),
@@ -472,7 +552,9 @@ mod tests {
         assert!(manifest.is_empty());
 
         let mut deposits = 0;
-        let result = load(set.manifest(), &[], 2, |_, _| deposits += 1);
+        let result = load(set.manifest(), &[], &[Format::Sprite; 2], |_, _| {
+            deposits += 1
+        });
         assert_eq!(result, Ok(()));
         assert_eq!(deposits, 0);
     }
@@ -482,16 +564,19 @@ mod tests {
         for count in 0..=3usize {
             let sources: [AssetSource<'_>; 3] = [
                 AssetSource {
+                    kind: AssetKind::Sprite,
                     key: "foobar",
                     toml: SPRITE_32X16,
                     slot: SlotIndex::new(0),
                 },
                 AssetSource {
+                    kind: AssetKind::Sprite,
                     key: "another-key",
                     toml: SPRITE_96X48,
                     slot: SlotIndex::new(1),
                 },
                 AssetSource {
+                    kind: AssetKind::Sprite,
                     key: "third/key.png",
                     toml: SPRITE_32X16,
                     slot: SlotIndex::new(2),

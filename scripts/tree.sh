@@ -26,7 +26,6 @@ EOF
 declare -A PRUNE=(
     [crates]="target build artifacts"
     [scripts]=""
-    [db]=""
 )
 
 (

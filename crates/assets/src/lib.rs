@@ -7,16 +7,25 @@
 
 #![no_std]
 
+mod format;
+mod header;
 mod load;
 mod manifest;
+mod map;
 mod sprite;
+mod tileset;
 
-pub use load::{LoadError, load};
+pub use format::{Asset, Format};
+pub use load::{LoadError, ReferenceError, load};
 pub use manifest::{
     ArtifactIndex, AssetId, BindingError, Entries, MANIFEST_ENTRY_LEN, MANIFEST_HEADER_LEN,
     MANIFEST_SIGNATURE, MANIFEST_VERSION, Manifest, ManifestEntry, ManifestError, SlotIndex,
 };
+pub use map::{MAP_FIXED_PAYLOAD_LEN, MAP_FORMAT_ID, MAP_FORMAT_VERSION, Map};
 
 pub use sprite::{
     ARTIFACT_LEN, FORMAT_ID, FORMAT_VERSION, HEADER_LEN, PAYLOAD_LEN, ReadError, Sprite,
+};
+pub use tileset::{
+    TILESET_ARTIFACT_LEN, TILESET_FORMAT_ID, TILESET_FORMAT_VERSION, TILESET_PAYLOAD_LEN, Tileset,
 };

@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-10-30 10:12:42
+**Généré le:** 2026-10-31 04:21:52
 
 ## Racine du Workspace
 
@@ -9,10 +9,14 @@
 ├── crates
 │   ├── assets
 │   │   ├── src
+│   │   │   ├── format.rs
+│   │   │   ├── header.rs
 │   │   │   ├── lib.rs
 │   │   │   ├── load.rs
 │   │   │   ├── manifest.rs
-│   │   │   └── sprite.rs
+│   │   │   ├── map.rs
+│   │   │   ├── sprite.rs
+│   │   │   └── tileset.rs
 │   │   └── Cargo.toml
 │   ├── ecs
 │   │   ├── src
@@ -39,7 +43,9 @@
 │   │   │   ├── batch.rs
 │   │   │   ├── id.rs
 │   │   │   ├── lib.rs
-│   │   │   └── sprite.rs
+│   │   │   ├── map.rs
+│   │   │   ├── sprite.rs
+│   │   │   └── tileset.rs
 │   │   ├── tests
 │   │   │   └── pipeline.rs
 │   │   └── Cargo.toml
@@ -84,6 +90,7 @@
 │   │   ├── tests
 │   │   │   ├── acceptance.rs
 │   │   │   ├── acquisition.rs
+│   │   │   ├── borrowed_resource.rs
 │   │   │   ├── frame_loop.rs
 │   │   │   ├── lifecycle.rs
 │   │   │   └── pacing.rs
@@ -98,7 +105,7 @@
 ├── Cargo.toml
 └── README.md
 
-25 directories, 67 files
+25 directories, 74 files
 ```
 
 ## Documentation du projet

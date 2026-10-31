@@ -20,7 +20,7 @@ Vous êtes implémenteur Rust. Vous exécutez de façon disciplinée le plan et 
 À fournir par l'utilisateur au démarrage :
 1. `docs/handoffs/05-verbum-assets-implementation-handoff.md` (ce document).
 2. `docs/implementation/05-verbum-assets-execution.md` : règles de session, faits vérifiés F1 à F13, portes G-CM, G-LT et G-ORD (§ 3.2), layouts et sources (§ 3.3), unités U1 à U5, gabarit de rapport, arrêt et reprise, écarts E-1 à E-9, points non vérifiés (§ 10).
-3. `docs/implementation/05-verbum-assets.md` : plan r1.2 (à lire une seule fois en entier, puis seulement la section de l'unité en cours).
+3. `docs/implementation/05-verbum-assets.md` : plan r1.3 (à lire une seule fois en entier, puis seulement la section de l'unité en cours).
 4. `docs/implementation/02-verbum-forge.md` (§ 3, § 5.3, § 5.4) et `02-verbum-forge-execution.md` (tableau des vérifications) : l'étape 5 « passe le même test qu'en étape 2 ».
 5. `docs/architecture/adr/ADR-A01-assets.md` et `ADR-000-language-and-material-invariants.md` (Statut, points 1, 3 et 4).
 6. `tree.md` : fait foi sur les chemins du dépôt.
@@ -29,14 +29,14 @@ Les autres ADR (ADR-004, ADR-005, ADR-R01 à ADR-R03), `00-principes.md`, `01-ru
 
 ## 4. Hiérarchie normative
 1. Les ADR et le corpus gouvernent.
-2. Le plan `05-verbum-assets.md` (r1.2, soumis à la validation finale ; r1.1 était validé) définit les exigences de l'étape.
+2. Le plan `05-verbum-assets.md` (r1.3, soumis à validation ; r1.2 était validé) définit les exigences de l'étape.
 3. Le document d'exécution organise les sessions et ne contient aucune règle de conception.
 
 Divergence plan / exécution : le plan prévaut ; plan / ADR : l'ADR prévaut. Dans tous les cas, la divergence est signalée à l'utilisateur et jamais résolue par la session.
 
 ## 5. Statut des documents à la passation
-- **Plan `05-verbum-assets.md` r1.2** : révision minimale du 29 octobre 2026 de r1.1 (validé) intégrant les décisions sur E-8, E-10 et E-11 ; **soumis à la validation finale de l'utilisateur** ; arbitrages A-1 à A-6 arrêtés.
-- **`05-verbum-assets-execution.md`** (aligné sur le plan r1.2 ; corrections de LT-3, E-1, E-3, E-5, E-9, E-8, E-10, E-11 intégrées) et **ce handoff** : **soumis, avec le plan r1.2, à la validation finale de l'utilisateur, non marqués validés**. Tant que la validation finale n'est pas communiquée à la session, elle l'indique en une ligne et attend.
+- **Plan `05-verbum-assets.md` r1.3** (30 octobre 2026, soumis à validation ; exception limitée à `crates/schedule/src/system.rs`) ; r1.2 : révision minimale du 29 octobre 2026 de r1.1 (validé) intégrant les décisions sur E-8, E-10 et E-11 ; **soumis à la validation finale de l'utilisateur** ; arbitrages A-1 à A-6 arrêtés.
+- **`05-verbum-assets-execution.md`** (aligné sur le plan r1.3 ; corrections de LT-3, E-1, E-3, E-5, E-9, E-8, E-10, E-11 intégrées) et **ce handoff** : **soumis, avec le plan r1.2, à la validation finale de l'utilisateur, non marqués validés**. Tant que la validation finale n'est pas communiquée à la session, elle l'indique en une ligne et attend.
 - Si l'utilisateur demande une correction ultérieure, appliquez **uniquement** cette correction, rendez le fichier **complet** (pas de diff), ne modifiez rien d'autre, attendez la validation.
 
 ## 6. Interdiction de coder avant instruction
@@ -50,7 +50,7 @@ U1 → U2 → U3 → U4 → U5, sans fusion ni réordonnancement. Après chaque 
 | Unité | Contenu | Portes et tests principaux |
 |---|---|---|
 | U1 | `load` généralisé (table de formats par slot, `deposit` reçoit un `Asset`), sprite seul ; non-régression complète de l'étape 2 ; **G-LT sur vue synthétique** | G-LT : LT-1, LT-2, LT-4 (`tests/borrowed_resource.rs`) et doctests LT-3, LT-3t (documentation de `crates/shell/src/lib.rs`) ; SF-2, TB-1, LD-1 ; M-1.1 à M-1.3, M-1.5 à M-1.8 (M-1.4 retirée, équivalente avec un seul format ; M-1.7 et M-1.8 contrôlent la factorisation du préfixe) |
-| U2 | Tileset (charge fixe), `AssetKind` et champ `kind`, **contrôle du format du slot testé entre deux formats connus** | TLS-R/F, TS-1 à TS-6, SF-1, SF-3, SF-4, SF-5 ; M-2.1 à M-2.7 |
+| U2 | Tileset (charge fixe), `AssetKind` et champ `kind`, **contrôle du format du slot testé entre deux formats connus** | TLS-R/F, TS-1 à TS-6, SF-1, SF-3, SF-4, SF-5, SF-6 (priorité du niveau 2 sur le niveau 3) ; M-2.1 à M-2.7 (M-2.3 détectée par SF-6 ; M-2.4 côté lecteur et variante M-2.4w côté Forge) |
 | U3 | Map (charge variable, vue empruntée), référence au tileset (R1), `LoadError::Reference` ; **G-LT sur le `Map<'a>` réel** | MAP-R/F, RF-1 à RF-6, VM-1, AL-1, MS-1 à MS-7, LT-5, LT-5n, LT-5t ; M-3.1 à M-3.11 |
 | U4 | Font (charge variable) | FNT-R/F, FS-1 à FS-8 ; M-4.1 à M-4.6 |
 | U5 | Niveau chargé et affiché (Backend headless), **G-ORD**, contrôles de clôture, Miri, MSRV | SC-1 à SC-6 ; M-5.1 à M-5.4 ; **CI-5** (variantes « tri » et « inversion » du composeur de la scène : tous les SC restent verts) ; `cargo tree -p verbum-assets`, `-p verbum-forge` |
@@ -65,7 +65,7 @@ U1 → U2 → U3 → U4 → U5, sans fusion ni réordonnancement. Après chaque 
 
 - **Rouge avant vert** quand c'est possible : tests écrits contre des squelettes d'API, échec constaté **pour la raison attendue** et rapporté. **Un échec de compilation n'est pas un rouge valide.** « Sans rouge possible » est justifié par écrit (G-LT : l'échec de compilation du montage est le résultat de la porte, pas un rouge).
 - **Sensibilité par mutation** sur copie isolée **hors de l'arbre de travail**, une mutation à la fois, jamais présentée comme rouge initial ; le rapport nomme pour chaque mutation le test détecteur **et les autres assertions échouées**. Une mutation non détectée est un arrêt. La détection par échec de compilation du dépôt n'est pas admise ; M-1.5 et M-1.6 sont détectées par échec de **doctest** et rapportées comme telles.
-- **G-LT est une preuve effective sur le véritable `World` et le véritable Scheduler.** Résultat binaire, rapporté avec le message exact du compilateur en cas d'échec ; **aucun contournement** (ni `'static`, ni fuite, ni `unsafe`, ni modification de `ecs` ou `schedule`, ni repli sur d'autres options d'A-2). Un montage qui ne compile qu'avec `'static` est un échec du cas non `'static`.
+- **G-LT est une preuve effective sur le véritable `World` et le véritable Scheduler.** Résultat binaire, rapporté avec le message exact du compilateur en cas d'échec ; **aucun contournement** (ni `'static`, ni fuite, ni `unsafe`, ni modification de `ecs` ou `schedule` **hors l'exception r1.3 : `crates/schedule/src/system.rs`, trois bornes de durée de vie**, ni repli sur d'autres options d'A-2). Un montage qui ne compile qu'avec `'static` est un échec du cas non `'static`.
 - **Doctests de G-LT** : Cargo ne traite les doctests que pour la **cible bibliothèque**. LT-3, LT-3t, LT-5n et LT-5t sont donc dans la documentation `//!` de `crates/shell/src/lib.rs` (exception documentaire E-9 : aucune ligne de code exécutable, aucune API, aucun comportement modifiés). Le cas négatif construit un véritable `World` à Ressource empruntant le tampon, détruit le tampon, puis tente un usage ; le jumeau valide est identique à une ligne près. **Les codes d'erreur de compilation ne s'épinglent pas.** L'utilisateur constate l'exécution effective par `cargo test -p verbum-shell --doc`.
 - **G-CM** : les validations propres aux nouveaux types vivent à l'intérieur des niveaux 1 à 4 existants ; créer un niveau, changer l'ordre, déposer avant la fin du niveau 3, modifier `VMAN`, allouer, modifier le modèle d'identité = arrêt.
 - **G-ORD** : aucune assertion, aucun exemple ne dépend de l'ordre de la `Frame` ou de l'émission ; scène disjointe et invariance par permutation (SC-2, SC-3) ; comparaison en multi-ensemble, multiplicité conservée.
@@ -86,7 +86,7 @@ U1 → U2 → U3 → U4 → U5, sans fusion ni réordonnancement. Après chaque 
 - **Statique contre revue** : aucune revue n'est présentée comme une preuve statique dans un rapport.
 
 ## 10. Interdits
-- Ne modifier ni les ADR, ni `ROADMAP.md`, ni `docs/implementation/00` à `05`, ni les handoffs, ni `crates/{render,ecs,schedule,verbum}/**` ; ne pas modifier le plan, le document d'exécution ni ce handoff sans décision explicite de l'utilisateur.
+- Ne modifier ni les ADR, ni `ROADMAP.md`, ni `docs/implementation/00` à `05`, ni les handoffs, ni `crates/{render,ecs,schedule,verbum}/**` **(exception r1.3 : `crates/schedule/src/system.rs`, limitée aux trois bornes de durée de vie ; aucun autre fichier de `schedule`, aucun fichier de `ecs`)** ; ne pas modifier le plan, le document d'exécution ni ce handoff sans décision explicite de l'utilisateur.
 - Écrire uniquement : `crates/assets/**` (`[dependencies]` **et** `[dev-dependencies]` restent vides), `crates/forge/**`, `crates/shell/tests/{borrowed_resource.rs, level_loaded.rs}`, `crates/shell/examples/level_headless.rs`, **la documentation `//!` seule de `crates/shell/src/lib.rs`** (E-9), `crates/shell/Cargo.toml` (`[dev-dependencies]` : `verbum-assets` en U3, `verbum-forge` en U5), `Cargo.toml` racine (`[workspace.dependencies]` : `verbum-assets` en U3, `verbum-forge` en U5), `Cargo.lock` (par Cargo, jamais à la main).
 - Aucun `unsafe`, cast d'octets, `transmute`, `Box::leak`, `include_bytes!` ou `static` pour contourner la durée de vie. Aucun `alloc`, `Vec`, `Box`, `String` dans `crates/assets/src/**`. Aucune dépendance externe autre que `toml` (forge). Aucun constructeur public d'`AssetId` à partir d'un entier.
 - Aucune chaîne, aucun chemin, aucun champ de pixels, de couleur ou d'image dans un artefact, un manifeste ou une Ressource.
@@ -96,7 +96,7 @@ U1 → U2 → U3 → U4 → U5, sans fusion ni réordonnancement. Après chaque 
 - **Aucun commit par Claude.**
 
 ## 11. Divergence, doute, blocage
-Arrêt immédiat, sans choix de la session, en cas de : contradiction ou ambiguïté du plan ou d'un ADR ; divergence entre un fait [Vérifié] et le code réel fourni ; **échec de G-LT** ; **situation G-CM** ; exigence qui ne s'énonce pas sans ordre (**G-ORD**) ; modification requise d'une assertion d'un test de l'étape 2 ; test dont le rouge ne peut pas être constaté pour la bonne raison ; mutation non détectée ou qui échoue sur d'autres assertions sans explication ; code d'erreur de compilation épinglé ; besoin de modifier un fichier interdit, un crate du noyau, le Scheduler ou le Renderer ; besoin d'`unsafe`, d'allocation, d'un ordre ou d'une clé ; test hors liste ; fichier nécessaire non fourni. La session fournit un constat factuel (source, texte, observation) et présente les options minimales, **sans arbitrer**.
+Arrêt immédiat, sans choix de la session, en cas de : contradiction ou ambiguïté du plan ou d'un ADR ; divergence entre un fait [Vérifié] et le code réel fourni ; **échec de G-LT** ; **situation G-CM** ; exigence qui ne s'énonce pas sans ordre (**G-ORD**) ; modification requise d'une assertion d'un test de l'étape 2 ; test dont le rouge ne peut pas être constaté pour la bonne raison ; mutation non détectée ou qui échoue sur d'autres assertions sans explication ; code d'erreur de compilation épinglé ; besoin de modifier un fichier interdit, un crate du noyau, le Scheduler (hors exception r1.3) ou le Renderer ; besoin d'`unsafe`, d'allocation, d'un ordre ou d'une clé ; test hors liste ; fichier nécessaire non fourni. La session fournit un constat factuel (source, texte, observation) et présente les options minimales, **sans arbitrer**.
 
 ## 12. Reprise
 Si la session se dégrade ou si le découpage A/B/C est adopté, une nouvelle session reçoit ce handoff, le document d'exécution, le plan, les documents du § 3, `tree.md`, les fichiers de code de l'unité suivante (§ 7, « Fichiers à fournir ») et la dernière phrase de rapport validée (« Unité Un validée »). Elle relit l'état réel avec les contrôles **exécutés par l'utilisateur**, reprend à l'unité suivante ; une unité interrompue est refaite depuis ses tests. Elle ne rouvre aucun arbitrage clos ni aucune unité validée.
