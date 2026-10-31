@@ -202,11 +202,25 @@ Tous les entiers sont little-endian, lus champ à champ, sans cast. Préfixe com
 
 ### U4 — Font (charge variable, sans référence)
 
-**Fichiers** [Exécution] : `crates/assets/src/font.rs` (créé), `format.rs`, `load.rs`, `lib.rs` ; `crates/forge/src/font.rs` (créé), `batch.rs`, `lib.rs` ; `crates/forge/tests/pipeline.rs` (extension).
+**Fichiers** [Exécution] : `crates/assets/src/font.rs` (créé), `format.rs`, `lib.rs` (`load.rs` inchangé, constaté) ; `crates/forge/src/font.rs` (créé), `batch.rs`, `lib.rs` ; `crates/forge/tests/pipeline.rs` (extension).
 
 **Tests.** FNT-R1 à FNT-R8 : analogues de MAP-R1 à MAP-R8 (charge `4 + 8·n`, enregistrements de 8 octets, 0 glyphe conforme (charge utile de 4 octets), charge utile de longueur nulle rejetée, débordement de `8·glyph_count`, accès `glyph(i)` borné) ; FNT-F1 à FNT-F6 : analogues de MAP-F1 à MAP-F3, MAP-F5 et MAP-F6, plus refus de codepoint non scalaire, non strictement croissant, `advance` nul, tableau `glyph` vide ; FS-1 lot `{sprite, tileset, map, font}` complet → `load` → quatre `ResourceSlot` typés ; FS-2 à FS-6 : analogues de TS-2 à TS-6 sur le lot ; FS-7 **format du slot** étendu aux quatre formats (chaque paire non diagonale rejetée par `SlotFormat`, avant dépôt) ; FS-8 le lot compte **plusieurs** assets de même format (deux tilesets, deux maps référant chacune le sien) : chaque map reçoit le `SlotIndex` de son tileset (RF-5 généralisé).
 
-**Mutations.** M-4.1 (longueur déduite en `u32`) → FNT-R7 ; M-4.2 (taille d'enregistrement 7 au lieu de 8 dans la déduction) → FNT-R5 et FNT-R1 ; M-4.3 (accès `glyph(len)` permis) → FNT-R8 ; M-4.4 (Forge n'impose pas la croissance des codepoints) → FNT-F3 ; M-4.5 (champ `advance` écrit à la place de `width`) → FNT-F1 ; M-4.6 (`Format::Font` absent de la matrice de `SlotFormat`) → FS-7.
+**Mutations.**
+- **M-4.1** : la longueur déduite est calculée en `u32`. **Mutation littérale équivalente** dans le domaine valide : `glyph_count` est un `u16`, la longueur maximale `4 + 8·65 535 = 524 284` ne déborde pas un `u32` ; aucun test ne peut la détecter et aucun test artificiel n'est ajouté (décision de l'utilisateur). **Variante M-4.1′** (arithmétique sur 16 bits avec réduction modulo 2¹⁶) → **détectée** par FNT-R7 (cas `glyph_count = 0x2000`, `8·0x2000` vaut 0 sur 16 bits) et FNT-F2 (relecture des 65 535 glyphes).
+- **M-4.2** : taille d'enregistrement 7 au lieu de 8 dans la déduction → FNT-R1, FNT-R8, FNT-F2, FNT-F6 et FS-1, FS-2, FS-3, FS-4, FS-6 (détecteurs constatés à l'exécution, 31 octobre 2026 ; FNT-R5 reste vert, ses cas d'incohérence rejetant aussi avec 7).
+- **M-4.3** : accès `glyph(len)` permis (`index > glyph_count` au lieu de `>=`). **Mutation littérale équivalente** : l'accès par `get` borné rend déjà `None` à l'indice `len` ; aucun test artificiel. **Variante M-4.3′** (garde décalée **et** indexation directe paniquante `records[offset..offset + 8]`) → **détectée** par FNT-R6, FNT-R8, FNT-F2 et FS-1, FS-2, FS-3, FS-6.
+- **M-4.4** : la Forge n'impose pas la croissance stricte des codepoints → **FNT-F6** seul (la croissance est contrôlée dans FNT-F6 et non dans FNT-F3).
+- **M-4.5** : champ `advance` écrit à la place de `width` → FNT-F1, FNT-F2 et FS-1, FS-2, FS-3, FS-6.
+- **M-4.6** : `Format::Font` absent de l'identification de format du slot (`of_identity` ne reconnaît pas `VFNT`) → **FS-4 et FS-7** (l'identité inconnue retombe au niveau 3 : erreur d'artefact au lieu de `SlotFormat`).
+
+**Observations d'exécution (U4, 31 octobre 2026).**
+- **Rouge** : sur squelette `unimplemented!()`, 20 tests échouent (FNT-R1 à R8, FNT-F1 à F6, FS-1, 2, 3, 4, 6, 7). **FS-5** (TOML présenté au lecteur de manifeste) et **FS-8** (tilesets et maps seuls) n'empruntent aucun code de police : pas de rouge possible, justifié.
+- **FNT-F4 corrigé** (test, pas le code) : en TOML, une clé placée après un en-tête `[[glyph]]` appartient à la dernière table du tableau ; `line_height` doit donc précéder les `[[glyph]]` ou suivre un tableau `glyph` en ligne. Le test de permutation place `line_height` en tête et ajoute une variante `glyph = [{ … }]` suivie de `line_height`.
+- **FS-8 conservé** (décision de l'utilisateur) : couverture de la résolution map → tileset quand `artifact_index ≠ slot_index`.
+- `load.rs` est inchangé (`materialize` traite `Decoded::Ready`) ; `format.rs` porte `Format::Font`, `Asset::Font`, l'identité `VFNT` et la branche de décodage.
+- Nouvelles variantes `ForgeError` dans `crates/forge/src/sprite.rs` : `EmptyGlyphs`, `TooManyGlyphs`, `InvalidCodepoint`, `CodepointOrder` (même emplacement qu'en U2 et U3).
+- Contrôles du dépôt réel, Miri inclus : exécutés par l'utilisateur, verts ; U4 validée techniquement le 31 octobre 2026.
 
 **Contrôles.** Les quatre ; arbres `cargo tree`.
 
