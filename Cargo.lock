@@ -173,6 +173,7 @@ version = "0.1.0"
 dependencies = [
  "verbum-assets",
  "verbum-ecs",
+ "verbum-forge",
  "verbum-render",
  "verbum-schedule",
 ]
