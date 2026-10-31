@@ -78,6 +78,7 @@ La documentation n'est pas un commentaire du code : elle constitue la spécifica
 Pour découvrir le projet, commencer par :
 
 → **[`docs/architecture/README.md`](docs/architecture/README.md)**
+→ **[`docs/generate/tree.md`](docs/generate/tree.md)**
 
 Ce document présente le parcours de lecture, les concepts fondamentaux et l'ensemble des décisions qui structurent Verbum.
 
