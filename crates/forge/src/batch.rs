@@ -13,7 +13,7 @@ use verbum_assets::{
 
 use crate::id::fnv1a_64;
 use crate::map::{MapSource, encode_map, parse_map};
-use crate::{ForgeError, compile_sprite, compile_tileset};
+use crate::{ForgeError, compile_font, compile_sprite, compile_tileset};
 
 /// Genre d'un asset à compiler. Ce n'est pas un champ TOML : il est fourni à côté de la
 /// source, et la Forge n'en déduit jamais le genre du contenu.
@@ -25,6 +25,8 @@ pub enum AssetKind {
     Tileset,
     /// Source `map.toml`, artefact `VMAP` ; référence un tileset du même lot par sa clé.
     Map,
+    /// Source `font.toml`, artefact `VFNT` ; ne référence aucun autre asset.
+    Font,
 }
 
 /// Un asset à compiler : genre, clé logique, source TOML, slot cible.
@@ -190,6 +192,7 @@ pub(crate) fn compile_assets_with(
                 AssetKind::Sprite => compile_sprite(source.toml).map(Pending::Ready),
                 AssetKind::Tileset => compile_tileset(source.toml).map(Pending::Ready),
                 AssetKind::Map => parse_map(source.toml).map(Pending::Map),
+                AssetKind::Font => compile_font(source.toml).map(Pending::Ready),
             }
             .map_err(wrap(entry))
         })

@@ -6,6 +6,7 @@
 //! 10 octets est complet et son identité connue ; sinon, le format attendu pour son slot.
 //! Un seul décodeur sert aux niveaux 3 et 4 du chargement.
 
+use crate::font::{FONT_FORMAT_ID, Font};
 use crate::header::identity_of;
 use crate::map::{self, MAP_FORMAT_ID, Map, MapParts};
 use crate::sprite::{FORMAT_ID, ReadError, Sprite};
@@ -20,6 +21,8 @@ pub enum Format {
     Tileset,
     /// Artefact `VMAP`.
     Map,
+    /// Artefact `VFNT`.
+    Font,
 }
 
 /// Valeur décodée d'un artefact, une variante par format. `'a` est la durée de vie des
@@ -33,6 +36,8 @@ pub enum Asset<'a> {
     Tileset(Tileset),
     /// Carte : vue empruntée dont le tileset est résolu en slot.
     Map(Map<'a>),
+    /// Police : vue empruntée.
+    Font(Font<'a>),
 }
 
 impl Format {
@@ -43,6 +48,7 @@ impl Format {
             FORMAT_ID => Some(Self::Sprite),
             TILESET_FORMAT_ID => Some(Self::Tileset),
             MAP_FORMAT_ID => Some(Self::Map),
+            FONT_FORMAT_ID => Some(Self::Font),
             _ => None,
         }
     }
@@ -63,5 +69,6 @@ pub(crate) fn decode<'a>(expected: Format, bytes: &'a [u8]) -> Result<Decoded<'a
         Format::Sprite => Sprite::read(bytes).map(|v| Decoded::Ready(Asset::Sprite(v))),
         Format::Tileset => Tileset::read(bytes).map(|v| Decoded::Ready(Asset::Tileset(v))),
         Format::Map => map::read(bytes).map(Decoded::Map),
+        Format::Font => Font::read(bytes).map(|v| Decoded::Ready(Asset::Font(v))),
     }
 }

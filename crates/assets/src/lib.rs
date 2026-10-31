@@ -7,6 +7,7 @@
 
 #![no_std]
 
+mod font;
 mod format;
 mod header;
 mod load;
@@ -15,6 +16,9 @@ mod map;
 mod sprite;
 mod tileset;
 
+pub use font::{
+    FONT_FIXED_PAYLOAD_LEN, FONT_FORMAT_ID, FONT_FORMAT_VERSION, FONT_RECORD_LEN, Font, Glyph,
+};
 pub use format::{Asset, Format};
 pub use load::{LoadError, ReferenceError, load};
 pub use manifest::{

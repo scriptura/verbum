@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-10-31 04:21:52
+**Généré le:** 2026-10-31 09:06:25
 
 ## Racine du Workspace
 
@@ -9,6 +9,7 @@
 ├── crates
 │   ├── assets
 │   │   ├── src
+│   │   │   ├── font.rs
 │   │   │   ├── format.rs
 │   │   │   ├── header.rs
 │   │   │   ├── lib.rs
@@ -41,6 +42,7 @@
 │   ├── forge
 │   │   ├── src
 │   │   │   ├── batch.rs
+│   │   │   ├── font.rs
 │   │   │   ├── id.rs
 │   │   │   ├── lib.rs
 │   │   │   ├── map.rs
@@ -105,7 +107,7 @@
 ├── Cargo.toml
 └── README.md
 
-25 directories, 74 files
+25 directories, 76 files
 ```
 
 ## Documentation du projet

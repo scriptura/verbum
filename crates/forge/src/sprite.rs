@@ -36,6 +36,15 @@ pub enum ForgeError {
     /// Map, compilation en lot : un indice de case est supérieur ou égal au `count` du
     /// tileset référencé.
     CellOutOfRange,
+    /// Police : le tableau `glyph` est vide.
+    EmptyGlyphs,
+    /// Police : le tableau `glyph` compte plus de 65535 éléments.
+    TooManyGlyphs,
+    /// Police : un point de code n'est pas une valeur scalaire Unicode (substitut ou
+    /// supérieur à `0x10FFFF`).
+    InvalidCodepoint,
+    /// Police : les points de code ne sont pas strictement croissants.
+    CodepointOrder,
     /// Compilation en lot : la source de l'entrée `entry` est rejetée (position base zéro).
     InvalidSource {
         entry: usize,

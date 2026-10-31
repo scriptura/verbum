@@ -6,11 +6,13 @@
 //! Forge lit et valide les formats humains (I1, I2).
 
 mod batch;
+mod font;
 mod id;
 mod map;
 mod sprite;
 mod tileset;
 
 pub use batch::{AssetKind, AssetSource, CompiledSet, compile_assets};
+pub use font::compile_font;
 pub use sprite::{ForgeError, compile_sprite};
 pub use tileset::compile_tileset;

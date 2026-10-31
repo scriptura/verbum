@@ -20,6 +20,7 @@ use verbum_assets::{
     MANIFEST_HEADER_LEN, MANIFEST_SIGNATURE, MANIFEST_VERSION, Manifest, ManifestEntry,
     ManifestError, Map, ReadError, ReferenceError, SlotIndex, Sprite, Tileset, load,
 };
+use verbum_assets::{Font, Glyph};
 use verbum_ecs::{ResourceSlot, World};
 use verbum_forge::{
     AssetKind, AssetSource, CompiledSet, ForgeError, compile_assets, compile_sprite,
@@ -1234,4 +1235,401 @@ fn ms_6_a_capacity_above_the_asset_count_leaves_the_other_slots_empty() {
     assert_eq!(sprite, Some(SPRITE_96X48));
     assert_eq!(tileset, Some(TILESET_VALUE));
     expected_triple_map(map.expect("carte déposée"));
+}
+
+// ---------------------------------------------------------------------------------------
+// U4 : police (`VFNT`), quatrième format de la chaîne.
+// Chaîne : sources TOML → compilation en lot → manifeste et artefacts → `load` → quatre
+// `ResourceSlot` typés. Invariants : I12, I13, I6, I7, I8.
+// ---------------------------------------------------------------------------------------
+
+/// Police de référence : mêmes valeurs que FNT-R1 et FNT-F1.
+const FONT_TOML: &str = "line_height = 2571\n\
+    [[glyph]]\ncodepoint = 65\nwidth = 5\nadvance = 6\n\
+    [[glyph]]\ncodepoint = 233\nwidth = 7\nadvance = 8\n\
+    [[glyph]]\ncodepoint = 128512\nwidth = 0\nadvance = 9\n";
+
+const FONT_GLYPHS: [Glyph; 3] = [
+    Glyph {
+        codepoint: 0x41,
+        width: 5,
+        advance: 6,
+    },
+    Glyph {
+        codepoint: 0xE9,
+        width: 7,
+        advance: 8,
+    },
+    Glyph {
+        codepoint: 0x1_F600,
+        width: 0,
+        advance: 9,
+    },
+];
+
+fn font_source(key: &'static str, slot: u32) -> AssetSource<'static> {
+    AssetSource {
+        kind: AssetKind::Font,
+        key,
+        toml: FONT_TOML,
+        slot: SlotIndex::new(slot),
+    }
+}
+
+/// `R` de l'application de test : un slot par genre (sprite, tileset, carte, police).
+#[derive(Default)]
+struct Quad<'a> {
+    sprite: ResourceSlot<Sprite>,
+    tileset: ResourceSlot<Tileset>,
+    map: ResourceSlot<Map<'a>>,
+    font: ResourceSlot<Font<'a>>,
+}
+
+type QuadWorld<'a> = World<1, (), Quad<'a>>;
+
+/// Table statique : slot 0 → sprite, 1 → tileset, 2 → carte, 3 → police.
+static QUAD_TABLE: [Format; 4] = [Format::Sprite, Format::Tileset, Format::Map, Format::Font];
+
+fn deposit_quad<'a>(world: &mut QuadWorld<'a>, slot: SlotIndex, asset: RuntimeAsset<'a>) {
+    let resources = world.resources_mut();
+    let replaced = match (slot.get(), asset) {
+        (0, RuntimeAsset::Sprite(value)) => resources.sprite.insert(value).is_some(),
+        (1, RuntimeAsset::Tileset(value)) => resources.tileset.insert(value).is_some(),
+        (2, RuntimeAsset::Map(value)) => resources.map.insert(value).is_some(),
+        (3, RuntimeAsset::Font(value)) => resources.font.insert(value).is_some(),
+        (slot, other) => panic!("dépôt inattendu : slot {slot}, {other:?}"),
+    };
+    assert!(!replaced, "slot déjà occupé");
+}
+
+type QuadContents<'a> = (
+    Option<Sprite>,
+    Option<Tileset>,
+    Option<Map<'a>>,
+    Option<Font<'a>>,
+);
+
+fn quad_contents<'a>(world: &QuadWorld<'a>) -> QuadContents<'a> {
+    let resources = world.resources();
+    (
+        resources.sprite.get().copied(),
+        resources.tileset.get().copied(),
+        resources.map.get().copied(),
+        resources.font.get().copied(),
+    )
+}
+
+/// Ordre de référence : police (slot 3), carte (slot 2), tileset (slot 1), sprite
+/// (slot 0) : `artifact_index ≠ slot_index` pour chaque entrée.
+fn quad_sources() -> [AssetSource<'static>; 4] {
+    [
+        font_source("ui", 3),
+        map_source("foobar", CHAIN_MAP_TOML, 2),
+        tileset_source("a", TILES_TOML, 1),
+        sprite_source("hero", 0),
+    ]
+}
+
+fn expected_font(font: Font<'_>) {
+    assert_eq!((font.len(), font.line_height()), (3, 2571));
+    for (index, glyph) in (0u16..).zip(FONT_GLYPHS) {
+        assert_eq!(font.glyph(index), Some(glyph));
+    }
+    assert_eq!(font.glyph(3), None);
+}
+
+fn expect_quad(world: &QuadWorld<'_>) {
+    let (sprite, tileset, map, font) = quad_contents(world);
+    assert_eq!(sprite, Some(SPRITE_96X48));
+    assert_eq!(tileset, Some(TILESET_VALUE));
+    expected_triple_map(map.expect("carte déposée"));
+    expected_font(font.expect("police déposée"));
+}
+
+#[test]
+fn fs_1_a_sprite_a_tileset_a_map_and_a_font_flow_into_four_typed_slots() {
+    let set = compile_assets(&quad_sources(), 4).expect("lot valide");
+    let mut world = QuadWorld::new();
+    assert_eq!(quad_contents(&world), (None, None, None, None));
+    let mut calls = 0;
+    load(set.manifest(), &slices(&set), &QUAD_TABLE, |slot, asset| {
+        calls += 1;
+        deposit_quad(&mut world, slot, asset);
+    })
+    .expect("chargement");
+    assert_eq!(calls, 4);
+    expect_quad(&world);
+}
+
+#[test]
+fn fs_2_identifiers_resolve_to_the_right_artifact_slot_and_format() {
+    let id_of_a = Manifest::parse(&REFERENCE_MANIFEST)
+        .expect("manifeste littéral conforme")
+        .entries()
+        .next()
+        .expect("entrée « a »")
+        .id();
+    let set = compile_assets(&quad_sources(), 4).expect("lot valide");
+    let manifest = Manifest::parse(set.manifest()).expect("manifeste produit conforme");
+
+    // Police : artefact 0, slot 3 ; carte : 1, 2 ; tileset : 2, 1 ; sprite : 3, 0.
+    let positions: Vec<(u32, u32)> = manifest
+        .entries()
+        .map(|entry| (entry.artifact_index().get(), entry.slot_index().get()))
+        .collect();
+    assert_eq!(positions, [(0, 3), (1, 2), (2, 1), (3, 0)]);
+    let tiles = manifest.find(id_of_a).expect("tileset");
+    assert_eq!(tiles.slot_index().get(), 1);
+    assert_eq!(Tileset::read(&set.artifacts()[2]), Ok(TILESET_VALUE));
+
+    // L'artefact de police est lisible par le lecteur de police, et lui seul.
+    expected_font(Font::read(&set.artifacts()[0]).expect("police conforme"));
+    assert!(Tileset::read(&set.artifacts()[0]).is_err());
+    assert!(Font::read(&set.artifacts()[2]).is_err());
+}
+
+#[test]
+fn fs_3_reversing_the_compilation_order_changes_artifact_indices_but_not_the_outcome() {
+    let reference = compile_assets(&quad_sources(), 4).expect("lot valide");
+    let mut reversed_sources = quad_sources();
+    reversed_sources.reverse();
+    let reversed = compile_assets(&reversed_sources, 4).expect("lot valide");
+
+    let before = Manifest::parse(reference.manifest()).expect("manifeste conforme");
+    let after = Manifest::parse(reversed.manifest()).expect("manifeste conforme");
+    for entry in before.entries() {
+        let moved = after.find(entry.id()).expect("même identifiant");
+        assert_eq!(moved.slot_index(), entry.slot_index());
+        assert_ne!(moved.artifact_index(), entry.artifact_index());
+    }
+    assert_ne!(reference.manifest(), reversed.manifest());
+
+    let mut world = QuadWorld::new();
+    load(
+        reversed.manifest(),
+        &slices(&reversed),
+        &QUAD_TABLE,
+        |slot, asset| deposit_quad(&mut world, slot, asset),
+    )
+    .expect("chargement");
+    expect_quad(&world);
+}
+
+/// Charge un lot et exige un rejet : aucun dépôt, aucun slot occupé.
+fn quad_rejected(manifest: &[u8], artifacts: &[&[u8]], table: &[Format]) -> LoadError {
+    let mut world = QuadWorld::new();
+    let mut calls = 0;
+    let result = load(manifest, artifacts, table, |slot, asset| {
+        calls += 1;
+        deposit_quad(&mut world, slot, asset);
+    });
+    let error = result.expect_err("chargement rejeté");
+    assert_eq!(calls, 0, "le dépôt ne doit jamais être appelé");
+    assert_eq!(quad_contents(&world), (None, None, None, None));
+    error
+}
+
+#[test]
+fn fs_4_every_rejection_happens_before_the_first_deposit_font_errors_included() {
+    let set = compile_assets(&quad_sources(), 4).expect("lot valide");
+    let artifacts = slices(&set);
+    // Niveau 1 : manifeste altéré.
+    let mut altered = set.manifest().to_vec();
+    altered[0] ^= 0xFF;
+    assert_eq!(
+        quad_rejected(&altered, &artifacts, &QUAD_TABLE),
+        LoadError::Manifest(ManifestError::Signature)
+    );
+
+    // Niveau 2 : liaisons trop courtes ; format du slot de la police.
+    assert_eq!(
+        quad_rejected(set.manifest(), &artifacts, &QUAD_TABLE[..3]),
+        LoadError::Binding(BindingError::CapacityExceeded)
+    );
+    assert_eq!(
+        quad_rejected(
+            set.manifest(),
+            &artifacts,
+            &[Format::Sprite, Format::Tileset, Format::Map, Format::Sprite]
+        ),
+        LoadError::SlotFormat {
+            slot: SlotIndex::new(3)
+        }
+    );
+
+    // Niveau 3 : police altérée, chaque cas avec l'erreur et l'index d'artefact attendus.
+    let good = set.artifacts()[0].clone();
+    assert_eq!(good.len(), 38);
+    let cases: [(Vec<u8>, ReadError); 5] = [
+        (good[..37].to_vec(), ReadError::Truncated),
+        ([good.clone(), vec![0]].concat(), ReadError::TrailingBytes),
+        (
+            {
+                // 4 glyphes annoncés, 3 enregistrements présents.
+                let mut bytes = good.clone();
+                bytes[10] = 4;
+                bytes
+            },
+            ReadError::PayloadLength,
+        ),
+        (
+            {
+                // 0x2000 glyphes : `8·0x2000` vaut 0 sur 16 bits.
+                let mut bytes = good.clone();
+                bytes[10..12].copy_from_slice(&0x2000u16.to_le_bytes());
+                bytes
+            },
+            ReadError::PayloadLength,
+        ),
+        (
+            {
+                // Longueur déclarée inférieure à la partie fixe.
+                let mut bytes = good.clone();
+                bytes[6..10].copy_from_slice(&3u32.to_le_bytes());
+                bytes
+            },
+            ReadError::PayloadLength,
+        ),
+    ];
+    for (bytes, expected) in cases {
+        let lot: [&[u8]; 4] = [&bytes, artifacts[1], artifacts[2], artifacts[3]];
+        let LoadError::Artifact { index, error } = quad_rejected(set.manifest(), &lot, &QUAD_TABLE)
+        else {
+            panic!("attendu : erreur d'artefact");
+        };
+        assert_eq!(index.get(), 0);
+        assert_eq!(error, expected);
+    }
+
+    // Niveau 3 : la carte, valide en structure, reste fermée sur son tileset même en
+    // présence de la police (référence non résolue).
+    let mut dangling = set.artifacts()[1].clone();
+    dangling[10] ^= 0xFF;
+    let lot: [&[u8]; 4] = [artifacts[0], &dangling, artifacts[2], artifacts[3]];
+    let LoadError::Reference { index, error } = quad_rejected(set.manifest(), &lot, &QUAD_TABLE)
+    else {
+        panic!("attendu : erreur de référence");
+    };
+    assert_eq!(index.get(), 1);
+    assert_eq!(error, ReferenceError::Unresolved);
+}
+
+#[test]
+fn fs_5_the_toml_source_given_to_the_manifest_reader_is_rejected() {
+    let source = FONT_TOML.as_bytes();
+    assert!(source.len() >= 10);
+    assert_eq!(
+        Manifest::parse(source).err(),
+        Some(ManifestError::Signature)
+    );
+    assert_eq!(
+        quad_rejected(source, &[], &QUAD_TABLE),
+        LoadError::Manifest(ManifestError::Signature)
+    );
+}
+
+#[test]
+fn fs_6_a_capacity_above_the_asset_count_leaves_the_other_slots_empty() {
+    // Cinq slots, quatre assets : le slot 4 reste vide.
+    let set = compile_assets(&quad_sources(), 5).expect("lot valide");
+    let table = [
+        Format::Sprite,
+        Format::Tileset,
+        Format::Map,
+        Format::Font,
+        Format::Font,
+    ];
+    let mut world = QuadWorld::new();
+    let mut calls = 0;
+    load(set.manifest(), &slices(&set), &table, |slot, asset| {
+        calls += 1;
+        deposit_quad(&mut world, slot, asset);
+    })
+    .expect("chargement");
+    assert_eq!(calls, 4);
+    expect_quad(&world);
+}
+
+#[test]
+fn fs_7_every_slot_format_mismatch_among_four_formats_is_rejected_before_any_deposit() {
+    let set = compile_assets(&quad_sources(), 4).expect("lot valide");
+    let artifacts = slices(&set);
+    let all = [Format::Sprite, Format::Tileset, Format::Map, Format::Font];
+    let mut cases = 0;
+    for slot in 0..4u32 {
+        // Pour chaque slot, chaque format attendu différent du format réel : 4 × 3 = 12.
+        for expected in all {
+            if expected == QUAD_TABLE[slot as usize] {
+                continue;
+            }
+            let mut table = QUAD_TABLE;
+            table[slot as usize] = expected;
+            assert_eq!(
+                quad_rejected(set.manifest(), &artifacts, &table),
+                LoadError::SlotFormat {
+                    slot: SlotIndex::new(slot)
+                },
+                "slot {slot} attendu {expected:?}"
+            );
+            cases += 1;
+        }
+    }
+    assert_eq!(cases, 12);
+}
+
+/// `R` de FS-8 : deux tilesets et deux cartes, chaque carte référençant son tileset.
+#[derive(Default)]
+struct Duo<'a> {
+    tileset_a: ResourceSlot<Tileset>,
+    map_1: ResourceSlot<Map<'a>>,
+    tileset_b: ResourceSlot<Tileset>,
+    map_2: ResourceSlot<Map<'a>>,
+}
+
+type DuoWorld<'a> = World<1, (), Duo<'a>>;
+
+static DUO_TABLE: [Format; 4] = [Format::Tileset, Format::Map, Format::Tileset, Format::Map];
+
+#[test]
+fn fs_8_each_map_resolves_its_own_tileset_slot_when_artifact_and_slot_indices_differ() {
+    // Ordre des sources : m2, tsB, m1, tsA ; slots : tsA 0, m1 1, tsB 2, m2 3.
+    let ts_a = "tile_width = 8\ntile_height = 8\ncolumns = 2\ncount = 4\n";
+    let ts_b = "tile_width = 16\ntile_height = 16\ncolumns = 3\ncount = 9\n";
+    let m1 = "tileset = \"tsA\"\nwidth = 2\nheight = 1\ncells = [0, 3]\n";
+    let m2 = "tileset = \"tsB\"\nwidth = 1\nheight = 2\ncells = [8, 5]\n";
+    let sources = [
+        map_source("m2", m2, 3),
+        tileset_source("tsB", ts_b, 2),
+        map_source("m1", m1, 1),
+        tileset_source("tsA", ts_a, 0),
+    ];
+    let set = compile_assets(&sources, 4).expect("lot valide");
+    let mut world = DuoWorld::new();
+    let mut calls = 0;
+    load(set.manifest(), &slices(&set), &DUO_TABLE, |slot, asset| {
+        calls += 1;
+        let resources = world.resources_mut();
+        let replaced = match (slot.get(), asset) {
+            (0, RuntimeAsset::Tileset(value)) => resources.tileset_a.insert(value).is_some(),
+            (1, RuntimeAsset::Map(value)) => resources.map_1.insert(value).is_some(),
+            (2, RuntimeAsset::Tileset(value)) => resources.tileset_b.insert(value).is_some(),
+            (3, RuntimeAsset::Map(value)) => resources.map_2.insert(value).is_some(),
+            (slot, other) => panic!("dépôt inattendu : slot {slot}, {other:?}"),
+        };
+        assert!(!replaced, "slot déjà occupé");
+    })
+    .expect("chargement");
+    assert_eq!(calls, 4);
+
+    let resources = world.resources();
+    assert_eq!(resources.tileset_a.get().map(|t| t.count), Some(4));
+    assert_eq!(resources.tileset_b.get().map(|t| t.count), Some(9));
+    let first = resources.map_1.get().copied().expect("carte 1");
+    let second = resources.map_2.get().copied().expect("carte 2");
+    assert_eq!(first.tileset(), SlotIndex::new(0));
+    assert_eq!(second.tileset(), SlotIndex::new(2));
+    assert_eq!((first.width(), first.height()), (2, 1));
+    assert_eq!((second.width(), second.height()), (1, 2));
+    assert_eq!((first.tile(0, 0), first.tile(1, 0)), (Some(0), Some(3)));
+    assert_eq!((second.tile(0, 0), second.tile(0, 1)), (Some(8), Some(5)));
 }
