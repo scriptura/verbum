@@ -49,12 +49,7 @@ pub fn compile_font(source: &str) -> Result<Vec<u8>, ForgeError> {
     let toml::Value::Array(items) = glyphs else {
         return Err(ForgeError::WrongType("glyph"));
     };
-    if items.is_empty() {
-        return Err(ForgeError::EmptyGlyphs);
-    }
-    let Ok(glyph_count) = u16::try_from(items.len()) else {
-        return Err(ForgeError::TooManyGlyphs);
-    };
+    let glyph_count = checked_glyph_count(items.len())?;
 
     let mut parsed: Vec<GlyphSource> = Vec::with_capacity(items.len());
     for item in items {
@@ -86,6 +81,15 @@ pub fn compile_font(source: &str) -> Result<Vec<u8>, ForgeError> {
     }
     debug_assert_eq!(bytes.len(), 10 + payload);
     Ok(bytes)
+}
+
+/// Contrôle du nombre de glyphes : au moins un, au plus 65 535 (`u16::MAX`). Règle isolée de
+/// l'analyse TOML pour pouvoir être testée à coût constant.
+fn checked_glyph_count(len: usize) -> Result<u16, ForgeError> {
+    if len == 0 {
+        return Err(ForgeError::EmptyGlyphs);
+    }
+    u16::try_from(len).map_err(|_| ForgeError::TooManyGlyphs)
 }
 
 /// Analyse une table `glyph`.
@@ -195,22 +199,53 @@ mod tests {
                 advance: 65535
             })
         );
+        // Volume : le maximum du format (65 535 glyphes) en natif ; 64 sous Miri (mesuré :
+        // 16 s ; 1 024 glyphes dépasse plusieurs minutes et 1,4 Go, `compile_font` étant
+        // dominé par l'analyse TOML interprétée). Le maximum reste couvert sous Miri par
+        // FNT-R7 et FNT-R9 (lecteur).
+        let count: u32 = if cfg!(miri) { 64 } else { 65535 };
+        // Premier point de code brut : 0 en natif ; sous Miri, centré sur la plage des
+        // substituts (0xD800..=0xDFFF) pour la franchir malgré le faible volume.
+        let base: u32 = if cfg!(miri) { 0xD800 - count / 2 } else { 0 };
+        // Point de code de l'indice `index` : valeurs scalaires strictement croissantes, la
+        // plage des substituts étant sautée.
+        let codepoint_of = |index: u32| {
+            let raw = base + index;
+            if raw < 0xD800 { raw } else { raw + 0x800 }
+        };
         let mut many = String::from("line_height = 1\n");
-        for index in 0u32..65535 {
-            // Saute les substituts : 65535 valeurs scalaires strictement croissantes.
-            let codepoint = if index < 0xD800 { index } else { index + 0x800 };
+        for index in 0..count {
+            let codepoint = codepoint_of(index);
             many.push_str(&format!(
                 "[[glyph]]\ncodepoint = {codepoint}\nwidth = 1\nadvance = 1\n"
             ));
         }
         let bytes = compile_font(&many).expect("source valide");
-        assert_eq!(bytes.len(), 10 + 4 + 8 * 65535);
+        let expected_len = 10 + 4 + 8 * usize::try_from(count).expect("volume");
+        assert_eq!(bytes.len(), expected_len);
         let font = Font::read(&bytes).expect("artefact conforme");
-        assert_eq!(font.len(), u16::MAX);
-        assert_eq!(
-            font.glyph(u16::MAX - 1).map(|glyph| glyph.codepoint),
-            Some(65534 + 0x800)
-        );
+        let glyph_count = u16::try_from(count).expect("le volume tient dans un u16");
+        assert_eq!(font.len(), glyph_count);
+        // Chaque glyphe est relu, avec le point de code attendu pour son indice.
+        for index in 0..count {
+            let at = u16::try_from(index).expect("indice");
+            assert_eq!(
+                font.glyph(at),
+                Some(Glyph {
+                    codepoint: codepoint_of(index),
+                    width: 1,
+                    advance: 1
+                }),
+                "glyphe {index}"
+            );
+        }
+        // Passage de la plage des substituts : 0xD7FF puis 0xE000, aux indices adjacents.
+        let gap = u16::try_from(0xD800 - base).expect("indice du saut");
+        assert!(0 < gap && gap < glyph_count);
+        assert_eq!(font.glyph(gap - 1).map(|g| g.codepoint), Some(0xD7FF));
+        assert_eq!(font.glyph(gap).map(|g| g.codepoint), Some(0xE000));
+        // Premier indice hors de la police.
+        assert_eq!(font.glyph(glyph_count), None);
     }
 
     #[test]
@@ -348,9 +383,24 @@ mod tests {
             compile_font("line_height = 1\nglyph = []\n"),
             Err(ForgeError::EmptyGlyphs)
         );
-        // Plus de 65535 glyphes : refusé avant toute analyse des glyphes.
-        let too_many = format!("line_height = 1\nglyph = [{}]\n", "{},".repeat(65536));
-        assert_eq!(compile_font(&too_many), Err(ForgeError::TooManyGlyphs));
+        // Règle du nombre de glyphes, testée directement : à coût constant, y compris sous Miri.
+        assert_eq!(checked_glyph_count(0), Err(ForgeError::EmptyGlyphs));
+        assert_eq!(checked_glyph_count(1), Ok(1));
+        assert_eq!(checked_glyph_count(65_535), Ok(u16::MAX));
+        assert_eq!(checked_glyph_count(65_536), Err(ForgeError::TooManyGlyphs));
+        assert_eq!(
+            checked_glyph_count(usize::MAX),
+            Err(ForgeError::TooManyGlyphs)
+        );
+        // Bout en bout : plus de 65535 glyphes sont refusés avant toute analyse des glyphes.
+        // Écart de couverture documenté : ce bloc ne s'exécute qu'en natif, l'analyse de
+        // 65 536 tables TOML étant hors de portée de Miri (plus de 15 min, mémoire
+        // non bornée). Sous Miri, la règle n'est testée que via `checked_glyph_count` ;
+        // son raccordement à `compile_font` n'est alors établi que par le run natif.
+        if !cfg!(miri) {
+            let too_many = format!("line_height = 1\nglyph = [{}]\n", "{},".repeat(65536));
+            assert_eq!(compile_font(&too_many), Err(ForgeError::TooManyGlyphs));
+        }
 
         // Point de code non scalaire : substituts et au-delà de 0x10FFFF.
         for bad in ["55296", "57343", "1114112"] {

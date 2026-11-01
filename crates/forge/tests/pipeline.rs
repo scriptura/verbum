@@ -11,9 +11,9 @@
 //! Invariants : I12, I13, I6, I7, I8.
 
 use std::fs;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU32, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use verbum_assets::{
     Asset as RuntimeAsset, BindingError, Format, LoadError, MANIFEST_ENTRY_LEN,
@@ -27,21 +27,31 @@ use verbum_forge::{
 };
 
 /// Répertoire temporaire unique, supprimé au `Drop` y compris en cas d'échec du test.
+///
+/// Aucune source d'heure ni d'aléa (compatible avec l'isolation de Miri). Le nom combine
+/// l'identifiant de processus et un compteur atomique propre au processus. L'unicité
+/// entre threads vient du compteur, l'unicité entre processus de `create_dir`, atomique
+/// et qui échoue avec `AlreadyExists` si le nom est déjà pris : l'identifiant suivant est
+/// alors essayé. Seul un répertoire effectivement créé par `create_dir` est possédé, donc
+/// supprimé au `Drop`.
 struct TempDir(PathBuf);
 
 impl TempDir {
     fn new(label: &str) -> Self {
-        static COUNTER: AtomicU32 = AtomicU32::new(0);
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_or(0, |elapsed| elapsed.as_nanos());
-        let path = std::env::temp_dir().join(format!(
-            "verbum-forge-{label}-{}-{nanos}-{}",
-            std::process::id(),
-            COUNTER.fetch_add(1, Ordering::Relaxed)
-        ));
-        fs::create_dir(&path).expect("répertoire temporaire unique");
-        Self(path)
+        static COUNTER: AtomicUsize = AtomicUsize::new(0);
+        let base = std::env::temp_dir();
+        loop {
+            let id = COUNTER.fetch_add(1, Ordering::Relaxed);
+            let path = base.join(format!("verbum-forge-{label}-{}-{id}", std::process::id()));
+            match fs::create_dir(&path) {
+                Ok(()) => return Self(path),
+                Err(error) if error.kind() == ErrorKind::AlreadyExists => {}
+                Err(error) => panic!(
+                    "création du répertoire temporaire {} impossible : {error}",
+                    path.display()
+                ),
+            }
+        }
     }
 
     fn path(&self) -> &Path {

@@ -70,13 +70,11 @@ fn slices(set: &CompiledSet) -> Vec<&[u8]> {
 // Constantes de scène : règle de dérivation synthétique, propre au montage
 // ---------------------------------------------------------------------------
 
-/// Nombre de contributions : 6 tuiles, 1 sprite, 3 glyphes.
-const SCENE_LEN: usize = 6 + 1 + 3;
 /// Capacité de l'accumulateur et de la `Frame`.
 const CAP: usize = 12;
-/// Borne de production par tick : somme des productions des trois producteurs.
-const MAX_PAR_TICK: usize = SCENE_LEN;
-const _: () = assert!(MAX_PAR_TICK <= CAP);
+// Borne de production par tick : somme des productions des trois producteurs
+// (6 tuiles, 1 sprite, 3 glyphes).
+const _: () = assert!(6 + 1 + 3 <= CAP);
 
 /// Position du sprite : sous la grille (qui occupe `y < 16`).
 const SPRITE_X: i32 = 0;

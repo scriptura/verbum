@@ -66,12 +66,10 @@ const A_SORTIE: [Contribution; 2] = [Q1, Q2];
 /// Sortie exacte de `ProduceB` à chaque tick.
 const B_SORTIE: [Contribution; 1] = [Q1];
 
-/// Borne de production par tick : somme des sorties des producteurs.
-const MAX_PAR_TICK: usize = A_SORTIE.len() + B_SORTIE.len();
-
-// Ne prouve que l'arithmétique des constantes ; le lien avec le code des
-// producteurs est vérifié par revue (document d'exécution § 3.2, point 4).
-const _: () = assert!(MAX_PAR_TICK <= CAP);
+// Borne de production par tick : somme des sorties des producteurs. Ne prouve que
+// l'arithmétique des constantes ; le lien avec le code des producteurs est vérifié par
+// revue (document d'exécution § 3.2, point 4).
+const _: () = assert!(A_SORTIE.len() + B_SORTIE.len() <= CAP);
 
 /// Nombre d'itérations des scénarios.
 const N: usize = 3;

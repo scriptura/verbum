@@ -313,4 +313,67 @@ mod tests {
         assert_eq!(empty.glyph(0), None);
         assert_eq!(empty.glyph(u16::MAX), None);
     }
+
+    #[test]
+    fn fnt_r9_a_valid_font_of_the_maximum_glyph_count_is_accepted_and_bounded() {
+        const COUNT: usize = u16::MAX as usize;
+        const PAYLOAD: usize = FONT_FIXED_PAYLOAD_LEN + FONT_RECORD_LEN * COUNT;
+        const TOTAL: usize = 10 + PAYLOAD;
+        // Police structurellement et sémantiquement valide, construite en binaire, sans
+        // source TOML ni Forge : 65 535 glyphes de points de code scalaires, uniques et
+        // strictement croissants (`65 567 + 16·i`, de 0x1001F à 0x10FFFF, hors substituts),
+        // de largeurs `1 + i % 5` et d'avances `2 + i % 5`, toutes non nulles.
+        const FIRST_CODEPOINT: u32 = 65_567;
+        const STRIDE: u32 = 16;
+        const _: () = assert!(FIRST_CODEPOINT + STRIDE * (COUNT as u32 - 1) == 0x10_FFFF);
+
+        let mut bytes = [0u8; TOTAL];
+        bytes[..4].copy_from_slice(b"VFNT");
+        bytes[4..6].copy_from_slice(&1u16.to_le_bytes());
+        bytes[6..10].copy_from_slice(&(PAYLOAD as u32).to_le_bytes());
+        bytes[10..12].copy_from_slice(&u16::MAX.to_le_bytes());
+        bytes[12..14].copy_from_slice(&7u16.to_le_bytes());
+        for (index, record) in (0u32..).zip(bytes[14..].chunks_exact_mut(FONT_RECORD_LEN)) {
+            let width = 1 + (index % 5) as u16;
+            record[..4].copy_from_slice(&(FIRST_CODEPOINT + STRIDE * index).to_le_bytes());
+            record[4..6].copy_from_slice(&width.to_le_bytes());
+            record[6..8].copy_from_slice(&(width + 1).to_le_bytes());
+        }
+
+        let font = Font::read(&bytes).expect("artefact conforme");
+        assert_eq!(font.len(), u16::MAX);
+        assert_eq!(font.line_height(), 7);
+        // Premier glyphe, glyphe du milieu (indice 32 768) et dernier, valeurs écrites à la main.
+        assert_eq!(
+            font.glyph(0),
+            Some(Glyph {
+                codepoint: 65_567,
+                width: 1,
+                advance: 2
+            })
+        );
+        assert_eq!(
+            font.glyph(32_768),
+            Some(Glyph {
+                codepoint: 589_855,
+                width: 4,
+                advance: 5
+            })
+        );
+        assert_eq!(
+            font.glyph(u16::MAX - 1),
+            Some(Glyph {
+                codepoint: 0x10_FFFF,
+                width: 5,
+                advance: 6
+            })
+        );
+        // Premier indice hors de la police.
+        assert_eq!(font.glyph(u16::MAX), None);
+        // Un octet de moins : troncature, jamais une lecture au-delà de la charge utile.
+        assert_eq!(
+            Font::read(&bytes[..TOTAL - 1]).err(),
+            Some(ReadError::Truncated)
+        );
+    }
 }
