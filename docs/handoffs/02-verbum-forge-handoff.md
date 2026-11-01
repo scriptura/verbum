@@ -10,7 +10,7 @@ Ce handoff repose sur les sources réellement lues dans la session qui l'écrit.
 - **[Déduit]** : conséquence que je tire d'un texte lu ; à contester si la source complète dit autre chose.
 - **[Non vérifié]** : dépend d'un document que la session n'a pas pu lire.
 
-Documents lus : `ROADMAP.md` (version fournie pendant S5, texte intégral), `01-verbum-scheduler.md` r5 et `01-verbum-scheduler-sessions.md` (extraits ciblés par recherche, non relus en entier), `HANDOFF-verbum-schedule-phase8.md`, l'arbre du dépôt du 15 octobre (`tree.md`), le code de `verbum-schedule` et le `lib.rs` réel de `verbum`.
+Documents lus : `ROADMAP.md` (version fournie pendant S5, texte intégral), `01-verbum-scheduler.md` r5 et `01-verbum-scheduler-execution.md` (extraits ciblés par recherche, non relus en entier), `HANDOFF-verbum-schedule-phase8.md`, l'arbre du dépôt du 15 octobre (`tree.md`), le code de `verbum-schedule` et le `lib.rs` réel de `verbum`.
 
 **Documents demandés mais NON lus** (absents du contexte et du bac à sable, vérifié par recherche sur le système de fichiers) : `ADR-A01-assets.md`, `ADR-R01`, `ADR-R02`, `ADR-R03`, `ADR-S01`, `ADR-001` (point 5 lu seulement par citation dans la Roadmap et le plan), `ADR-005`, `ADR-000` (citations seulement), `00-principes.md`, `01-runtime-ecs.md`, `02-concepts.md`, `README.md` d'architecture, `docs/drafts/LPC-Paradigm.md` et `docs/drafts/LPC_YAML/*` (dont `build_manifest.yaml`).
 
@@ -182,4 +182,4 @@ Aucune représentation de rendu, aucun format de binaire, aucun format source, a
 
 ## 10. Fichiers de l'état à rattacher à la prochaine session
 
-Racine : `Cargo.toml`, `Cargo.lock`. `crates/verbum` : `Cargo.toml`, `src/lib.rs`. `crates/verbum-ecs` : `Cargo.toml` et sources utiles à l'étape 2 (`resource.rs`, `world.rs`, `lib.rs`, `component_set.rs`), ou un `tree`. `crates/verbum-schedule` : seulement si l'étape 2 en dépend, ce que la Roadmap exclut. Plans : `01-verbum-scheduler.md` r5 et `01-verbum-scheduler-sessions.md` pour la méthode.
+Racine : `Cargo.toml`, `Cargo.lock`. `crates/verbum` : `Cargo.toml`, `src/lib.rs`. `crates/verbum-ecs` : `Cargo.toml` et sources utiles à l'étape 2 (`resource.rs`, `world.rs`, `lib.rs`, `component_set.rs`), ou un `tree`. `crates/verbum-schedule` : seulement si l'étape 2 en dépend, ce que la Roadmap exclut. Plans : `01-verbum-scheduler.md` r5 et `01-verbum-scheduler-execution.md` pour la méthode.

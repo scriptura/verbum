@@ -1,4 +1,4 @@
-# Plan d'exécution par sessions — étape 1 (`verbum-schedule`)
+# Exécution — étape 1 (`verbum-schedule`)
 
 ## Statut
 Document d'organisation, non normatif, révisable sans ADR. Complète `01-verbum-scheduler.md` (révision 5), qui reste la **référence** des invariants, de l'API et des tests. **Aucun code, aucune modification d'ADR, aucun commit avant validation explicite du plan.** Sources lues sur des copies jointes, pas sur le dépôt (ADR-000 : adopté, confirmé par l'utilisateur).
@@ -165,7 +165,7 @@ Prochaine session : <id> ; prérequis satisfaits : <oui|non, lesquels>
 
 ```
 HANDOFF D'ENTRÉE — session <id>
-Mission : <phases, d'après §3>. Rôle : implémenteur. Plan : 01-verbum-scheduler.md r5 (validé). Sessions : 01-verbum-scheduler-sessions.md.
+Mission : <phases, d'après §3>. Rôle : implémenteur. Plan : 01-verbum-scheduler.md r5 (validé). Sessions : 01-verbum-scheduler-execution.md.
 Documents à lire : 01-verbum-scheduler-handoff.md ; 01-verbum-scheduler.md : <sections citées pour ces phases> ; ADR-000 à ADR-006, dont **ADR-001** (stockage, isolation, capacité) et **ADR-002** (Query, modes d'accès), en plus des références du plan §1 ; sources de verbum-ecs : <fichiers utiles>.
 Socle de décisions : <§1.6, recopié>
 État attendu à l'entrée : <commits déjà fusionnés> ; tests : <décomptes par crate> ; Miri : <vert pour quels commits>.

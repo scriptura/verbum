@@ -14,7 +14,7 @@ Révision 5, passe finale de cohérence (arbitrages A1 à A3, corrections ciblé
 - **Contrat d'erreur du tick et du buffer** (§6.2) : variant `TickError::BufferNotEmpty`, garde à l'entrée de `run_tick`, tests ajoutés (phase 9).
 - **Phase 8** : le treizième système est exécuté par le dispatch récursif (journal d'exécution), pas seulement compilé.
 - **Revue du document entier** : références croisées, effets structurels, graphe de dépendances, erreurs/buffer, statut des sources.
-- §11 : phases indépendantes, dépendances, emplacement des correctifs de `verbum-ecs` ; **plan d'exécution par sessions** dans `01-verbum-scheduler-sessions.md` (document joint).
+- §11 : phases indépendantes, dépendances, emplacement des correctifs de `verbum-ecs` ; **plan d'exécution par sessions** dans `01-verbum-scheduler-execution.md` (document joint).
 
 ## Règle gouvernante et méthode
 Reprise de `00-verbum-ecs.md` : un concept n'est codé que s'il est porté par un invariant adopté ou rendu nécessaire par le test de la phase. Par phase : invariant cité → test → API minimale → un commit par invariant démontré. Quatre contrôles verts à chaque commit ; Miri par l'utilisateur ; alarme « tant que j'y suis ». Exclus : `Plugin`, `Registry`, `Service`, `Factory`, `Builder`, `SystemSet`, `TypeId`, `PhaseKind`, parallélisme, `dyn Trait`, `unsafe`.
@@ -492,7 +492,7 @@ Arêtes de dépendance (A → B : B exige A) :
 **Développables indépendamment** : la piste {1 à 5} et la piste {6 puis 6bis}, car leurs ensembles de fichiers sont disjoints (seule la piste Scheduler touche `Cargo.toml` racine et `Cargo.lock`, par la phase 0). Deux sessions ne modifient **jamais** les mêmes fichiers en même temps ; le workspace partagé est traité séquentiellement : phase 0 (racine) d'abord, phase 10c (racine) en dernier. **Emplacement des deux correctifs `verbum-ecs`** : **6** (`split_mut`, avant 7a) et **6bis** (`RemoveComponent`, avant 7b, ordre pratique avant 7a). Aucune autre modification de `verbum-ecs`.
 
 ### 11.4 Découpage entre sessions
-Le plan d'exécution complet (fichiers, prérequis, commits, commandes, interdits, handoff autonome, règles de nouvelle session) est dans **`01-verbum-scheduler-sessions.md`**. Résumé :
+Le plan d'exécution complet (fichiers, prérequis, commits, commandes, interdits, handoff autonome, règles de nouvelle session) est dans **`01-verbum-scheduler-execution.md`**. Résumé :
 
 | Session | Phases | Prérequis | Sortie vérifiée |
 |---|---|---|---|
