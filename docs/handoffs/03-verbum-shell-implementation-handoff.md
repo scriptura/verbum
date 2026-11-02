@@ -74,7 +74,7 @@ U1 → U2 → U3 → U4 → U5, sans fusion ni réordonnancement. Après chaque 
 ## 9. Interdits
 
 - Ne modifier ni les ADR, ni `ROADMAP.md`, ni `docs/implementation/00` à `02`, ni `crates/{ecs,schedule,assets,forge,verbum}/**` ; ne pas modifier le plan, le document d'exécution ni ce handoff sans décision explicite de l'utilisateur.
-- Écrire uniquement : `Cargo.toml` racine (`members`), `Cargo.lock` (par Cargo), `crates/shell/**`.
+- Écrire uniquement : `Cargo.toml` racine (`members`), `Cargo.lock` (par Cargo), `crates/engine/shell/**`.
 - Aucun `unsafe` (lint du workspace `unsafe_code = "deny"`). Aucune dépendance normale ni externe ; dev-dependencies `verbum-ecs` et `verbum-schedule` **en U5 seulement**.
 - Aucun thread réel dans les tests, aucune croissance dynamique, aucune allocation sur le chemin d'itération, aucune API exposant `Instant` ou `Duration` à l'infrastructure, aucun type du noyau nommé par la boucle générique, aucun `World::execute()` ni `Scheduler::run()`.
 - **Aucun commit par Claude.** La session propose en fin d'unité un regroupement de commit (périmètre seulement). `tree.md` est régénéré par l'utilisateur ; la session signale les fichiers créés sans y toucher.

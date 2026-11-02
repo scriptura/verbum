@@ -19,7 +19,7 @@ Document d'exécution, non normatif. **Il ne contient aucune règle de conceptio
 ## 2. Interdits sans arbitrage explicite de l'utilisateur
 
 - Rouvrir un arbitrage de r8 (Q-I à Q-N et §8) ou modifier r8.
-- Modifier les ADR, `ROADMAP.md`, `crates/ecs`, `crates/schedule`, `crates/verbum` (K8).
+- Modifier les ADR, `ROADMAP.md`, `crates/engine/ecs`, `crates/engine/schedule`, `crates/engine/verbum` (K8).
 - Ajouter une dépendance autre que `toml` (forge) et `verbum-ecs` (dev-dependency de la forge) ; ajouter `alloc` ou une dépendance à `verbum-assets`.
 - Élargir le périmètre (r8 §10) : registre, second type d'asset, CLI, `build.rs`, hash configurable dans l'API publique, collection dynamique dans le chargement.
 - Étendre la portée d'un test ou d'une API au-delà de ce que r8 liste.
@@ -32,12 +32,12 @@ Chaque unité renvoie à r8 pour tout le détail (invariants, fichiers, interfac
 |---|---|---|---|---|---|
 | **V1** | §6 phase 1 | Crate `verbum-assets` (`no_std`, sans `alloc`, sans dépendance), `Sprite`, lecture, `ReadError` | P1.1 à P1.6 | `cargo tree -p verbum-assets` sans dépendance ; **Miri (utilisateur)** | P1.1 à P1.6 verts ; critère de sortie de la phase 1 |
 | **V2** | §6 phase 2 | Crate `verbum-forge`, `compile_sprite`, `ForgeError` | P2.1 à P2.3 | `cargo tree -i toml --workspace` ne liste que `verbum-forge` ; **MSRV (utilisateur)** | P2.1 à P2.3 verts ; MSRV vert |
-| **V3** | §6 phase 3 | `crates/forge/tests/pipeline.rs`, chaîne complète tranche A | P3.1, P3.2 | Avant d'écrire le test : relire les signatures réelles de `World`, `ResourceSlot`, `resources_mut` ([Lu] dans r8) ; divergence = arrêt | Critères de la tranche A (r8 §1.3). **Jalon intermédiaire** : le rapport l'énonce comme tel et ne revendique pas la validation complète d'ADR-A01 |
+| **V3** | §6 phase 3 | `crates/engine/forge/tests/pipeline.rs`, chaîne complète tranche A | P3.1, P3.2 | Avant d'écrire le test : relire les signatures réelles de `World`, `ResourceSlot`, `resources_mut` ([Lu] dans r8) ; divergence = arrêt | Critères de la tranche A (r8 §1.3). **Jalon intermédiaire** : le rapport l'énonce comme tel et ne revendique pas la validation complète d'ADR-A01 |
 | **V4** | §6 phase 4, partie 1 | `AssetId` opaque, `ArtifactIndex`, `SlotIndex` (dont `SlotIndex::new`), `Manifest<'a>::parse`, `ManifestEntry`, `find`, `ManifestError` | M-1 à M-6, M-8 | `cargo tree -p verbum-assets` sans dépendance | Tests verts ; opacité établie par M-6 avec codes d'erreur épinglés |
 | **V5** | §6 phase 4, partie 2 | `check_bindings`, `BindingError`, `load`, `LoadError` (niveaux 1 à 4, double décodage, dépôt) | M-7, L-1 à L-5 | **Miri (utilisateur)** | Tests verts ; critère de sortie de la phase 4 ; L-3 vérifie le compteur à zéro dans les quatre cas |
 | **V6** | §6 phase 5, partie 1 | `id.rs` (FNV-1a), `batch.rs` : `compile_assets`, point de test privé à calculateur injectable, sorties nominales | F-1, F-2, F-3, F-5, F-7, F-8 | Les constantes attendues de F-1 sont les littéraux de r8, pas des valeurs calculées par la fonction testée | Tests verts ; l'API de la tranche A reste valide |
 | **V7** | §6 phase 5, partie 2 | Rejets et collision : clé vide, dupliquée, slots, TOML invalide ; non-fuite du point de test | F-4, F-6, F-6b, F-9 | Relecture de l'API publique : `compile_assets` sans paramètre de hash ; `cargo tree -i toml --workspace` inchangé | Tests verts ; critère de sortie de la phase 5 |
-| **V8** | §6 phase 6 | Extension de `pipeline.rs` : application de test à deux `ResourceSlot<Sprite>`, chaîne complète ; clôture | T6.1 à T6.6 | `cargo tree -p verbum-assets` ; `cargo tree -i toml --workspace` ; aucune modification de `crates/ecs`, `crates/schedule`, `crates/verbum`, ADR, Roadmap ; **Miri sur `verbum-assets` et MSRV (utilisateur)** | **Clôture de l'étape** (§ 5) |
+| **V8** | §6 phase 6 | Extension de `pipeline.rs` : application de test à deux `ResourceSlot<Sprite>`, chaîne complète ; clôture | T6.1 à T6.6 | `cargo tree -p verbum-assets` ; `cargo tree -i toml --workspace` ; aucune modification de `crates/engine/ecs`, `crates/engine/schedule`, `crates/engine/verbum`, ADR, Roadmap ; **Miri sur `verbum-assets` et MSRV (utilisateur)** | **Clôture de l'étape** (§ 5) |
 
 Le découpage de la phase 4 et de la phase 5 en deux unités est un ordre d'exécution ; les phases de r8 ne sont ni renumérotées ni modifiées.
 

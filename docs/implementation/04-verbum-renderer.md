@@ -11,13 +11,13 @@ Légende : **[Lu]** texte vérifié dans un document lu dans cette session · **
 
 **[Lu] normatif** : `00-principes.md`, `01-runtime-ecs.md`, `02-concepts.md`, ADR-001, ADR-003, ADR-004, ADR-005, ADR-R01, ADR-R02, ADR-R03, ADR-S01, ADR-S03, `README.md` d'architecture.
 **[Lu] non normatif** : `ROADMAP.md` (étapes 0 à 4), `03-verbum-shell.md` (r4 révisé : §0, §1, §3, §7 à §12), `tree.md` du 26 octobre 2026 (fait foi sur les chemins).
-**[Lu] code réel** : `crates/schedule/src/scheduler.rs` (`Scheduler`, `run_tick`, `TickError`), `order.rs` (règles de dépendance et de propriété, en-têtes), `model.rs` (en-têtes), `contract.rs`, `crates/ecs/src/resource.rs` (`ResourceSlot`), `crates/ecs/src/lib.rs`, `crates/schedule/src/lib.rs`, `crates/schedule/examples/headless.rs`. Le Shell (`run_loop`, `Inbox`, `FixedStepPacing`, tests et exemple) est connu par mon travail de l'étape 3.
+**[Lu] code réel** : `crates/engine/schedule/src/scheduler.rs` (`Scheduler`, `run_tick`, `TickError`), `order.rs` (règles de dépendance et de propriété, en-têtes), `model.rs` (en-têtes), `contract.rs`, `crates/engine/ecs/src/resource.rs` (`ResourceSlot`), `crates/engine/ecs/src/lib.rs`, `crates/engine/schedule/src/lib.rs`, `crates/engine/schedule/examples/headless.rs`. Le Shell (`run_loop`, `Inbox`, `FixedStepPacing`, tests et exemple) est connu par mon travail de l'étape 3.
 **Mémoire de projet (déclarations de l'utilisateur, non relues dans le dépôt)** : l'évolutivité du Renderer vers plusieurs contributions visuelles ordonnées pour un même ensemble logique (cas cible multi-couches, moteur agnostique, aucun vocabulaire de ce cas dans le noyau) est un **point de vigilance pour le cadrage de l'étape 4**, pas une exigence ; ne pas présumer `FrameResource { layers: Vec<Layer> }`.
 
 **Non lus dans cette session, donc non vérifiés** :
 - **Lus depuis r1** : **ADR-000** (lu intégralement, version du 27 octobre 2026 ; les marques « second main » de r1 sont levées) ; **`02-verbum-forge-handoff..md`** (version du 16 octobre 2026, non commitée ; ses §4 et §5 sont traités en §11.1) ; `system.rs`, `access.rs`, `data.rs`, `command.rs` (lus pour la rédaction du document d'exécution).
 - **Non lus** : ADR-002, ADR-006, ADR-A01, `02-verbum-forge*.md`, `world.rs` (signatures publiques seulement, par leurs usages), `HANDOFF-stage-0/1`, documents de réflexivité, brouillons multi-couches.
-- Le `Cargo.toml` racine réel (avec `crates/shell` dans `members`) a été reçu le 27 octobre 2026 : `[workspace.dependencies]` ne liste que `verbum-ecs` et `verbum-schedule`.
+- Le `Cargo.toml` racine réel (avec `crates/engine/shell` dans `members`) a été reçu le 27 octobre 2026 : `[workspace.dependencies]` ne liste que `verbum-ecs` et `verbum-schedule`.
 
 **ADR-S02, ADR-S04, ADR-S05 n'existent pas** ; ADR-S03 est adoptée (19 octobre 2026). Aucune politique temporelle réelle n'existe : toute cadence reste celle, provisoire, de l'étape 3.
 
@@ -91,7 +91,7 @@ Le corpus impose l'effet (E1), non la forme (ADR-R02 : forme mémoire « hors p�
 - Ordre : **le corpus ne fournit aucune règle d'ordre indépendante de l'ordre d'émission** (C8). Il en découle : (a) un ordre fondé sur l'ordre d'exécution des producteurs dépendrait d'un ordre que ADR-004 déclare sans valeur intrinsèque ; (b) un critère d'ordre fondé sur un champ de la contribution (ADR-R01 pt 1 cite un « calque ») est une décision de tri que ADR-R02 renvoie explicitement à un besoin concret ultérieur. **Le plan ne retient aucune règle d'ordre** : la séquence de la Frame suit l'ordre d'émission, déterministe mais non contractuel ; aucun test ne l'affirme, aucun consommateur n'a le droit de s'y fier. Ce que cela laisse ouvert est consigné en §11.
 
 **Q3 — Capacité et dépassement.**
-- **Capacité : à spécifier dès cette étape [Déduit].** Le noyau est `no_std` sans allocation (`crates/ecs/src/lib.rs`) ; ADR-001 pt 5 et `00-principes.md` inv. 4 imposent des capacités fixées avant simulation ; ADR-000 pt 4 [Lu] l'étend (« un dépassement de capacité est un bug de configuration, jamais une croissance dynamique »). Un type de représentation sans capacité fixe est donc impossible dans ce cadre. La capacité est un paramètre constant des types ; l'accumulateur et la Frame partagent la même constante, ce qui rend le dépassement à la composition **impossible par construction** (relation d'ADR-S03 pt 7 transposée, sans contrôle d'exécution).
+- **Capacité : à spécifier dès cette étape [Déduit].** Le noyau est `no_std` sans allocation (`crates/engine/ecs/src/lib.rs`) ; ADR-001 pt 5 et `00-principes.md` inv. 4 imposent des capacités fixées avant simulation ; ADR-000 pt 4 [Lu] l'étend (« un dépassement de capacité est un bug de configuration, jamais une croissance dynamique »). Un type de représentation sans capacité fixe est donc impossible dans ce cadre. La capacité est un paramètre constant des types ; l'accumulateur et la Frame partagent la même constante, ce qui rend le dépassement à la composition **impossible par construction** (relation d'ADR-S03 pt 7 transposée, sans contrôle d'exécution).
 - **Dépassement au niveau du conteneur : à spécifier [Déduit]** (refus explicite, contenu déjà accepté conservé dans son ordre, aucune croissance, aucune perte silencieuse) : ADR-001 pt 5 et ADR-000 pt 4 excluent croissance et traitement silencieux ; la forme `Err(Full)` est un choix [L] compatible, par analogie avec ADR-S03 pt 10. Test RP-2.
 - **Réaction d'un système producteur au refus : [Ouvert]** (C7). Aucune disposition ne la fixe ; aucun test ne la ferme ; les producteurs de test ne saturent pas.
 
@@ -119,8 +119,8 @@ Option retenue : **Y**, pour la raison de Q4 ; passer à X supprime RN-1 et RN-3
 - **Conséquences tirées d'ADR-000** : (1) la composition est un système atteignable depuis `run_tick` : ses types sont dans le noyau (`no_std` sans `alloc`), **vérifié statiquement** dans les limites du point 4 (blocs `unsafe`, appels externes) ; (2) la lecture de la Frame et la présentation sont hors noyau, sur le hot path : l'absence d'allocation y est exigée par contrat et **vérifiée par revue seulement, non par preuve statique** (instrument préalloué, §6) ; (3) « ni propriété partagée ni référence à un type de la Plateforme » : `Frame` est une donnée plate ; `&Frame` est un emprunt temporaire, non un transfert ni un partage de propriété ; **aucune copie** n'est faite sauf si une contrainte réelle de durée de vie ou de typage l'impose, à signaler alors dans le rapport d'unité ; (4) `verbum-render` ne dépend ni du Shell ni d'aucune infrastructure de la Plateforme.
 
 **A-3 — Emplacement des types et de l'acceptation (option (i) retenue par l'utilisateur).**
-- Types (`Contribution`, accumulateur, `Frame`) dans un **nouveau crate `crates/render`, package `verbum-render`**, `#![no_std]`, sans allocation, **aucune dépendance normale**, dev-dépendances `verbum-ecs` et `verbum-schedule` ; façade `verbum` inchangée (comme A6 de l'étape 3). Ces types sont atteignables depuis `run_tick` (composition = système) : ils relèvent du noyau au sens d'ADR-000 pt 1.
-- Acceptation sous boucle (RA-*) et exemple dans `crates/shell`. Justification : (a) **responsabilité de l'assemblage** : le Shell construit le noyau et est le seul lieu d'assemblage (ADR-S01 pt 7 ; ADR-000 pt 2) ; l'assemblage de test et l'exemple lui appartiennent ; (b) **direction des arêtes** : ADR-000 pt 3 interdit au noyau de nommer le Shell et l'encode dans le graphe de dépendances ; l'arête `shell → render` (dev) va de la Plateforme vers le noyau, comme les arêtes `shell → ecs` et `shell → schedule` déjà présentes depuis l'étape 3 ; l'arête inverse `render → shell` (dev) ferait nommer le Shell par un crate du noyau, même pour ses seuls tests ; (c) **instrument de contrôle** : le contrôle S5 de l'étape 3 (`cargo tree -i verbum-shell --workspace`) inclut les arêtes de dev par défaut ; sous (i) il reste lisible tel quel (aucun dépendant), sous (ii) il exigerait d'exclure les arêtes de dev (`-e normal`) et perdrait ce qu'il vérifie. Coût de (i) : `crates/shell/Cargo.toml` est modifié (dev-dépendances seulement) ; aucun fichier existant de l'étape 3 n'est touché.
+- Types (`Contribution`, accumulateur, `Frame`) dans un **nouveau crate `crates/engine/render`, package `verbum-render`**, `#![no_std]`, sans allocation, **aucune dépendance normale**, dev-dépendances `verbum-ecs` et `verbum-schedule` ; façade `verbum` inchangée (comme A6 de l'étape 3). Ces types sont atteignables depuis `run_tick` (composition = système) : ils relèvent du noyau au sens d'ADR-000 pt 1.
+- Acceptation sous boucle (RA-*) et exemple dans `crates/engine/shell`. Justification : (a) **responsabilité de l'assemblage** : le Shell construit le noyau et est le seul lieu d'assemblage (ADR-S01 pt 7 ; ADR-000 pt 2) ; l'assemblage de test et l'exemple lui appartiennent ; (b) **direction des arêtes** : ADR-000 pt 3 interdit au noyau de nommer le Shell et l'encode dans le graphe de dépendances ; l'arête `shell → render` (dev) va de la Plateforme vers le noyau, comme les arêtes `shell → ecs` et `shell → schedule` déjà présentes depuis l'étape 3 ; l'arête inverse `render → shell` (dev) ferait nommer le Shell par un crate du noyau, même pour ses seuls tests ; (c) **instrument de contrôle** : le contrôle S5 de l'étape 3 (`cargo tree -i verbum-shell --workspace`) inclut les arêtes de dev par défaut ; sous (i) il reste lisible tel quel (aucun dépendant), sous (ii) il exigerait d'exclure les arêtes de dev (`-e normal`) et perdrait ce qu'il vérifie. Coût de (i) : `crates/engine/shell/Cargo.toml` est modifié (dev-dépendances seulement) ; aucun fichier existant de l'étape 3 n'est touché.
 
 **Décisions et confirmations (utilisateur, 27 octobre 2026)** : A-2 forme 2 (clos) ; A-1 option Y ; A-3 option (i) ; C3 (`produces` + contrôle de composition, unicité du composeur non garantie par les types) ; C4 (remise à l'état initial de l'accumulateur par un système `Clear` en phase 0 ; la réalisation « le composeur vide l'accumulateur », confirmée le 27 octobre, est irréalisable avec le Scheduler validé ; solution et interprétation de durée de vie limitée à l'étape 4 retenues le 28 octobre 2026, sans amendement d'ADR-R01) ; C9 (lot publié avant chaque tick, même sans lecteur) ; C12 (carré, pour exercer le parcours des contributions). C7 : réaction générale à la saturation laissée ouverte ; le document d'exécution explicite la borne du scénario accepté (C7).
 
@@ -137,7 +137,7 @@ Option retenue : **Y**, pour la raison de Q4 ; passer à X supprime RN-1 et RN-3
 
 ## 7. Invariants, tests, API minimale
 
-### 7.1 Représentation (U2) — `crates/render/tests/representation.rs` et doctests
+### 7.1 Représentation (U2) — `crates/engine/render/tests/representation.rs` et doctests
 | Test | Énoncé | Invariants | API rendue nécessaire |
 |---|---|---|---|
 | RP-1 | Jusqu'à `CAP`, `push` accepte ; la lecture rend les contributions dans l'ordre d'acceptation ; aucune clé n'identifie un élément | E8, E12 | `Contribution`, accumulateur : `new`, `push`, `as_slice`, `len`, `capacity` |
@@ -148,7 +148,7 @@ Option retenue : **Y**, pour la raison de Q4 ; passer à X supprime RN-1 et RN-3
 | RP-6 | `Frame::empty()` est l'état initial déterministe : vide, comparable, sans notion d'« absent » | E13 | `Frame::empty`, `PartialEq` |
 | RP-7 | La Frame composée est une valeur indépendante de sa source : `clear` ou `push` ultérieurs sur l'accumulateur ne modifient pas la Frame | E1 | possession des copies (aucune référence dans `Frame`) |
 
-### 7.2 Pipeline sous Scheduler (U3) — `crates/render/tests/pipeline.rs`
+### 7.2 Pipeline sous Scheduler (U3) — `crates/engine/render/tests/pipeline.rs`
 `World` et `Scheduler` réels ; `ProduceA`, `ProduceB`, `Compose`, `Witness`.
 | Test | Énoncé | Invariants | API |
 |---|---|---|---|
@@ -159,7 +159,7 @@ Option retenue : **Y**, pour la raison de Q4 ; passer à X supprime RN-1 et RN-3
 | RN-5 | Sur *N* ticks, la Frame de chaque tick compte exactement les contributions de ce tick (aucun cumul : `Clear` remet l'accumulateur à l'état initial avant toute lecture déclarée par un système) ; avant le premier tick, Frame et accumulateur sont vides | E13 | — |
 | RN-6 | Deux exécutions indépendantes du même scénario donnent la même suite de Frames, ordre de séquence compris (reproductibilité du moteur, E19 ; aucun ordre particulier n'est affirmé, aucune sémantique n'est prêtée à l'ordre de déclaration) | E19 | — |
 
-### 7.3 Acceptation sous la boucle du Shell (U4) — `crates/shell/tests/frame_loop.rs` (si A-3 (i))
+### 7.3 Acceptation sous la boucle du Shell (U4) — `crates/engine/shell/tests/frame_loop.rs` (si A-3 (i))
 Assemblage : `run_loop` + `Inbox` (étape 3), cadence = fermeture vide (aucune assertion temporelle ; `FixedStepPacing` réservé à l'exemple de U5), `World`, `Scheduler`, Backend headless d'instrument.
 | Test | Énoncé | Invariants | API |
 |---|---|---|---|
@@ -171,7 +171,7 @@ Assemblage : `run_loop` + `Inbox` (étape 3), cadence = fermeture vide (aucune a
 
 **Extension de RA-3 non retenue** — un Backend qui dépose un fait de retour dans la boîte de réception pendant `present` et dont l'effet n'apparaît qu'au lot suivant. Elle exprimerait la seconde phrase d'ADR-R03 pt 5, mais présenterait la boîte comme *le* mécanisme de retour, que ADR-R03 déclare non tranché (C11). À ajouter seulement sur décision de l'utilisateur.
 
-### 7.4 Exemple (U5) — `crates/shell/examples/headless_frame.rs`
+### 7.4 Exemple (U5) — `crates/engine/shell/examples/headless_frame.rs`
 Assemblage complet, plusieurs ticks, Backend headless, aucune sortie, code 0 ; vérifie en interne les Frames présentées (artefact de la Roadmap : première frame produite et présentée). Seul point d'assemblage de l'étape 4 : exclusivité de l'assemblage (E15) vérifiée par revue.
 
 ### 7.5 Sensibilité des tests (mutations, sur copies isolées)
@@ -196,11 +196,11 @@ Méthode de l'étape 3 : rouge avant vert (squelettes `unimplemented!()`), une v
 
 | Unité | Contenu | Fichiers | Tests |
 |---|---|---|---|
-| **U1** | Crate `verbum-render` vide : `Cargo.toml` (héritage du workspace, aucune dépendance normale, dev-dépendances `verbum-ecs`, `verbum-schedule`), `lib.rs` `no_std`, membre du workspace | `crates/render/{Cargo.toml,src/lib.rs}` ; `Cargo.toml` racine (`members`) | aucun ; `cargo tree -i verbum-render --workspace` |
+| **U1** | Crate `verbum-render` vide : `Cargo.toml` (héritage du workspace, aucune dépendance normale, dev-dépendances `verbum-ecs`, `verbum-schedule`), `lib.rs` `no_std`, membre du workspace | `crates/engine/render/{Cargo.toml,src/lib.rs}` ; `Cargo.toml` racine (`members`) | aucun ; `cargo tree -i verbum-render --workspace` |
 | **U2** | Représentation : `Contribution`, accumulateur, `Full`, `Frame` | `src/{contribution,accumulator,frame}.rs`, `tests/representation.rs` | RP-1 à RP-7 ; M-R3, M-R4 |
 | **U3** | Pipeline sous Scheduler et contrôle de composition | `tests/pipeline.rs` | RN-1 à RN-6 ; M-R1, M-R2, M-R8, M-R9 |
-| **U4** | Acceptation sous boucle, Backend headless d'instrument | `crates/shell/{Cargo.toml (dev-dépendances),tests/frame_loop.rs}` | RA-1 à RA-5 ; M-R5, M-R6, M-R7, M-R10 |
-| **U5** | Exemple, contrôles de clôture, Miri, MSRV 1.85, rapport « non démontré » | `crates/shell/examples/headless_frame.rs` | exemple (code 0) |
+| **U4** | Acceptation sous boucle, Backend headless d'instrument | `crates/engine/shell/{Cargo.toml (dev-dépendances),tests/frame_loop.rs}` | RA-1 à RA-5 ; M-R5, M-R6, M-R7, M-R10 |
+| **U5** | Exemple, contrôles de clôture, Miri, MSRV 1.85, rapport « non démontré » | `crates/engine/shell/examples/headless_frame.rs` | exemple (code 0) |
 
 Découpage en sessions proposé [L] : session A = U1 à U3 (types et pipeline, sans Shell) ; session B = U4 et U5 (assemblage). Le choix (une session ou deux) revient à l'utilisateur selon sa limite de contexte ; le document d'exécution le fixera.
 
@@ -250,9 +250,9 @@ Critères §4.3 : immuabilité (types sans mutateur, indépendante de la forme),
 Caméra, animation, sprite réel, texture, atlas, asset (étape 5), fenêtre, GPU, bibliothèque de rendu, batching, instancing, tri par état GPU, règle d'ordre ou de calque, clear-color, plusieurs frames par itération, interpolation, VSync, politique temporelle (ADR-S04), mécanisme de retour vers l'Acquisition, rédaction d'ADR, modification de la Roadmap, des ADR, de `verbum-ecs`, `verbum-schedule`, `verbum-forge`, `verbum-assets`, de la façade `verbum`, des documents des étapes 0 à 3 ; toute implémentation de `World::execute()`, `Scheduler::run()` ou `renderer.compose()`.
 
 ## 13. Fichiers
-**Créés** : `crates/render/{Cargo.toml, src/lib.rs, src/contribution.rs, src/accumulator.rs, src/frame.rs, tests/representation.rs, tests/pipeline.rs}` ; `crates/shell/tests/frame_loop.rs`, `crates/shell/examples/headless_frame.rs` (sous A-3 (i)).
-**Modifiés** : `Cargo.toml` racine (`members` : ajout de `crates/render` ; `[workspace.dependencies]` : ajout de `verbum-render = { path = "crates/render", version = "0.1.0" }`, [L] par cohérence avec les entrées existantes `verbum-ecs` et `verbum-schedule`, que `crates/shell/Cargo.toml` consomme par `.workspace = true` ; l'alternative est une dépendance par `path` dans `crates/shell/Cargo.toml`, à trancher dans le document d'exécution) ; `crates/shell/Cargo.toml` (`[dev-dependencies]` seulement) ; `Cargo.lock` (par Cargo).
-**Interdits** : `crates/{ecs,schedule,assets,forge,verbum}/**`, tous les fichiers existants de `crates/shell/src/**` et `tests/**` de l'étape 3, ADR, `ROADMAP.md`, `docs/implementation/00` à `03`, `docs/handoffs/**`.
+**Créés** : `crates/engine/render/{Cargo.toml, src/lib.rs, src/contribution.rs, src/accumulator.rs, src/frame.rs, tests/representation.rs, tests/pipeline.rs}` ; `crates/engine/shell/tests/frame_loop.rs`, `crates/engine/shell/examples/headless_frame.rs` (sous A-3 (i)).
+**Modifiés** : `Cargo.toml` racine (`members` : ajout de `crates/engine/render` ; `[workspace.dependencies]` : ajout de `verbum-render = { path = "crates/engine/render", version = "0.1.0" }`, [L] par cohérence avec les entrées existantes `verbum-ecs` et `verbum-schedule`, que `crates/engine/shell/Cargo.toml` consomme par `.workspace = true` ; l'alternative est une dépendance par `path` dans `crates/engine/shell/Cargo.toml`, à trancher dans le document d'exécution) ; `crates/engine/shell/Cargo.toml` (`[dev-dependencies]` seulement) ; `Cargo.lock` (par Cargo).
+**Interdits** : `crates/{ecs,schedule,assets,forge,verbum}/**`, tous les fichiers existants de `crates/engine/shell/src/**` et `tests/**` de l'étape 3, ADR, `ROADMAP.md`, `docs/implementation/00` à `03`, `docs/handoffs/**`.
 
 ## 14. Critères d'acceptation (clôture)
 1. U1 à U5 validées une à une par l'utilisateur, quatre contrôles verts à chaque unité sur le dépôt réel.

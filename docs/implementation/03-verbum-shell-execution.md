@@ -42,14 +42,14 @@ Légende, appliquée dans chaque unité :
 
 | # | Fait [Vérifié] | Source |
 |---|---|---|
-| F1 | `Scheduler::<B, L, SYSTEMS, PHASES>::new() -> Result<Self, ModelError>` ; `run_tick<const ENTITIES, const COMMANDS, S, R>(&self, &mut B::World, &mut B::Buffer) -> Result<(), TickError>` avec `R: Default` | `crates/schedule/src/scheduler.rs` |
+| F1 | `Scheduler::<B, L, SYSTEMS, PHASES>::new() -> Result<Self, ModelError>` ; `run_tick<const ENTITIES, const COMMANDS, S, R>(&self, &mut B::World, &mut B::Buffer) -> Result<(), TickError>` avec `R: Default` | `crates/engine/schedule/src/scheduler.rs` |
 | F2 | `TickError` = `Binding`, `Buffer(BufferFull)`, `BufferNotEmpty`, `Apply(ApplyError)`. Un buffer non vide à l'entrée est refusé. `world.apply(buffer)` est appelé en fin de chaque phase. La première erreur arrête le tick, sans retour arrière, le buffer garde ses commandes | `scheduler.rs` |
 | F3 | `ModelError` = `MixedNature`, `MultipleWriters`, `UnknownPhase`, `Cycle` : aucune variante pour une lecture sans producteur interne. Les tests d'`order.rs` acceptent des modèles composés de lecteurs seuls | `model.rs`, `order.rs` |
 | F4 | `ResourceSlot<T>` : `new`, `insert` (rend l'ancienne valeur), `get`, `get_mut` ; **aucune remise à vide**. `Read<ID, &mut ResourceSlot<T>>::get` rend `Option<&T>` | `ecs/resource.rs`, `schedule/access.rs` |
 | F5 | L'accès en lecture, en écriture et en production reçoit le même `&mut ResourceSlot<T>` (`Locate::Store`) : **les types n'interdisent pas l'écriture d'une catégorie déclarée en lecture par un autre système** | `access.rs`, `examples/headless.rs` |
 | F6 | API publique de contrôle des contrats : `SystemList::fill(&mut [(usize, Contract)], offset)`, `SystemList::LEN`, `contract_of::<B, S>() -> Contract`, `Contract::{reads, writes, produces}`, `DataSet::contains(DataId)`, `DataId::new(u8) -> Result<_, DataIdOutOfRange>` | `system.rs`, `contract.rs`, `data.rs` |
 | F7 | `World<ENTITIES, S, R>` : `new`, `resources`, `resources_mut`, `split_mut` ; `CommandBuffer` : `new`, `len`, `is_empty`, `clear` | `world.rs`, `command.rs`, `headless.rs`, tests d'acceptation du Scheduler |
-| F8 | Façade `verbum` : `#![no_std]`, réexporte `ecs` et `schedule`. Workspace : édition 2024, `rust-version = 1.85`, résolveur 3, `unsafe_code = "deny"` | `crates/verbum/src/lib.rs`, `Cargo.toml` racine |
+| F8 | Façade `verbum` : `#![no_std]`, réexporte `ecs` et `schedule`. Workspace : édition 2024, `rust-version = 1.85`, résolveur 3, `unsafe_code = "deny"` | `crates/engine/verbum/src/lib.rs`, `Cargo.toml` racine |
 | F9 | Expérience U5 exécutée dans une copie du dépôt, hors arbre de travail : un lecteur sans producteur interne est accepté ; une Ressource remplie hors modèle entre deux ticks est lue ; un lot vide et des lots successifs sont lus ; un emplacement jamais rempli se lit `None`. **Portée** : un lot réduit à deux entiers ; ni plusieurs phases, ni plusieurs lecteurs, ni Miri, ni MSRV | plan § 0 |
 | F10 | ADR-S03 est adoptée (19 octobre 2026) ; `tree.md` du 18 octobre liste les crates `assets`, `ecs`, `forge`, `schedule`, `verbum`, et `ADR-S01` seul pour le Shell. `World::execute()` et `Scheduler::run()` n'existent pas | ADR-S03 ; `tree.md` ; plan C1 |
 
@@ -61,14 +61,14 @@ Contrôles communs : les quatre commandes du § 1, point 4, sont exécutées à 
 
 ### U1 — Crate `verbum-shell` vide
 
-**Fichiers.** Créés : `crates/shell/Cargo.toml`, `crates/shell/src/lib.rs` (documentation de crate, aucune logique). Modifiés : `Cargo.toml` racine (ajout à `members`) ; `Cargo.lock` par Cargo seulement.
+**Fichiers.** Créés : `crates/engine/shell/Cargo.toml`, `crates/engine/shell/src/lib.rs` (documentation de crate, aucune logique). Modifiés : `Cargo.toml` racine (ajout à `members`) ; `Cargo.lock` par Cargo seulement.
 
 **Invariants.** ADR-S01 pt 4 (dépendances de plateforme confinées au Shell) ; ADR-000 pt 3 (le noyau ne nomme pas le Shell) ; A1 (aucune dépendance normale).
 
 | Rubrique | Contenu |
 |---|---|
 | [Vérifié] | F8 (héritage du workspace). Les crates du noyau ne dépendent pas du Shell (il n'existe pas) |
-| [Plan] | Package `verbum-shell`, dans `crates/shell` ; `std` autorisé (ADR-000 pts 2 et 5) ; héritage de `edition`, `rust-version`, `[lints] workspace = true` ; aucune dépendance |
+| [Plan] | Package `verbum-shell`, dans `crates/engine/shell` ; `std` autorisé (ADR-000 pts 2 et 5) ; héritage de `edition`, `rust-version`, `[lints] workspace = true` ; aucune dépendance |
 | [À démontrer] | Le crate compile dans le workspace, sans dépendance et sans dépendant ; `cargo tree` des crates du noyau inchangés par rapport à l'état de clôture de l'étape 2 (constaté au démarrage, pas supposé) |
 
 **Tests d'acceptation.** Aucun comportement. **Stratégie** : pas de rouge applicable ni de mutation.
@@ -77,11 +77,11 @@ Contrôles communs : les quatre commandes du § 1, point 4, sont exécutées à 
 
 **Résultats attendus.** Quatre contrôles verts. `cargo test --workspace` rapporte `running 0 tests` pour `verbum-shell`. Les deux `cargo tree` du Shell ne montrent aucune dépendance.
 
-**Critère de sortie.** Résultats ci-dessus constatés ; seuls `Cargo.toml` racine, `Cargo.lock` et `crates/shell/**` touchés. Rapport, puis « En attente de la validation de l'unité U1. »
+**Critère de sortie.** Résultats ci-dessus constatés ; seuls `Cargo.toml` racine, `Cargo.lock` et `crates/engine/shell/**` touchés. Rapport, puis « En attente de la validation de l'unité U1. »
 
 ### U2 — Cycle de vie et boucle bornée
 
-**Fichiers.** `crates/shell/src/{lib.rs, shell.rs}`, `crates/shell/tests/lifecycle.rs`. `inbox.rs` n'est **pas** créé en U2 : la boucle remet un lot vide (`&[]`) à l'infrastructure ; aucune boîte, aucun trait public ni abstraction de lot pour cette transition (arbitrage A-1b).
+**Fichiers.** `crates/engine/shell/src/{lib.rs, shell.rs}`, `crates/engine/shell/tests/lifecycle.rs`. `inbox.rs` n'est **pas** créé en U2 : la boucle remet un lot vide (`&[]`) à l'infrastructure ; aucune boîte, aucun trait public ni abstraction de lot pour cette transition (arbitrage A-1b).
 
 **Invariants.** ADR-S01 pts 1 et 3 ; ADR-000 pt 2 ; ADR-S03 pt 6 (appel unique de l'infrastructure par itération, sans point d'accroche entre la publication et l'invocation) ; A1, A2, A5 (i). Une itération commencée est menée à son terme.
 
@@ -107,7 +107,7 @@ Contrôles communs : les quatre commandes du § 1, point 4, sont exécutées à 
 
 ### U3 — Cadencement provisoire
 
-**Fichiers.** `crates/shell/src/{pacing.rs, shell.rs}`, `crates/shell/tests/pacing.rs`. PC-2 est déplacé en U4 (arbitrage A-1b).
+**Fichiers.** `crates/engine/shell/src/{pacing.rs, shell.rs}`, `crates/engine/shell/tests/pacing.rs`. PC-2 est déplacé en U4 (arbitrage A-1b).
 
 **Invariants.** ADR-S01 pt 5 ; `00-principes.md` inv. 3  ; Roadmap (politique provisoire). La boucle remet toujours un lot vide : aucune assertion sur des lots n'est possible en U3.
 
@@ -132,7 +132,7 @@ Contrôles communs : les quatre commandes du § 1, point 4, sont exécutées à 
 
 ### U4 — Boîte de réception et test d'invariant de la Roadmap
 
-**Fichiers.** `crates/shell/src/{inbox.rs, shell.rs}`, `crates/shell/tests/acquisition.rs`. U4 construit et teste la boîte, puis achève son intégration dans la boucle : la signature de la boucle reçoit la boîte et le prélèvement remplace le lot vide de U2. Les tests de `tests/{lifecycle,pacing}.rs` sont adaptés à cette seule signature, sans modifier leurs assertions ; l'adaptation est listée au rapport. Aucun trait public ni abstraction générale (arbitrage A-1b).
+**Fichiers.** `crates/engine/shell/src/{inbox.rs, shell.rs}`, `crates/engine/shell/tests/acquisition.rs`. U4 construit et teste la boîte, puis achève son intégration dans la boucle : la signature de la boucle reçoit la boîte et le prélèvement remplace le lot vide de U2. Les tests de `tests/{lifecycle,pacing}.rs` sont adaptés à cette seule signature, sans modifier leurs assertions ; l'adaptation est listée au rapport. Aucun trait public ni abstraction générale (arbitrage A-1b).
 
 **Invariants.** ADR-S01 pt 5 ; `00-principes.md` inv. 3 ; ADR-S03 pt 11 (le déterminisme porte sur une même séquence de lots publiés, non sur le découpage de l'arrivée réelle en lots) ; ADR-S01 pt 6 ; `02-concepts.md` (principe de circulation) ; ADR-000 pts 3 et 4 ; ADR-S03 pts 3, 7, 10 et 12 ; A3 ; L4.
 
@@ -176,7 +176,7 @@ Contrôles communs : les quatre commandes du § 1, point 4, sont exécutées à 
 
 ### U5 — Acceptation, exemple console, clôture
 
-**Fichiers.** `crates/shell/Cargo.toml` (dev-dependencies `verbum-ecs` et `verbum-schedule`, ajoutées ici seulement), `crates/shell/tests/acceptance.rs`, `crates/shell/examples/console.rs`.
+**Fichiers.** `crates/engine/shell/Cargo.toml` (dev-dependencies `verbum-ecs` et `verbum-schedule`, ajoutées ici seulement), `crates/engine/shell/tests/acceptance.rs`, `crates/engine/shell/examples/console.rs`.
 
 **Invariants.** Ensemble S1 à S15 du plan ; ADR-S03 pts 4 à 8 et 12.
 

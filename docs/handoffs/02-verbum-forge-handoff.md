@@ -29,7 +29,7 @@ La Roadmap lue est celle fournie pendant S5 ; je n'ai pas vérifié qu'elle est 
 
 ## 2. État à la clôture de l'étape 1
 
-**[Lu]** Étapes 0 et 1 acceptées. Workspace : `crates/verbum-ecs` (noyau, `no_std`, sans `alloc`), `crates/verbum-schedule` (Scheduler, `no_std`, sans `alloc`), `crates/verbum` (façade `no_std` : `pub use verbum_ecs as ecs; pub use verbum_schedule as schedule;`). Édition 2024, `rust-version = 1.85`, `unsafe_code = "deny"`.
+**[Lu]** Étapes 0 et 1 acceptées. Workspace : `crates/engine/verbum-ecs` (noyau, `no_std`, sans `alloc`), `crates/engine/verbum-schedule` (Scheduler, `no_std`, sans `alloc`), `crates/engine/verbum` (façade `no_std` : `pub use verbum_ecs as ecs; pub use verbum_schedule as schedule;`). Édition 2024, `rust-version = 1.85`, `unsafe_code = "deny"`.
 
 Contrôles réels (rapportés par l'utilisateur) : tout vert sur l'état final de 10c, y compris Miri sur `verbum-schedule` et `cargo +1.85.0 test --workspace`. Hashes des commits des phases 8, 9 et S5 : à renseigner par l'utilisateur.
 
@@ -182,4 +182,4 @@ Aucune représentation de rendu, aucun format de binaire, aucun format source, a
 
 ## 10. Fichiers de l'état à rattacher à la prochaine session
 
-Racine : `Cargo.toml`, `Cargo.lock`. `crates/verbum` : `Cargo.toml`, `src/lib.rs`. `crates/verbum-ecs` : `Cargo.toml` et sources utiles à l'étape 2 (`resource.rs`, `world.rs`, `lib.rs`, `component_set.rs`), ou un `tree`. `crates/verbum-schedule` : seulement si l'étape 2 en dépend, ce que la Roadmap exclut. Plans : `01-verbum-scheduler.md` r5 et `01-verbum-scheduler-execution.md` pour la méthode.
+Racine : `Cargo.toml`, `Cargo.lock`. `crates/engine/verbum` : `Cargo.toml`, `src/lib.rs`. `crates/engine/verbum-ecs` : `Cargo.toml` et sources utiles à l'étape 2 (`resource.rs`, `world.rs`, `lib.rs`, `component_set.rs`), ou un `tree`. `crates/engine/verbum-schedule` : seulement si l'étape 2 en dépend, ce que la Roadmap exclut. Plans : `01-verbum-scheduler.md` r5 et `01-verbum-scheduler-execution.md` pour la méthode.

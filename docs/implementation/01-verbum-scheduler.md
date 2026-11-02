@@ -356,7 +356,7 @@ Uniquement des éléments qu'aucun invariant ni test de l'étape 1 n'exige : `Ph
 ## 8. Micro-phases
 
 ### Phase 0 — Crate et workspace
-Ajout de `crates/schedule` aux `members`. **Test** : `cargo test --workspace` inchangé. **Commit** : `workspace: crate verbum-schedule vide`.
+Ajout de `crates/engine/schedule` aux `members`. **Test** : `cargo test --workspace` inchangé. **Commit** : `workspace: crate verbum-schedule vide`.
 
 ### Phase 1 — Données et contrat
 **Invariant** : I1, I15. **Tests** : `DataId::new(63)` → `Ok`, `new(64)` → `Err` ; bits distincts ; `DataSet` (`with`, `contains`, `intersects`, union) ; `Contract` répond par accesseurs aux cinq questions d'ADR-003 ; `emits_commands()` dérivé ; doctest `compile_fail` : `DataSet::of(64)` en `const` (E0080).
@@ -420,7 +420,7 @@ Contenu, comportement du composant absent et tests : §5.1. **Placement** : avan
 - **Q5, deux ticks** : tick 1 : `Position = 6` ; tick 2 : `12`, pas `18` : aucune contribution du tick précédent. **Témoin négatif** : sans `ClearAccumulator`, le tick 2 donne `18`, ce qui démontre que le Scheduler ne remet rien à zéro de lui-même.
 **Commit** : `scheduler: acceptance test, étape 1`.
 **10b — exécutable** : `examples/headless.rs`. **Commit** : `schedule: exemple headless, plusieurs ticks sans sortie`.
-**10c — façade** : `crates/verbum/Cargo.toml` dépend de `verbum-ecs.workspace = true` ; ajout de `verbum-schedule` dans `[workspace.dependencies]` (chemin et version, comme `verbum-ecs`), de `verbum-schedule.workspace = true` dans la façade, et de `pub use verbum_schedule as schedule;` (rôle documenté : réexporter, sans logique). **Commit** : `verbum: réexporte verbum-schedule`.
+**10c — façade** : `crates/engine/verbum/Cargo.toml` dépend de `verbum-ecs.workspace = true` ; ajout de `verbum-schedule` dans `[workspace.dependencies]` (chemin et version, comme `verbum-ecs`), de `verbum-schedule.workspace = true` dans la façade, et de `pub use verbum_schedule as schedule;` (rôle documenté : réexporter, sans logique). **Commit** : `verbum: réexporte verbum-schedule`.
 
 ---
 
@@ -443,7 +443,7 @@ Contenu, comportement du composant absent et tests : §5.1. **Placement** : avan
 | `RemoveComponent` opérationnel | phase 6bis (`verbum-ecs`), 7b, 9 (test 5) | écart de l'étape 0 jusqu'à 6bis ; comportement du composant absent = choix local |
 
 ## 10. Faisabilité vérifiée
-Pour ne pas figer dans le plan une signature impossible à compiler, j'ai compilé un **prototype jetable** (un crate de test dans mon espace temporaire, hors dépôt, **non livré**, avec des substituts simples à `verbum-ecs`) avec rustc 1.97.0. Il confirme : types associés génériques (GAT) pour `Access<'w>` ; `Locate<'w, const ID: u8>` ; liaison dérivée pour tuples ; contrat dérivé en `const` ; liste récursive ; accès disjoint valeurs + Ressource ; et les codes d'erreur du tableau §2.3 et §2.6. **Non vérifié** : compilation sous `rust-version = 1.85` ; comportement avec le vrai `World` (*annotation du 30 octobre 2026* : la faisabilité n'a été vérifiée que sur des substituts et ne couvrait pas les Ressources empruntant des octets ; `Binding::Parts<'w>` et `System::Access<'w>` ont reçu les bornes `where Self: 'w` / `where B: 'w` et `contract_of` une durée de vie `'a` bornée par `B`, dans `crates/schedule/src/system.rs`, sans effet sur les contrats ni l'ordre) ; effet de la limite de récursion sur de grandes listes.
+Pour ne pas figer dans le plan une signature impossible à compiler, j'ai compilé un **prototype jetable** (un crate de test dans mon espace temporaire, hors dépôt, **non livré**, avec des substituts simples à `verbum-ecs`) avec rustc 1.97.0. Il confirme : types associés génériques (GAT) pour `Access<'w>` ; `Locate<'w, const ID: u8>` ; liaison dérivée pour tuples ; contrat dérivé en `const` ; liste récursive ; accès disjoint valeurs + Ressource ; et les codes d'erreur du tableau §2.3 et §2.6. **Non vérifié** : compilation sous `rust-version = 1.85` ; comportement avec le vrai `World` (*annotation du 30 octobre 2026* : la faisabilité n'a été vérifiée que sur des substituts et ne couvrait pas les Ressources empruntant des octets ; `Binding::Parts<'w>` et `System::Access<'w>` ont reçu les bornes `where Self: 'w` / `where B: 'w` et `contract_of` une durée de vie `'a` bornée par `B`, dans `crates/engine/schedule/src/system.rs`, sans effet sur les contrats ni l'ordre) ; effet de la limite de récursion sur de grandes listes.
 
 ---
 
@@ -477,8 +477,8 @@ Arêtes de dépendance (A → B : B exige A) :
 ```
 | Phase | Dépend de | Touche |
 |---|---|---|
-| 0 | — | workspace (`Cargo.toml` racine, `Cargo.lock`), `crates/schedule` |
-| 1 à 5 | 0 ; séquence 1 → 2 → 3 → 4 → 5 | `crates/schedule` seul, aucune dépendance à `verbum-ecs` |
+| 0 | — | workspace (`Cargo.toml` racine, `Cargo.lock`), `crates/engine/schedule` |
+| 1 à 5 | 0 ; séquence 1 → 2 → 3 → 4 → 5 | `crates/engine/schedule` seul, aucune dépendance à `verbum-ecs` |
 | 6 `split_mut` | aucune | `verbum-ecs` : `world.rs` (+ tests) |
 | 6bis `RemoveComponent` | aucune ; **enchaînée après 6** (même `world.rs`, jamais en parallèle ni dans le même commit) | `verbum-ecs` : `component_set.rs`, `world.rs`, `command.rs`, `fixtures.rs`, tests, doctests |
 | 7a | 1, 6 ; **ordre pratique : après 6bis** (les implémenteurs de `ComponentSet` des tests du Scheduler seraient sinon à réécrire) | `verbum-schedule` |

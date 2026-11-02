@@ -23,11 +23,11 @@ Légende : **[Lu]** texte vérifié dans un document ou un source lu dans cette 
 
 **[Lu] normatif** : `00-principes.md`, `01-runtime-ecs.md`, `02-concepts.md`, `README.md` d'architecture, ADR-000, 001, 002, 003, 004, 005, 006, A01, S01, S03, SV01, **Sc01**.
 **[Lu] non normatif** : `ROADMAP.md`, `tree.md` (1er novembre 2026, 02:41), plans, exécutions et handoffs des étapes 0 à 5 (étape 0 : plan et handoff ; étape 1 : plan r5, sessions, handoff ; étape 2 : plan r8, exécution, handoff ; étape 3 : plan, exécution, handoff ; étape 4 : plan r3.2, exécution, handoff ; étape 5 : plan r1.3, exécution à jour après U5 (E-12 à E-14), handoff).
-**[Lu] code réel** : `crates/schedule/src/{scheduler,contract,system,access}.rs` ; `crates/ecs/src/{lib,resource,component_set,command,world,entity,values,storage}.rs` ; `crates/assets/src/{lib,header,format,load,manifest,sprite,tileset,map,font}.rs` ; `crates/forge/src/{lib,batch,id,sprite,map}.rs` ; `crates/shell/src/lib.rs`, `tests/{borrowed_resource,level_loaded}.rs`, `examples/level_headless.rs` ; les `Cargo.toml` (racine, `ecs`, `schedule`, `assets`, `forge`, `shell`, `render`, `verbum`) et `Cargo.lock`.
+**[Lu] code réel** : `crates/engine/schedule/src/{scheduler,contract,system,access}.rs` ; `crates/engine/ecs/src/{lib,resource,component_set,command,world,entity,values,storage}.rs` ; `crates/engine/assets/src/{lib,header,format,load,manifest,sprite,tileset,map,font}.rs` ; `crates/engine/forge/src/{lib,batch,id,sprite,map}.rs` ; `crates/engine/shell/src/lib.rs`, `tests/{borrowed_resource,level_loaded}.rs`, `examples/level_headless.rs` ; les `Cargo.toml` (racine, `ecs`, `schedule`, `assets`, `forge`, `shell`, `render`, `verbum`) et `Cargo.lock`.
 
 **Non lus, donc non vérifiés** :
 - ADR-R01 à R03, ADR-AU01, ADR-N01 : connus par citations seulement. Aucune décision de ce plan n'en dépend.
-- `crates/forge/src/{font,tileset}.rs`, `crates/shell/src/{shell,inbox,pacing}.rs`, `crates/ecs/src/{query,fixtures}.rs`, `crates/render/**` : signatures connues par leurs usages dans les documents et tests lus. Les faits F10 du document d'exécution de l'étape 3 sont à revérifier au démarrage de l'unité qui les emploie.
+- `crates/engine/forge/src/{font,tileset}.rs`, `crates/engine/shell/src/{shell,inbox,pacing}.rs`, `crates/engine/ecs/src/{query,fixtures}.rs`, `crates/engine/render/**` : signatures connues par leurs usages dans les documents et tests lus. Les faits F10 du document d'exécution de l'étape 3 sont à revérifier au démarrage de l'unité qui les emploie.
 - **La page d'axes du domaine Scripts** (Modèles 1, 3, 4), citée par ADR-Sc01 : non fournie. La comparaison du §4.A est faite sur les seuls textes lus ; **elle n'est pas présentée comme exhaustive**.
 - Aucune commande n'a été exécutée, aucune compilation tentée : toute affirmation de compilabilité est un **[Déduit]** à confirmer par les portes d'unité.
 
@@ -249,7 +249,7 @@ Aux ticks 2 et 3, **tous les octets autres que `wait` sont constants** et `wait`
 
 **Crate d'exécution [A-S1, retenu]** : `crates/script`, package `verbum-script`, `no_std` sans `alloc`, **seule dépendance : `verbum-assets`**. Il contient `ScriptState` et son encodage, `Emissions<CAP>`, `ScriptTable<'a, CAP>`, la fonction `emissions_bound_holds`, `step`, et réexporte les constantes de `verbum-assets`. Aucune dépendance à `verbum-ecs` ni `verbum-schedule` : le crate ne nomme ni `World`, ni `Scheduler`, ni système. Il se classe comme `verbum-render` : types du noyau atteignables depuis `run_tick`.
 
-**Système interpréteur [A-S2, retenu]** : adaptateur d'une vingtaine de lignes, écrit **dans l'assemblage** (tests et exemple de `crates/shell`), qui itère les instances et appelle la fonction pure `step` de `verbum-script`. Raisons : `Binding`/`Locate` appartiennent à l'application (plan 01 §2.2 ; ADR-S01 pt 7) ; une version générique exigerait de contraindre `B::Parts<'w>: Locate<…>` sur plusieurs `ID` const-génériques et sur le type des `Store` ; aucun système n'est livré par un crate à ce jour. La fixité de l'interface est vérifiée par CT-1 et par la revue.
+**Système interpréteur [A-S2, retenu]** : adaptateur d'une vingtaine de lignes, écrit **dans l'assemblage** (tests et exemple de `crates/engine/shell`), qui itère les instances et appelle la fonction pure `step` de `verbum-script`. Raisons : `Binding`/`Locate` appartiennent à l'application (plan 01 §2.2 ; ADR-S01 pt 7) ; une version générique exigerait de contraindre `B::Parts<'w>: Locate<…>` sur plusieurs `ID` const-génériques et sur le type des `Store` ; aucun système n'est livré par un crate à ce jour. La fixité de l'interface est vérifiée par CT-1 et par la revue.
 
 **Systèmes de la scène (assemblage)** : `Clear` (phase 0, `Produce<EMISSIONS>` : remise à l'état initial) ; phase 1 : `Collect` (`Read<EMISSIONS>`, `Produce<TRANSCRIPT>` : unique consommateur des émissions), `Interpreter`, `Drift` (`Write<BEAT>` : autre système qui écrit un second composant générique à chaque tick). Ordre de déclaration : `Clear`, `Collect`, `Interpreter`, `Drift` (le consommateur est déclaré avant son producteur : l'ordre exécuté ne vient que de la déduction). `SYSTEMS = 4`, `PHASES = 2`, cinq catégories (`STATE`, `SCRIPTS`, `EMISSIONS`, `TRANSCRIPT`, `BEAT`).
 
@@ -393,7 +393,7 @@ Les programmes de test de budget sont **construits par code à partir de `SCRIPT
 | EM-3 | Le transcript a le type de capacité de l'accumulateur : une fonction `fn same_capacity<const N: usize>(&Emissions<N>, &Emissions<N>)` accepte (accumulateur, transcript) ; la copie par `Clone` d'un accumulateur plein donne un transcript égal ; aucune insertion élément par élément n'est nécessaire | T10 |
 | TB-1 | `ScriptTable` indexée par slot : dépôt, lecture ; slot non script `None` ; dépôt hors `CAP` et sur un slot occupé refusés ; `get(index)` hors `CAP` : `None` ; indice lu par `get` = slot déposé, `artifact_index` jamais utilisé | T14, C13 |
 
-### 7.4 Intégration Scheduler et test d'invariant (`crates/shell/tests/script_suspend.rs`, U4)
+### 7.4 Intégration Scheduler et test d'invariant (`crates/engine/shell/tests/script_suspend.rs`, U4)
 
 Montage : `World<ENTITIES, Components, Rs<'a>>`, `Components` à deux stockages (`ScriptState`, `Beat`) ; systèmes `Clear`, `Collect`, `Interpreter`, `Drift` (§4.F) ; table chargée par le véritable `load` depuis des artefacts compilés par la Forge ; `Anchored` pour `Clear`, `Collect`, `Drift` (A-S4) ; `EMISSIONS` et `TRANSCRIPT` initialisés vides à l'assemblage.
 
@@ -411,7 +411,7 @@ Montage : `World<ENTITIES, Components, Rs<'a>>`, `Components` à deux stockages 
 | SR-6 | Lancement par `CommandBuffer::add_component` + `World::apply` : aucune écriture directe du composant ; l'instance démarre à `pc = 0`, `Running` | C9, ADR-006 |
 | SR-7 | **Script accepté par la Forge, jamais `Faulted(Budget)`** : scripts compilés par la Forge à la limite (b, d, h de SCR-F4) et à bras de `JumpIfNonZero` aux coûts maximaux, exécutés sur plusieurs ticks, **pour chacune des deux issues du `jnz`** (registre nul, registre non nul) : aucun état `Faulted(Budget)` n'est jamais observé ; compte d'instructions exécutées par tour ≤ `SCRIPT_MAX_STEPS_PER_TICK` | T10, C14 |
 
-### 7.5 Démonstrateur (`crates/shell/tests/script_loaded.rs`, `examples/script_headless.rs`, U5)
+### 7.5 Démonstrateur (`crates/engine/shell/tests/script_loaded.rs`, `examples/script_headless.rs`, U5)
 
 | Test | Énoncé |
 |---|---|
@@ -442,7 +442,7 @@ Familles retenues (mutations exactes et détecteurs au document d'exécution) :
 | **U1** | `verbum-assets` : `script.rs` (layout, lecteur, `Script`, `Instruction`, constantes), `Format::Script`, `Asset::Script`, `ReadError::Instruction`, identité dans `format.rs` ; tests SCR-R*, SCR-K1, SCR-L* ; non-régression complète | Une assertion de l'étape 5 à modifier → arrêt (G-CM) ; `match` exhaustif cassé par une variante → exposé avant correction |
 | **U2** | `verbum-forge` : `script.rs`, `AssetKind::Script`, aiguillage dans `batch.rs`, erreurs, validations (étiquettes, opérandes, cycles, budget) ; tests SCR-F*, SCR-C1 | Besoin d'une dépendance autre que `toml` → arrêt |
 | **U3** | Crate `verbum-script` : `ScriptState` et encodage, `Emissions`, `ScriptTable`, `emissions_bound_holds`, `step` ; racine : `members` et `[workspace.dependencies]` ; tests ST-*, IN-*, EM-*, TB-1 | `step` exigeant `alloc`, `unsafe` ou un état externe → arrêt (G-ST) |
-| **U4** | `crates/shell/tests/script_suspend.rs` : `ComponentSet`, `Binding`, systèmes d'assemblage, CT-*, SY-0, SR-1 à SR-7 ; `crates/shell/Cargo.toml` (dev-dépendance) | Échec de durée de vie du montage → arrêt sans contournement (G-LT) ; exigence d'ordre inter-instances → arrêt (G-ORD-S) |
+| **U4** | `crates/engine/shell/tests/script_suspend.rs` : `ComponentSet`, `Binding`, systèmes d'assemblage, CT-*, SY-0, SR-1 à SR-7 ; `crates/engine/shell/Cargo.toml` (dev-dépendance) | Échec de durée de vie du montage → arrêt sans contournement (G-LT) ; exigence d'ordre inter-instances → arrêt (G-ORD-S) |
 | **U5** | `script_loaded.rs` (DM-1 à DM-3), `examples/script_headless.rs`, contrôles de clôture, Miri, MSRV 1.85, rapport « non démontré » | Résultat non conforme à la liste du §10 → exposé |
 
 Découpage en sessions recommandé : A = U1 et U2 ; B = U3 et U4 ; C = U5.
@@ -483,12 +483,12 @@ Quatre contrôles à chaque unité : `cargo build --workspace`, `cargo test --wo
 Backend graphique, caméra, rendu ; compilateur de DSL de dialogue ; appels et sous-programmes ; accès aux données de jeu ; conversion secondes → ticks ; journal persistant ; parallélisme ; streaming, rechargement à chaud ; sauvegarde ; réseau ; modification d'un ADR, de la Roadmap, de `verbum-ecs`, `verbum-schedule`, `verbum-render`, de la façade `verbum` ou des documents des étapes précédentes ; tout `Plugin`, `Registry`, `Service`, `Factory`, `Builder`, `TypeId`, `PhaseKind`, `SystemSet`, `dyn Trait`, `unsafe`.
 
 ## 13. Fichiers (prévisions, à confirmer au document d'exécution)
-- **`crates/assets/src/`** : `script.rs` (créé), `format.rs`, `lib.rs`, `sprite.rs` (variante de `ReadError`) ; `load.rs` et `manifest.rs` inchangés ; `Cargo.toml` inchangé.
-- **`crates/forge/src/`** : `script.rs` (créé), `batch.rs`, `lib.rs`, `sprite.rs` (variantes de `ForgeError`) ; `tests/pipeline.rs` étendu.
+- **`crates/engine/assets/src/`** : `script.rs` (créé), `format.rs`, `lib.rs`, `sprite.rs` (variante de `ReadError`) ; `load.rs` et `manifest.rs` inchangés ; `Cargo.toml` inchangé.
+- **`crates/engine/forge/src/`** : `script.rs` (créé), `batch.rs`, `lib.rs`, `sprite.rs` (variantes de `ForgeError`) ; `tests/pipeline.rs` étendu.
 - **`crates/script/`** (créé) : `Cargo.toml`, `src/{lib,state,emissions,table,step}.rs`.
-- **`crates/shell/`** : `Cargo.toml` (dev-dépendance `verbum-script`), `tests/{script_suspend,script_loaded}.rs`, `examples/script_headless.rs`.
+- **`crates/engine/shell/`** : `Cargo.toml` (dev-dépendance `verbum-script`), `tests/{script_suspend,script_loaded}.rs`, `examples/script_headless.rs`.
 - **Racine** : `Cargo.toml` (`members`, `[workspace.dependencies]`), `Cargo.lock` (par Cargo).
-- **Jamais modifiés** : `crates/{ecs,schedule,render,verbum}/**`, `crates/shell/src/**` (y compris la documentation `//!`, aucun doctest nouveau), `crates/assets/src/{load,manifest,header,map,font,tileset}.rs` sauf mention ci-dessus, ADR, `ROADMAP.md`, documents des étapes 0 à 5.
+- **Jamais modifiés** : `crates/{ecs,schedule,render,verbum}/**`, `crates/engine/shell/src/**` (y compris la documentation `//!`, aucun doctest nouveau), `crates/engine/assets/src/{load,manifest,header,map,font,tileset}.rs` sauf mention ci-dessus, ADR, `ROADMAP.md`, documents des étapes 0 à 5.
 - **Documentation** : ce plan, le document d'exécution, le handoff ; `tree.md` régénéré par l'utilisateur.
 
 ## 14. Critères d'acceptation (clôture)

@@ -11,7 +11,7 @@ Légende : **[D]** décision architecturale (source normative citée) ; **[L]** 
 
 ## 0. Sources et limites
 
-**[Lu]** `ROADMAP.md`, `00-principes.md`, `01-runtime-ecs.md`, `02-concepts.md`, `README.md` d'architecture, ADR-000, ADR-001, ADR-005, ADR-A01, ADR-R01, ADR-R02, ADR-R03, ADR-S01, `00-verbum-ecs.md`, `01-verbum-scheduler-handoff.md`, `02-verbum-forge-handoff..md`, `tree.md`, `Cargo.toml` et `Cargo.lock` du workspace, `crates/ecs/Cargo.toml`, `lib.rs`, `resource.rs`, `world.rs`, `component_set.rs`.
+**[Lu]** `ROADMAP.md`, `00-principes.md`, `01-runtime-ecs.md`, `02-concepts.md`, `README.md` d'architecture, ADR-000, ADR-001, ADR-005, ADR-A01, ADR-R01, ADR-R02, ADR-R03, ADR-S01, `00-verbum-ecs.md`, `01-verbum-scheduler-handoff.md`, `02-verbum-forge-handoff..md`, `tree.md`, `Cargo.toml` et `Cargo.lock` du workspace, `crates/engine/ecs/Cargo.toml`, `lib.rs`, `resource.rs`, `world.rs`, `component_set.rs`.
 
 **RFC 9923 (« The FNV Non-Cryptographic Hash Algorithm », Informational, février 2026)** : §2 pseudocode de FNV-1a ; §5 constantes FNV ; §8.2.2 code de référence FNV64 ; §8.3 code de test, qui contient les entrées `""`, `"a"` et `"foobar"` et leurs valeurs attendues. Les §2, §5 et §8.2.2 sont lus par moi ; le tableau de test du §8.3 est vérifié par l'utilisateur.
 
@@ -68,7 +68,7 @@ Le texte de la Roadmap pour l'étape 2 ne mentionne ni manifeste ni identifiant.
 | Q3 : décodage d'image | **[Déduit]** À terme côté Forge ; non requis à l'étape 2 (Q-A). |
 | Q6 : contraintes du binaire « casté » | ADR-000 pt 3 et pt 4 (table) ; reprise en §8.2. |
 | Q10 : capacités fixées par la Forge ? | Capacité fixée par la configuration statique des slots (Q-M) ; mécanisme de test admis par ADR-001 pt 5. |
-| §2 et §10 : chemins `crates/verbum-ecs`, `crates/verbum-schedule` | `tree.md` (fait foi) : `crates/ecs`, `crates/schedule`, `crates/verbum`. |
+| §2 et §10 : chemins `crates/engine/verbum-ecs`, `crates/engine/verbum-schedule` | `tree.md` (fait foi) : `crates/engine/ecs`, `crates/engine/schedule`, `crates/engine/verbum`. |
 
 ## 3. Invariants applicables
 
@@ -109,8 +109,8 @@ Tranche B :
 
 | Crate | Chemin | Environnement | Contenu | Dépend de |
 |---|---|---|---|---|
-| `verbum-assets` | `crates/assets` | `no_std`, sans `alloc`, sans dépendance | Tranche A : layout de l'artefact, `Sprite`, lecture. Tranche B : layout du manifeste, `AssetId`, indices typés, `Manifest<'a>`, chargement | rien |
-| `verbum-forge` | `crates/forge` | `std` | Tranche A : compilation d'une source. Tranche B : FNV-1a 64, compilation en lot, production du manifeste | `verbum-assets`, `toml` ; en `dev-dependencies` : `verbum-ecs` |
+| `verbum-assets` | `crates/engine/assets` | `no_std`, sans `alloc`, sans dépendance | Tranche A : layout de l'artefact, `Sprite`, lecture. Tranche B : layout du manifeste, `AssetId`, indices typés, `Manifest<'a>`, chargement | rien |
+| `verbum-forge` | `crates/engine/forge` | `std` | Tranche A : compilation d'une source. Tranche B : FNV-1a 64, compilation en lot, production du manifeste | `verbum-assets`, `toml` ; en `dev-dependencies` : `verbum-ecs` |
 | `verbum-ecs` | inchangé | | Aucune modification | |
 
 ### 4.1 Les trois notions, distinctes et non substituables
@@ -229,21 +229,21 @@ Méthode : invariant cité → test qui l'exprime (rouge confirmé avant l'API) 
 
 #### Phase 1 — Format de l'artefact et lecture runtime (`verbum-assets`)
 **Invariants** : I3, I4, I5, I8, I10 (et I2 pour P1.6).
-**Fichiers** : création de `crates/assets/Cargo.toml`, `src/lib.rs`, `src/sprite.rs` ; modification de `Cargo.toml` (membres).
+**Fichiers** : création de `crates/engine/assets/Cargo.toml`, `src/lib.rs`, `src/sprite.rs` ; modification de `Cargo.toml` (membres).
 **Tests** (octets littéraux écrits à la main, valeurs asymétriques, par exemple largeur `0x0102`, hauteur `0x0304`) : P1.1 lecture de l'artefact littéral ; P1.2 toute troncature rejetée ; P1.3 identité de format altérée rejetée, y compris le texte d'un `sprite.toml` ; P1.4 version inconnue rejetée ; P1.5 longueur de charge utile erronée ou surplus rejetés ; **P1.6** largeur nulle structurellement conforme **acceptée**.
 **API minimale** : `Sprite` (donnée pure, `Copy`) ; `Sprite::read(&[u8]) -> Result<Sprite, ReadError>` ; constantes de layout publiques ; `ReadError`.
 **Critère de sortie** : P1.1 à P1.6 verts ; `#![no_std]` sans `extern crate alloc` ; `[dependencies]` vide ; Miri vert (vous).
 
 #### Phase 2 — Forge : source → artefact (`verbum-forge`)
 **Invariants** : I1, I2, I4, I9, I11.
-**Fichiers** : création de `crates/forge/Cargo.toml`, `src/lib.rs`, `src/sprite.rs` ; modification de `Cargo.toml` (membre, `toml`) ; `Cargo.lock` par Cargo seulement.
+**Fichiers** : création de `crates/engine/forge/Cargo.toml`, `src/lib.rs`, `src/sprite.rs` ; modification de `Cargo.toml` (membre, `toml`) ; `Cargo.lock` par Cargo seulement.
 **Tests** : P2.1 un `sprite.toml` valide produit exactement les octets littéraux attendus (témoin indépendant de P1.1) ; P2.2 round-trip Forge → lecteur ; P2.3 validation minimale refusée sans artefact produit (champ manquant, valeur nulle, hors `u16`, type erroné, champ inconnu, TOML invalide).
 **API minimale** : `compile_sprite(&str) -> Result<Vec<u8>, ForgeError>` ; `ForgeError`.
 **Critère de sortie** : P2.1 à P2.3 verts ; `cargo tree -i toml --workspace` ne liste que `verbum-forge` (contrôle manuel) ; MSRV vert (vous).
 
-#### Phase 3 — Acceptation de la tranche A (`crates/forge/tests/pipeline.rs`)
+#### Phase 3 — Acceptation de la tranche A (`crates/engine/forge/tests/pipeline.rs`)
 **Invariants** : I1, I6, I7, I8, critère de la Roadmap.
-**Fichiers** : création de `crates/forge/tests/pipeline.rs` ; `verbum-ecs` en `dev-dependencies`.
+**Fichiers** : création de `crates/engine/forge/tests/pipeline.rs` ; `verbum-ecs` en `dev-dependencies`.
 **Tests** : P3.1 chaîne complète sur disque (`sprite.toml` → Forge → `sprite.bin` → **suppression de la source** → lecture des octets → `Sprite::read` → insertion dans un `ResourceSlot<Sprite>` d'un `R` de test d'un `World` → lecture par le champ), répertoire temporaire unique nettoyé par un garde (`Drop`) même en cas d'échec ; P3.2 le même fichier source est accepté par la Forge et rejeté par le lecteur.
 **Ce qui établit I1** : P3.2 et P1.3 ne suffisent pas seuls ; c'est leur combinaison avec la suppression de la source en P3.1, la séparation des crates et l'absence de parseur TOML dans l'arbre de `verbum-assets`.
 **Critère de sortie** : critères de la tranche A (§1.3), consignés comme **jalon intermédiaire**.
@@ -252,7 +252,7 @@ Méthode : invariant cité → test qui l'exprime (rouge confirmé avant l'API) 
 
 #### Phase 4 — Manifeste, identifiant opaque et chargement (`verbum-assets`)
 **Invariants** : I12, I13, I4, I5, I10.
-**Fichiers** : ajout de `crates/assets/src/manifest.rs`, `src/load.rs` ; modification de `src/lib.rs`.
+**Fichiers** : ajout de `crates/engine/assets/src/manifest.rs`, `src/load.rs` ; modification de `src/lib.rs`.
 **Interfaces (provisoires, sans code)** :
 - `AssetId` : type opaque (champ privé ; constructeur non public hors du crate ; `Debug` opaque). Seul le lecteur du manifeste le construit.
 - `ArtifactIndex`, `SlotIndex` : enveloppes de `u32` avec accesseur (nom provisoire `get`). **`SlotIndex::new(u32)` est public** (fourni par la Forge et par l'application) et **ne vérifie pas la capacité** ; les contrôles `slot_index < slot_count` et d'unicité des slots restent à la Forge et au chargement.
@@ -278,7 +278,7 @@ Méthode : invariant cité → test qui l'exprime (rouge confirmé avant l'API) 
 
 #### Phase 5 — Forge : compilation en lot, FNV-1a et manifeste (`verbum-forge`)
 **Invariants** : I12, I2, I4, I9.
-**Fichiers** : ajout de `crates/forge/src/id.rs` (FNV-1a, contrôle de distinction des identifiants), `src/batch.rs` ; modification de `src/lib.rs`.
+**Fichiers** : ajout de `crates/engine/forge/src/id.rs` (FNV-1a, contrôle de distinction des identifiants), `src/batch.rs` ; modification de `src/lib.rs`.
 **Interfaces (provisoires)** :
 - Entrée par asset : clé logique, texte TOML, `SlotIndex`. Entrée du lot : tranche ordonnée de ces éléments, plus `slot_count`.
 - `compile_assets(...) -> Result<CompiledSet, ForgeError>` : **API publique, qui utilise toujours FNV-1a 64 bits ; aucun paramètre de hash**. `CompiledSet` : octets du manifeste et artefacts **dans l'ordre d'entrée** (`artifact_index = i`).
@@ -299,7 +299,7 @@ Méthode : invariant cité → test qui l'exprime (rouge confirmé avant l'API) 
 - **F-9** non-fuite du point de test : doctests `compile_fail` établissant que la fonction à calculateur injectable n'est pas accessible depuis l'extérieur du crate ; la signature publique de `compile_assets` ne comporte aucun paramètre de hash (vérifié aussi par relecture de l'API publique au critère de sortie).
 **Critère de sortie** : tests verts ; l'API de la tranche A reste valide ; `cargo tree -i toml --workspace` inchangé.
 
-#### Phase 6 — Acceptation de la clôture (`crates/forge/tests/pipeline.rs`, extension)
+#### Phase 6 — Acceptation de la clôture (`crates/engine/forge/tests/pipeline.rs`, extension)
 **Invariants** : I12, I13, I6, I7, I8.
 **Prérequis de l'application de test** [Lu] : un `R` à deux champs distincts de type `ResourceSlot<Sprite>` (`first`, `second`) se déclare et s'instancie sans modifier `verbum-ecs` : `ResourceSlot<T>` n'impose aucune contrainte sur `T` et est `Default` sans `T: Default` ; `World::new` n'exige que `R: Default` ; `resources_mut()` rend `&mut R`. Liaison statique : tableau de deux accesseurs, slot 0 → `first`, slot 1 → `second` ; `slot_count = 2`.
 **Tests** :
@@ -310,7 +310,7 @@ Méthode : invariant cité → test qui l'exprime (rouge confirmé avant l'API) 
 - **T6.5** le texte TOML d'une source fourni à `Manifest::parse` est rejeté (signature) ; le runtime n'interprète jamais la source.
 - **T6.6** capacité supérieure au nombre d'assets : un seul asset compilé et chargé avec `slot_count = 2` ; l'autre slot reste vide ; manifeste vide et collection vide : aucun dépôt, les deux slots vides.
 - Répertoire temporaire unique par test, nettoyé par un garde (`Drop`) même en cas d'échec.
-**Contrôles manuels** (rapportés par vous) : `cargo tree -p verbum-assets` sans dépendance ; `cargo tree -i toml --workspace` ne liste que `verbum-forge` ; aucune modification de `crates/ecs`, `crates/schedule`, `crates/verbum`, des ADR ni de la Roadmap (K8).
+**Contrôles manuels** (rapportés par vous) : `cargo tree -p verbum-assets` sans dépendance ; `cargo tree -i toml --workspace` ne liste que `verbum-forge` ; aucune modification de `crates/engine/ecs`, `crates/engine/schedule`, `crates/engine/verbum`, des ADR ni de la Roadmap (K8).
 **Critère de sortie** : critères de clôture du §1.3 (K1 à K8) ; Miri vert sur `verbum-assets` ; MSRV vert.
 
 ## 7. Risques
@@ -342,7 +342,7 @@ Méthode : invariant cité → test qui l'exprime (rouge confirmé avant l'API) 
 | Q-C | `from_le_bytes`, choix local |
 | Q-D | Crate `toml`, sans ADR dédiée |
 | Q-E | Deux crates |
-| Q-F | `crates/forge/tests/pipeline.rs`, `verbum-ecs` en dev-dependency ; façade inchangée |
+| Q-F | `crates/engine/forge/tests/pipeline.rs`, `verbum-ecs` en dev-dependency ; façade inchangée |
 | Q-G | Bibliothèque ; ni CLI ni `build.rs` |
 | Q-H | P1.6 inclus |
 | Q-I | F1 : un `ResourceSlot<Sprite>` distinct par asset ; trois notions distinctes ; pas de F2 |
@@ -377,9 +377,9 @@ Aucune ADR dédiée au choix du crate `toml` (décision d'implémentation substi
 
 ## 9. Fichiers créés ou modifiés
 
-Créés : `docs/implementation/02-verbum-forge.md` (ce plan) ; `crates/assets/{Cargo.toml, src/lib.rs, src/sprite.rs, src/manifest.rs, src/load.rs}` ; `crates/forge/{Cargo.toml, src/lib.rs, src/sprite.rs, src/id.rs, src/batch.rs, tests/pipeline.rs}`.
+Créés : `docs/implementation/02-verbum-forge.md` (ce plan) ; `crates/engine/assets/{Cargo.toml, src/lib.rs, src/sprite.rs, src/manifest.rs, src/load.rs}` ; `crates/engine/forge/{Cargo.toml, src/lib.rs, src/sprite.rs, src/id.rs, src/batch.rs, tests/pipeline.rs}`.
 Modifiés : `Cargo.toml` (membres, dépendances du workspace), `Cargo.lock` (par Cargo uniquement), `tree.md` (régénéré par votre script).
-**Jamais modifiés** : `crates/ecs`, `crates/schedule`, `crates/verbum`, les ADR, `ROADMAP.md`.
+**Jamais modifiés** : `crates/engine/ecs`, `crates/engine/schedule`, `crates/engine/verbum`, les ADR, `ROADMAP.md`.
 
 ## 10. Hors périmètre de l'étape 2
 
