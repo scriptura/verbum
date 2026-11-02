@@ -1,115 +1,118 @@
 # Structure du Projet
 
-**Généré le:** 2026-11-01 22:33:13
+**Généré le:** 2026-11-02 21:22:54
 
 ## Racine du Workspace
 
 ```text
 /verbum
 ├── crates
-│   ├── assets
-│   │   ├── src
-│   │   │   ├── font.rs
-│   │   │   ├── format.rs
-│   │   │   ├── header.rs
-│   │   │   ├── lib.rs
-│   │   │   ├── load.rs
-│   │   │   ├── manifest.rs
-│   │   │   ├── map.rs
-│   │   │   ├── sprite.rs
-│   │   │   └── tileset.rs
-│   │   └── Cargo.toml
-│   ├── ecs
-│   │   ├── src
-│   │   │   ├── command.rs
-│   │   │   ├── component_set.rs
-│   │   │   ├── entity.rs
-│   │   │   ├── fixtures.rs
-│   │   │   ├── lib.rs
-│   │   │   ├── query.rs
-│   │   │   ├── resource.rs
-│   │   │   ├── storage.rs
-│   │   │   ├── values.rs
-│   │   │   └── world.rs
-│   │   ├── tests
-│   │   │   ├── acceptance.rs
-│   │   │   ├── command_buffer.rs
-│   │   │   ├── components.rs
-│   │   │   ├── query.rs
-│   │   │   ├── resources.rs
-│   │   │   └── world_identity.rs
-│   │   └── Cargo.toml
-│   ├── forge
-│   │   ├── src
-│   │   │   ├── batch.rs
-│   │   │   ├── font.rs
-│   │   │   ├── id.rs
-│   │   │   ├── lib.rs
-│   │   │   ├── map.rs
-│   │   │   ├── sprite.rs
-│   │   │   └── tileset.rs
-│   │   ├── tests
-│   │   │   └── pipeline.rs
-│   │   └── Cargo.toml
-│   ├── render
-│   │   ├── src
-│   │   │   ├── accumulator.rs
-│   │   │   ├── contribution.rs
-│   │   │   ├── frame.rs
-│   │   │   ├── lib.rs
-│   │   │   └── representation.rs
-│   │   ├── tests
-│   │   │   └── pipeline.rs
-│   │   └── Cargo.toml
-│   ├── schedule
-│   │   ├── examples
-│   │   │   └── headless.rs
-│   │   ├── src
-│   │   │   ├── access.rs
-│   │   │   ├── contract.rs
-│   │   │   ├── data.rs
-│   │   │   ├── lib.rs
-│   │   │   ├── model.rs
-│   │   │   ├── order.rs
-│   │   │   ├── scheduler.rs
-│   │   │   └── system.rs
-│   │   ├── tests
-│   │   │   ├── support
-│   │   │   │   └── mod.rs
-│   │   │   ├── acceptance.rs
-│   │   │   ├── access.rs
-│   │   │   └── tick.rs
-│   │   └── Cargo.toml
-│   ├── shell
-│   │   ├── examples
-│   │   │   ├── console.rs
-│   │   │   ├── headless_frame.rs
-│   │   │   └── level_headless.rs
-│   │   ├── src
-│   │   │   ├── inbox.rs
-│   │   │   ├── lib.rs
-│   │   │   ├── pacing.rs
-│   │   │   └── shell.rs
-│   │   ├── tests
-│   │   │   ├── acceptance.rs
-│   │   │   ├── acquisition.rs
-│   │   │   ├── borrowed_resource.rs
-│   │   │   ├── frame_loop.rs
-│   │   │   ├── level_loaded.rs
-│   │   │   ├── lifecycle.rs
-│   │   │   └── pacing.rs
-│   │   └── Cargo.toml
-│   └── verbum
-│       ├── src
-│       │   └── lib.rs
-│       └── Cargo.toml
+│   ├── engine
+│   │   ├── assets
+│   │   │   ├── src
+│   │   │   │   ├── font.rs
+│   │   │   │   ├── format.rs
+│   │   │   │   ├── header.rs
+│   │   │   │   ├── lib.rs
+│   │   │   │   ├── load.rs
+│   │   │   │   ├── manifest.rs
+│   │   │   │   ├── map.rs
+│   │   │   │   ├── sprite.rs
+│   │   │   │   └── tileset.rs
+│   │   │   └── Cargo.toml
+│   │   ├── ecs
+│   │   │   ├── src
+│   │   │   │   ├── command.rs
+│   │   │   │   ├── component_set.rs
+│   │   │   │   ├── entity.rs
+│   │   │   │   ├── fixtures.rs
+│   │   │   │   ├── lib.rs
+│   │   │   │   ├── query.rs
+│   │   │   │   ├── resource.rs
+│   │   │   │   ├── storage.rs
+│   │   │   │   ├── values.rs
+│   │   │   │   └── world.rs
+│   │   │   ├── tests
+│   │   │   │   ├── acceptance.rs
+│   │   │   │   ├── command_buffer.rs
+│   │   │   │   ├── components.rs
+│   │   │   │   ├── query.rs
+│   │   │   │   ├── resources.rs
+│   │   │   │   └── world_identity.rs
+│   │   │   └── Cargo.toml
+│   │   ├── forge
+│   │   │   ├── src
+│   │   │   │   ├── batch.rs
+│   │   │   │   ├── font.rs
+│   │   │   │   ├── id.rs
+│   │   │   │   ├── lib.rs
+│   │   │   │   ├── map.rs
+│   │   │   │   ├── sprite.rs
+│   │   │   │   └── tileset.rs
+│   │   │   ├── tests
+│   │   │   │   └── pipeline.rs
+│   │   │   └── Cargo.toml
+│   │   ├── render
+│   │   │   ├── src
+│   │   │   │   ├── accumulator.rs
+│   │   │   │   ├── contribution.rs
+│   │   │   │   ├── frame.rs
+│   │   │   │   ├── lib.rs
+│   │   │   │   └── representation.rs
+│   │   │   ├── tests
+│   │   │   │   └── pipeline.rs
+│   │   │   └── Cargo.toml
+│   │   ├── schedule
+│   │   │   ├── examples
+│   │   │   │   └── headless.rs
+│   │   │   ├── src
+│   │   │   │   ├── access.rs
+│   │   │   │   ├── contract.rs
+│   │   │   │   ├── data.rs
+│   │   │   │   ├── lib.rs
+│   │   │   │   ├── model.rs
+│   │   │   │   ├── order.rs
+│   │   │   │   ├── scheduler.rs
+│   │   │   │   └── system.rs
+│   │   │   ├── tests
+│   │   │   │   ├── support
+│   │   │   │   │   └── mod.rs
+│   │   │   │   ├── acceptance.rs
+│   │   │   │   ├── access.rs
+│   │   │   │   └── tick.rs
+│   │   │   └── Cargo.toml
+│   │   ├── shell
+│   │   │   ├── examples
+│   │   │   │   ├── console.rs
+│   │   │   │   ├── headless_frame.rs
+│   │   │   │   └── level_headless.rs
+│   │   │   ├── src
+│   │   │   │   ├── inbox.rs
+│   │   │   │   ├── lib.rs
+│   │   │   │   ├── pacing.rs
+│   │   │   │   └── shell.rs
+│   │   │   ├── tests
+│   │   │   │   ├── acceptance.rs
+│   │   │   │   ├── acquisition.rs
+│   │   │   │   ├── borrowed_resource.rs
+│   │   │   │   ├── frame_loop.rs
+│   │   │   │   ├── level_loaded.rs
+│   │   │   │   ├── lifecycle.rs
+│   │   │   │   └── pacing.rs
+│   │   │   └── Cargo.toml
+│   │   └── verbum
+│   │       ├── src
+│   │       │   └── lib.rs
+│   │       └── Cargo.toml
+│   ├── extensions
+│   └── games
 ├── scripts
 │   └── tree.sh
 ├── Cargo.lock
 ├── Cargo.toml
 └── README.md
 
-25 directories, 78 files
+26 directories, 80 files
 ```
 
 ## Documentation du projet
