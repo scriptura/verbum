@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-11-02 21:22:54
+**Généré le:** 2026-11-03 08:01:56
 
 ## Racine du Workspace
 
@@ -105,14 +105,34 @@
 │   │       │   └── lib.rs
 │   │       └── Cargo.toml
 │   ├── extensions
+│   │   ├── collisions
+│   │   │   └── README.md
+│   │   └── lpc
+│   │       ├── drafts
+│   │       │   ├── LPC_YAML
+│   │       │   │   ├── action_resolution.yaml
+│   │       │   │   ├── base_character.contract.yaml
+│   │       │   │   ├── bow_recurve.contract.yaml
+│   │       │   │   ├── build_manifest.yaml
+│   │       │   │   ├── canonical_animations.yaml
+│   │       │   │   ├── gnarled_staff.contract.yaml
+│   │       │   │   ├── hammer.contract.yaml
+│   │       │   │   ├── longsword.contract.yaml
+│   │       │   │   └── trident.contract.yaml
+│   │       │   ├── LPC-Paradigm.md
+│   │       │   ├── bow_recurve.md
+│   │       │   └── grid_64.svg
+│   │       └── README.md
 │   └── games
+│       └── demo
+│           └── README.md
 ├── scripts
 │   └── tree.sh
 ├── Cargo.lock
 ├── Cargo.toml
 └── README.md
 
-26 directories, 80 files
+33 directories, 93 files
 ```
 
 ## Documentation du projet
@@ -144,20 +164,6 @@
 │   │   └── 02-concepts.md
 │   ├── README.md
 │   └── ROADMAP.md
-├── drafts
-│   ├── LPC_YAML
-│   │   ├── action_resolution.yaml
-│   │   ├── base_character.contract.yaml
-│   │   ├── bow_recurve.contract.yaml
-│   │   ├── build_manifest.yaml
-│   │   ├── canonical_animations.yaml
-│   │   ├── gnarled_staff.contract.yaml
-│   │   ├── hammer.contract.yaml
-│   │   ├── longsword.contract.yaml
-│   │   └── trident.contract.yaml
-│   ├── LPC-Paradigm.md
-│   ├── bow_recurve.md
-│   └── grid_64.svg
 ├── generate
 │   └── tree.md
 ├── handoffs
@@ -188,6 +194,6 @@
     ├── when-context-leaves-the-conversation-to-enter-the-corpus.md
     └── why-the-name-verbum.md
 
-10 directories, 59 files
+8 directories, 47 files
 ```
 
