@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-11-03 08:01:56
+**Généré le:** 2026-11-04 09:36:04
 
 ## Racine du Workspace
 
@@ -17,6 +17,7 @@
 │   │   │   │   ├── load.rs
 │   │   │   │   ├── manifest.rs
 │   │   │   │   ├── map.rs
+│   │   │   │   ├── script.rs
 │   │   │   │   ├── sprite.rs
 │   │   │   │   └── tileset.rs
 │   │   │   └── Cargo.toml
@@ -100,10 +101,11 @@
 │   │   │   │   ├── lifecycle.rs
 │   │   │   │   └── pacing.rs
 │   │   │   └── Cargo.toml
-│   │   └── verbum
-│   │       ├── src
-│   │       │   └── lib.rs
-│   │       └── Cargo.toml
+│   │   ├── verbum
+│   │   │   ├── src
+│   │   │   │   └── lib.rs
+│   │   │   └── Cargo.toml
+│   │   └── script
 │   ├── extensions
 │   │   ├── collisions
 │   │   │   └── README.md
@@ -132,7 +134,7 @@
 ├── Cargo.toml
 └── README.md
 
-33 directories, 93 files
+33 directories, 95 files
 ```
 
 ## Documentation du projet
@@ -172,7 +174,8 @@
 │   ├── 02-verbum-forge-handoff.md
 │   ├── 03-verbum-shell-implementation-handoff.md
 │   ├── 04-verbum-renderer-implementation-handoff.md
-│   └── 05-verbum-assets-implementation-handoff.md
+│   ├── 05-verbum-assets-implementation-handoff.md
+│   └── 06-verbum-scripts-implementation-handoff.md
 ├── implementation
 │   ├── 00-verbum-ecs.md
 │   ├── 01-verbum-scheduler-execution.md
@@ -194,6 +197,6 @@
     ├── when-context-leaves-the-conversation-to-enter-the-corpus.md
     └── why-the-name-verbum.md
 
-8 directories, 47 files
+8 directories, 48 files
 ```
 

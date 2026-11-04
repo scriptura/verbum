@@ -9,6 +9,7 @@
 use crate::font::{FONT_FORMAT_ID, Font};
 use crate::header::identity_of;
 use crate::map::{self, MAP_FORMAT_ID, Map, MapParts};
+use crate::script::{SCRIPT_FORMAT_ID, Script};
 use crate::sprite::{FORMAT_ID, ReadError, Sprite};
 use crate::tileset::{TILESET_FORMAT_ID, Tileset};
 
@@ -23,10 +24,12 @@ pub enum Format {
     Map,
     /// Artefact `VFNT`.
     Font,
+    /// Artefact `VSCR`.
+    Script,
 }
 
 /// Valeur décodée d'un artefact, une variante par format. `'a` est la durée de vie des
-/// octets empruntés par les vues (`Map`) ; les valeurs `Copy` (`Sprite`, `Tileset`) n'en
+/// octets empruntés par les vues (`Map`, `Font`, `Script`) ; les valeurs `Copy` (`Sprite`, `Tileset`) n'en
 /// dépendent pas.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Asset<'a> {
@@ -38,6 +41,8 @@ pub enum Asset<'a> {
     Map(Map<'a>),
     /// Police : vue empruntée.
     Font(Font<'a>),
+    /// Script : vue empruntée.
+    Script(Script<'a>),
 }
 
 impl Format {
@@ -49,6 +54,7 @@ impl Format {
             TILESET_FORMAT_ID => Some(Self::Tileset),
             MAP_FORMAT_ID => Some(Self::Map),
             FONT_FORMAT_ID => Some(Self::Font),
+            SCRIPT_FORMAT_ID => Some(Self::Script),
             _ => None,
         }
     }
@@ -70,5 +76,6 @@ pub(crate) fn decode<'a>(expected: Format, bytes: &'a [u8]) -> Result<Decoded<'a
         Format::Tileset => Tileset::read(bytes).map(|v| Decoded::Ready(Asset::Tileset(v))),
         Format::Map => map::read(bytes).map(Decoded::Map),
         Format::Font => Font::read(bytes).map(|v| Decoded::Ready(Asset::Font(v))),
+        Format::Script => Script::read(bytes).map(|v| Decoded::Ready(Asset::Script(v))),
     }
 }

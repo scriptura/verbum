@@ -13,6 +13,7 @@ mod header;
 mod load;
 mod manifest;
 mod map;
+mod script;
 mod sprite;
 mod tileset;
 
@@ -26,6 +27,10 @@ pub use manifest::{
     MANIFEST_SIGNATURE, MANIFEST_VERSION, Manifest, ManifestEntry, ManifestError, SlotIndex,
 };
 pub use map::{MAP_FIXED_PAYLOAD_LEN, MAP_FORMAT_ID, MAP_FORMAT_VERSION, Map};
+pub use script::{
+    Instruction, SCRIPT_FIXED_PAYLOAD_LEN, SCRIPT_FORMAT_ID, SCRIPT_FORMAT_VERSION,
+    SCRIPT_INSTRUCTION_LEN, SCRIPT_MAX_STEPS_PER_TICK, SCRIPT_REGISTERS, Script,
+};
 
 pub use sprite::{
     ARTIFACT_LEN, FORMAT_ID, FORMAT_VERSION, HEADER_LEN, PAYLOAD_LEN, ReadError, Sprite,

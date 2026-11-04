@@ -3,7 +3,7 @@
 ## Statut
 Document de planification interne, non normatif, révisable sans ADR (même statut que `ROADMAP.md` et les plans des étapes 2 à 5). Il détaille l'étape 6 en unités. Il n'introduit aucun invariant : chaque exigence cite sa source, et tout ce qui ne découle pas du corpus est signalé comme tel. **Aucun code, aucune modification d'ADR, de document validé ou de dépôt.**
 
-**État : r1.2, soumis à validation de l'utilisateur. Les arbitrages A-S1 à A-S5 et les choix locaux du §15 de r1.1 ont été rendus le 1er novembre 2026 (§5). Le document d'exécution et le handoff ne sont pas produits avant la validation de r1.2.**
+**État : r1.2, validé.**
 
 **Révision r1.2 — passages modifiés, et seulement ceux-ci :**
 1. **§5** : arbitrages A-S1 à A-S5 consignés comme **retenus** ; options non retenues conservées comme historique.

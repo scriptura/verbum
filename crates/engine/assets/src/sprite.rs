@@ -53,6 +53,9 @@ pub enum ReadError {
     PayloadLength,
     /// Octets au-delà de [`ARTIFACT_LEN`].
     TrailingBytes,
+    /// Instruction de script non conforme : opcode inconnu, registre ou cible hors
+    /// bornes, attente de zéro tick.
+    Instruction,
 }
 
 /// Descripteur de sprite décodé. Donnée pure.
