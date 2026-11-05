@@ -247,7 +247,7 @@ Aux ticks 2 et 3, **tous les octets autres que `wait` sont constants** et `wait`
 
 ### 4.F Intégration ECS et Scheduler
 
-**Crate d'exécution [A-S1, retenu]** : `crates/script`, package `verbum-script`, `no_std` sans `alloc`, **seule dépendance : `verbum-assets`**. Il contient `ScriptState` et son encodage, `Emissions<CAP>`, `ScriptTable<'a, CAP>`, la fonction `emissions_bound_holds`, `step`, et réexporte les constantes de `verbum-assets`. Aucune dépendance à `verbum-ecs` ni `verbum-schedule` : le crate ne nomme ni `World`, ni `Scheduler`, ni système. Il se classe comme `verbum-render` : types du noyau atteignables depuis `run_tick`.
+**Crate d'exécution [A-S1, retenu]** : `crates/extensions/script`, package `verbum-script`, `no_std` sans `alloc`, **seule dépendance : `verbum-assets`**. Il contient `ScriptState` et son encodage, `Emissions<CAP>`, `ScriptTable<'a, CAP>`, la fonction `emissions_bound_holds`, `step`, et réexporte les constantes de `verbum-assets`. Aucune dépendance à `verbum-ecs` ni `verbum-schedule` : le crate ne nomme ni `World`, ni `Scheduler`, ni système. Il se classe comme `verbum-render` : types du noyau atteignables depuis `run_tick`.
 
 **Système interpréteur [A-S2, retenu]** : adaptateur d'une vingtaine de lignes, écrit **dans l'assemblage** (tests et exemple de `crates/engine/shell`), qui itère les instances et appelle la fonction pure `step` de `verbum-script`. Raisons : `Binding`/`Locate` appartiennent à l'application (plan 01 §2.2 ; ADR-S01 pt 7) ; une version générique exigerait de contraindre `B::Parts<'w>: Locate<…>` sur plusieurs `ID` const-génériques et sur le type des `Store` ; aucun système n'est livré par un crate à ce jour. La fixité de l'interface est vérifiée par CT-1 et par la revue.
 
@@ -421,7 +421,7 @@ Montage : `World<ENTITIES, Components, Rs<'a>>`, `Components` à deux stockages 
 
 L'exemple imprime la timeline des émissions sans backend graphique et se termine par le code 0.
 
-**Revue de l'absence d'état caché (T5)** : recherche textuelle dans `crates/script/**` et dans les systèmes d'assemblage de `static`, `thread_local`, `Cell`, `RefCell`, atomiques, `async`, `await`, `thread`, `Box`, `Vec`, `unsafe` ; rapportée au rapport d'unité ; aucune de ces occurrences n'est admise dans `crates/script/**` ni dans le corps des systèmes (les `Vec` du journal de l'observateur de la Plateforme, côté assemblage, sont hors systèmes). Limite : revue, non preuve statique.
+**Revue de l'absence d'état caché (T5)** : recherche textuelle dans `crates/extensions/script/**` et dans les systèmes d'assemblage de `static`, `thread_local`, `Cell`, `RefCell`, atomiques, `async`, `await`, `thread`, `Box`, `Vec`, `unsafe` ; rapportée au rapport d'unité ; aucune de ces occurrences n'est admise dans `crates/extensions/script/**` ni dans le corps des systèmes (les `Vec` du journal de l'observateur de la Plateforme, côté assemblage, sont hors systèmes). Limite : revue, non preuve statique.
 
 ### 7.6 Sensibilité par mutation (copies isolées, une à la fois)
 Familles retenues (mutations exactes et détecteurs au document d'exécution) :
@@ -485,7 +485,7 @@ Backend graphique, caméra, rendu ; compilateur de DSL de dialogue ; appels et s
 ## 13. Fichiers (prévisions, à confirmer au document d'exécution)
 - **`crates/engine/assets/src/`** : `script.rs` (créé), `format.rs`, `lib.rs`, `sprite.rs` (variante de `ReadError`) ; `load.rs` et `manifest.rs` inchangés ; `Cargo.toml` inchangé.
 - **`crates/engine/forge/src/`** : `script.rs` (créé), `batch.rs`, `lib.rs`, `sprite.rs` (variantes de `ForgeError`) ; `tests/pipeline.rs` étendu.
-- **`crates/script/`** (créé) : `Cargo.toml`, `src/{lib,state,emissions,table,step}.rs`.
+- **`crates/extensions/script/`** (créé) : `Cargo.toml`, `src/{lib,state,emissions,table,step}.rs`.
 - **`crates/engine/shell/`** : `Cargo.toml` (dev-dépendance `verbum-script`), `tests/{script_suspend,script_loaded}.rs`, `examples/script_headless.rs`.
 - **Racine** : `Cargo.toml` (`members`, `[workspace.dependencies]`), `Cargo.lock` (par Cargo).
 - **Jamais modifiés** : `crates/{ecs,schedule,render,verbum}/**`, `crates/engine/shell/src/**` (y compris la documentation `//!`, aucun doctest nouveau), `crates/engine/assets/src/{load,manifest,header,map,font,tileset}.rs` sauf mention ci-dessus, ADR, `ROADMAP.md`, documents des étapes 0 à 5.

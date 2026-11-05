@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-11-04 09:36:04
+**Généré le:** 2026-11-05 07:51:32
 
 ## Racine du Workspace
 
@@ -48,6 +48,7 @@
 │   │   │   │   ├── id.rs
 │   │   │   │   ├── lib.rs
 │   │   │   │   ├── map.rs
+│   │   │   │   ├── script.rs
 │   │   │   │   ├── sprite.rs
 │   │   │   │   └── tileset.rs
 │   │   │   ├── tests
@@ -101,30 +102,30 @@
 │   │   │   │   ├── lifecycle.rs
 │   │   │   │   └── pacing.rs
 │   │   │   └── Cargo.toml
-│   │   ├── verbum
-│   │   │   ├── src
-│   │   │   │   └── lib.rs
-│   │   │   └── Cargo.toml
-│   │   └── script
+│   │   └── verbum
+│   │       ├── src
+│   │       │   └── lib.rs
+│   │       └── Cargo.toml
 │   ├── extensions
 │   │   ├── collisions
 │   │   │   └── README.md
-│   │   └── lpc
-│   │       ├── drafts
-│   │       │   ├── LPC_YAML
-│   │       │   │   ├── action_resolution.yaml
-│   │       │   │   ├── base_character.contract.yaml
-│   │       │   │   ├── bow_recurve.contract.yaml
-│   │       │   │   ├── build_manifest.yaml
-│   │       │   │   ├── canonical_animations.yaml
-│   │       │   │   ├── gnarled_staff.contract.yaml
-│   │       │   │   ├── hammer.contract.yaml
-│   │       │   │   ├── longsword.contract.yaml
-│   │       │   │   └── trident.contract.yaml
-│   │       │   ├── LPC-Paradigm.md
-│   │       │   ├── bow_recurve.md
-│   │       │   └── grid_64.svg
-│   │       └── README.md
+│   │   ├── lpc
+│   │   │   ├── drafts
+│   │   │   │   ├── LPC_YAML
+│   │   │   │   │   ├── action_resolution.yaml
+│   │   │   │   │   ├── base_character.contract.yaml
+│   │   │   │   │   ├── bow_recurve.contract.yaml
+│   │   │   │   │   ├── build_manifest.yaml
+│   │   │   │   │   ├── canonical_animations.yaml
+│   │   │   │   │   ├── gnarled_staff.contract.yaml
+│   │   │   │   │   ├── hammer.contract.yaml
+│   │   │   │   │   ├── longsword.contract.yaml
+│   │   │   │   │   └── trident.contract.yaml
+│   │   │   │   ├── LPC-Paradigm.md
+│   │   │   │   ├── bow_recurve.md
+│   │   │   │   └── grid_64.svg
+│   │   │   └── README.md
+│   │   └── script
 │   └── games
 │       └── demo
 │           └── README.md
@@ -134,7 +135,7 @@
 ├── Cargo.toml
 └── README.md
 
-33 directories, 95 files
+33 directories, 96 files
 ```
 
 ## Documentation du projet
@@ -175,6 +176,7 @@
 │   ├── 03-verbum-shell-implementation-handoff.md
 │   ├── 04-verbum-renderer-implementation-handoff.md
 │   ├── 05-verbum-assets-implementation-handoff.md
+│   ├── 06-verbum-scripts-implementation-handoff-u3.md
 │   └── 06-verbum-scripts-implementation-handoff.md
 ├── implementation
 │   ├── 00-verbum-ecs.md
@@ -197,6 +199,6 @@
     ├── when-context-leaves-the-conversation-to-enter-the-corpus.md
     └── why-the-name-verbum.md
 
-8 directories, 48 files
+8 directories, 49 files
 ```
 
