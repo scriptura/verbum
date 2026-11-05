@@ -168,6 +168,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "verbum-script"
+version = "0.1.0"
+dependencies = [
+ "verbum-assets",
+]
+
+[[package]]
 name = "verbum-shell"
 version = "0.1.0"
 dependencies = [

@@ -1,0 +1,17 @@
+[package]
+name = "verbum-script"
+description = "Script runtime of the Verbum engine: execution state and pure interpreter step, no_std and allocation-free."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+verbum-assets.workspace = true
+
+[lints]
+workspace = true

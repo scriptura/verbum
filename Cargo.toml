@@ -8,6 +8,8 @@ members = [
     "crates/engine/assets",
     "crates/engine/forge",
     "crates/engine/verbum",
+
+    "crates/extensions/script",
 ]
 
 [workspace.package]
@@ -26,6 +28,7 @@ verbum-forge = { path = "crates/engine/forge", version = "0.1.0" }
 verbum-ecs = { path = "crates/engine/ecs", version = "0.1.0" }
 verbum-schedule = { path = "crates/engine/schedule", version = "0.1.0" }
 verbum-render = { path = "crates/engine/render", version = "0.1.0" }
+verbum-script = { path = "crates/extensions/script", version = "0.1.0" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

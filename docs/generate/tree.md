@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-11-05 07:51:32
+**Généré le:** 2026-11-05 22:18:22
 
 ## Racine du Workspace
 
@@ -126,6 +126,13 @@
 │   │   │   │   └── grid_64.svg
 │   │   │   └── README.md
 │   │   └── script
+│   │       ├── src
+│   │       │   ├── emissions.rs
+│   │       │   ├── lib.rs
+│   │       │   ├── state.rs
+│   │       │   ├── step.rs
+│   │       │   └── table.rs
+│   │       └── Cargo.toml
 │   └── games
 │       └── demo
 │           └── README.md
@@ -135,7 +142,7 @@
 ├── Cargo.toml
 └── README.md
 
-33 directories, 96 files
+35 directories, 101 files
 ```
 
 ## Documentation du projet
