@@ -62,6 +62,23 @@ pub enum ForgeError {
     DuplicateSlot { first: usize, second: usize },
     /// Compilation en lot : le lot compte plus d'entrées qu'un `u32` ne peut en numéroter.
     TooManyAssets,
+    /// Script : le champ `op` d'un pas désigne une opération inconnue.
+    UnknownOperation(String),
+    /// Script : le tableau `step` est vide.
+    EmptyScript,
+    /// Script : le tableau `step` compte plus de 65535 éléments.
+    TooManySteps,
+    /// Script : deux pas portent la même étiquette.
+    DuplicateLabel(String),
+    /// Script : l'étiquette du pas `step` (position base zéro) est vide.
+    EmptyLabel { step: usize },
+    /// Script : la cible d'un saut ne désigne aucune étiquette.
+    UnknownTarget(String),
+    /// Script : un cycle de contrôle ne traverse aucun `Wait`.
+    CycleWithoutYield,
+    /// Script : le plus long chemin d'exécution issu de l'instruction `entry` dépasse
+    /// `SCRIPT_MAX_STEPS_PER_TICK` ; `entry` est le premier nœud en dépassement.
+    BudgetExceeded { entry: usize },
 }
 
 /// Compile une source `sprite.toml` en octets d'artefact.

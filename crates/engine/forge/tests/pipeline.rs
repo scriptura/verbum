@@ -20,7 +20,7 @@ use verbum_assets::{
     MANIFEST_HEADER_LEN, MANIFEST_SIGNATURE, MANIFEST_VERSION, Manifest, ManifestEntry,
     ManifestError, Map, ReadError, ReferenceError, SlotIndex, Sprite, Tileset, load,
 };
-use verbum_assets::{Font, Glyph};
+use verbum_assets::{Font, Glyph, Script};
 use verbum_ecs::{ResourceSlot, World};
 use verbum_forge::{
     AssetKind, AssetSource, CompiledSet, ForgeError, compile_assets, compile_sprite,
@@ -1642,4 +1642,131 @@ fn fs_8_each_map_resolves_its_own_tileset_slot_when_artifact_and_slot_indices_di
     assert_eq!((second.width(), second.height()), (1, 2));
     assert_eq!((first.tile(0, 0), first.tile(1, 0)), (Some(0), Some(3)));
     assert_eq!((second.tile(0, 0), second.tile(0, 1)), (Some(8), Some(5)));
+}
+
+// ---------------------------------------------------------------------------------------
+// Étape 6, U2 : script (`VSCR`), cinquième format de la chaîne (SCR-C1).
+// Chaîne : sources TOML → compilation en lot → manifeste et artefacts → `load` → slots
+// typés et tableau témoin de scripts. Invariants : I12, I13, I6, I7, I8.
+// ---------------------------------------------------------------------------------------
+
+/// Scénario de référence de l'étape 6 (sept pas, une étiquette).
+const SCRIPT_A_TOML: &str = "[[step]]\nop = \"set\"\nregister = 0\nvalue = 3\n\
+    [[step]]\nlabel = \"loop\"\nop = \"emit\"\nchannel = 1\nvalue = 10\n\
+    [[step]]\nop = \"wait\"\nticks = 3\n\
+    [[step]]\nop = \"add\"\nregister = 0\nvalue = -1\n\
+    [[step]]\nop = \"jnz\"\nregister = 0\ntarget = \"loop\"\n\
+    [[step]]\nop = \"emit\"\nchannel = 2\nvalue = 99\n\
+    [[step]]\nop = \"halt\"\n";
+
+/// Second script : `emit 3,7 ; wait 1 ; emit 3,8 ; halt`.
+const SCRIPT_B_TOML: &str = "[[step]]\nop = \"emit\"\nchannel = 3\nvalue = 7\n\
+    [[step]]\nop = \"wait\"\nticks = 1\n\
+    [[step]]\nop = \"emit\"\nchannel = 3\nvalue = 8\n\
+    [[step]]\nop = \"halt\"\n";
+
+fn script_source(key: &'static str, toml: &'static str, slot: u32) -> AssetSource<'static> {
+    AssetSource {
+        kind: AssetKind::Script,
+        key,
+        toml,
+        slot: SlotIndex::new(slot),
+    }
+}
+
+/// `R` de l'application de test : un slot par genre, sauf les scripts, reçus par un
+/// tableau témoin local (le crate `verbum-script` n'est pas une dépendance de la Forge).
+#[derive(Default)]
+struct Hexad<'a> {
+    sprite: ResourceSlot<Sprite>,
+    tileset: ResourceSlot<Tileset>,
+    map: ResourceSlot<Map<'a>>,
+    font: ResourceSlot<Font<'a>>,
+}
+
+type HexadWorld<'a> = World<1, (), Hexad<'a>>;
+
+/// Table statique de capacité 6 : slot 0 → sprite, 1 → script, 2 → tileset, 3 → police,
+/// 4 → script, 5 → carte.
+static HEXAD_TABLE: [Format; 6] = [
+    Format::Sprite,
+    Format::Script,
+    Format::Tileset,
+    Format::Font,
+    Format::Script,
+    Format::Map,
+];
+
+#[test]
+fn scr_c1_a_mixed_batch_with_two_scripts_flows_from_sources_into_typed_slots() {
+    // Ordre de référence : tileset (slot 2), carte (slot 5), script A (slot 4), sprite
+    // (slot 0), script B (slot 1), police (slot 3) : `artifact_index ≠ slot_index` pour
+    // chaque entrée, scripts en slots non contigus.
+    let sources = [
+        tileset_source("a", TILES_TOML, 2),
+        map_source("ground", CHAIN_MAP_TOML, 5),
+        script_source("intro", SCRIPT_A_TOML, 4),
+        sprite_source("hero", 0),
+        script_source("outro", SCRIPT_B_TOML, 1),
+        font_source("ui", 3),
+    ];
+    let set = compile_assets(&sources, 6).expect("lot valide");
+
+    let manifest = Manifest::parse(set.manifest()).expect("manifeste conforme");
+    assert_eq!(manifest.len(), 6);
+    for entry in manifest.entries() {
+        assert_ne!(entry.artifact_index().get(), entry.slot_index().get());
+    }
+
+    let mut world = HexadWorld::new();
+    let mut scripts: [Option<Script<'_>>; 6] = [None; 6];
+    let mut calls = 0;
+    load(
+        set.manifest(),
+        &slices(&set),
+        &HEXAD_TABLE,
+        |slot, asset| {
+            calls += 1;
+            let resources = world.resources_mut();
+            let replaced = match (slot.get(), asset) {
+                (0, RuntimeAsset::Sprite(value)) => resources.sprite.insert(value).is_some(),
+                (2, RuntimeAsset::Tileset(value)) => resources.tileset.insert(value).is_some(),
+                (3, RuntimeAsset::Font(value)) => resources.font.insert(value).is_some(),
+                (5, RuntimeAsset::Map(value)) => resources.map.insert(value).is_some(),
+                (index @ (1 | 4), RuntimeAsset::Script(value)) => {
+                    let cell = &mut scripts[usize::try_from(index).expect("slot")];
+                    cell.replace(value).is_some()
+                }
+                (slot, other) => panic!("dépôt inattendu : slot {slot}, {other:?}"),
+            };
+            assert!(!replaced, "slot déjà occupé");
+        },
+    )
+    .expect("chargement");
+    assert_eq!(calls, 6);
+
+    // Les scripts sont reçus aux indices de slot ; les autres indices restent vides.
+    let script_a = Script::read(&set.artifacts()[2]).expect("script A conforme");
+    let script_b = Script::read(&set.artifacts()[4]).expect("script B conforme");
+    assert_eq!(scripts[4], Some(script_a));
+    assert_eq!(scripts[1], Some(script_b));
+    for index in [0, 2, 3, 5] {
+        assert_eq!(scripts[index], None, "indice {index}");
+    }
+    assert_eq!(scripts[4].map(|script| script.len()), Some(7));
+    assert_eq!(scripts[1].map(|script| script.len()), Some(4));
+
+    // Les quatre autres genres atteignent leur slot, la carte portant le slot du tileset.
+    let resources = world.resources();
+    assert_eq!(
+        resources.sprite.get().map(|s| (s.width, s.height)),
+        Some((96, 48))
+    );
+    assert_eq!(resources.tileset.get().map(|t| t.count), Some(12));
+    let map = resources.map.get().copied().expect("carte déposée");
+    assert_eq!(map.tileset(), SlotIndex::new(2));
+    assert_eq!((map.width(), map.height()), (3, 2));
+    assert_eq!((map.tile(0, 0), map.tile(2, 1)), (Some(0), Some(11)));
+    let font = resources.font.get().copied().expect("police déposée");
+    assert_eq!((font.len(), font.line_height()), (3, 2571));
 }
