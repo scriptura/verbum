@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-11-06 15:04:38
+**Généré le:** 2026-11-06 20:56:28
 
 ## Racine du Workspace
 
@@ -188,6 +188,7 @@
 │   ├── 05-verbum-assets-implementation-handoff.md
 │   ├── 06-verbum-scripts-implementation-handoff-u3.md
 │   ├── 06-verbum-scripts-implementation-handoff-u4.md
+│   ├── 06-verbum-scripts-implementation-handoff-u5.md
 │   └── 06-verbum-scripts-implementation-handoff.md
 ├── implementation
 │   ├── 00-verbum-ecs.md
@@ -211,6 +212,6 @@
     ├── when-context-leaves-the-conversation-to-enter-the-corpus.md
     └── why-the-name-verbum.md
 
-8 directories, 51 files
+8 directories, 52 files
 ```
 
