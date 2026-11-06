@@ -183,6 +183,7 @@ dependencies = [
  "verbum-forge",
  "verbum-render",
  "verbum-schedule",
+ "verbum-script",
 ]
 
 [[package]]
