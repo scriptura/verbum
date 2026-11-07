@@ -23,25 +23,30 @@ cat > "$OUTPUT" << EOF
 \`\`\`text
 EOF
 
-declare -A PRUNE=(
-    [crates]="target build artifacts"
-    [scripts]=""
+declare -A PRUNE_NAMES=(
+    [crates]="target build artifacts assets"
+    [scripts]=""   # rien à pruner
 )
 
 (
     cd "$PROJECT_ROOT"
     {
         find . -maxdepth 1 -type f -print
-        for d in "${!PRUNE[@]}"; do
+        for d in "${!PRUNE_NAMES[@]}"; do
             [ -d "$d" ] || continue
-            if [ -n "${PRUNE[$d]}" ]; then
-                args=()
-                for n in ${PRUNE[$d]}; do args+=( -name "$n" -o ); done
-                unset 'args[${#args[@]}-1]'
-                find "$d" \( "${args[@]}" \) -prune -o -print 2>/dev/null
-            else
+            names=${PRUNE_NAMES[$d]}
+            if [ -z "$names" ]; then
                 find "$d" -print 2>/dev/null
+                continue
             fi
+            prune_expr=()
+            for n in $names; do prune_expr+=( -type d -name "$n" -o ); done
+            unset 'prune_expr[${#prune_expr[@]}-1]'
+            find "$d" \
+                \( "${prune_expr[@]}" \) \
+                    ! -exec test -f '{}/Cargo.toml' \; \
+                    -prune -o \
+                -print 2>/dev/null
         done
     } | tree --fromfile --dirsfirst
 ) | sed "1s|.*|/$PROJECT_NAME|" >> "$OUTPUT"

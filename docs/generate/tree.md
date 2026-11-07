@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-11-06 20:56:28
+**Généré le:** 2026-11-07 02:08:41
 
 ## Racine du Workspace
 
@@ -87,7 +87,8 @@
 │   │   │   ├── examples
 │   │   │   │   ├── console.rs
 │   │   │   │   ├── headless_frame.rs
-│   │   │   │   └── level_headless.rs
+│   │   │   │   ├── level_headless.rs
+│   │   │   │   └── script_headless.rs
 │   │   │   ├── src
 │   │   │   │   ├── inbox.rs
 │   │   │   │   ├── lib.rs
@@ -103,6 +104,7 @@
 │   │   │   │   ├── level_loaded.rs
 │   │   │   │   ├── lifecycle.rs
 │   │   │   │   ├── pacing.rs
+│   │   │   │   ├── script_loaded.rs
 │   │   │   │   └── script_suspend.rs
 │   │   │   └── Cargo.toml
 │   │   └── verbum
@@ -145,7 +147,7 @@
 ├── Cargo.toml
 └── README.md
 
-36 directories, 103 files
+36 directories, 105 files
 ```
 
 ## Documentation du projet
