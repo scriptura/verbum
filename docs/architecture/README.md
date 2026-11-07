@@ -36,6 +36,9 @@ Cette table rend visible que le corpus n'a pas été écrit d'un bloc : il a ét
 5. `adr/ADR-R01` à `ADR-R03` — Renderer (découverte de la structure interne et de la frontière Plateforme).
 6. `adr/ADR-S01` — Shell (découverte du troisième domaine, orchestrateur des infrastructures).
 7. `adr/ADR-A01`, `ADR-SV01`, `ADR-N01`, `ADR-AU01`, `ADR-Sc01` — domaines périphériques (Assets, Sauvegarde, Réseau, Audio, Scripts), lisibles dans n'importe quel ordre entre eux, tous postérieurs au noyau et au Shell.
+8. `adr/ADR-000` — langage d'implémentation et vérification statique des invariants. Numérotée 000 parce qu'elle précède logiquement le corpus, mais rédigée après lui : elle s'appuie sur les ADR précédentes, d'où sa place en fin de parcours.
+
+*ADR proposée, non adoptée :* `adr/ADR-W01` (répartition des responsabilités entre Engine, Extensions et Games) est en cours d'examen. Elle ne fait autorité sur rien tant qu'elle n'est pas adoptée ; sa lecture est facultative. Voir « ADR proposées (non adoptées) », plus bas.
 
 ## Concepts fondamentaux
 Résumés ici ; définition complète dans `02-concepts.md`.
@@ -88,9 +91,11 @@ Distinction structurante du corpus : une **primitive** enrichit réellement le p
 Cette table raconte, en une ligne par domaine, l'histoire de la fermeture conceptuelle de Verbum : deux primitives découvertes après le noyau (Structure interne, Shell), cinq domaines refermés sans extension.
 
 ## Liste des ADR (one-liner de la décision majeure)
+Les ADR de ce tableau sont adoptées. Les ADR proposées sont listées dans la rubrique suivante.
 
 | ADR | Décision majeure |
 |---|---|
+| ADR-000 — Langage d'implémentation et vérification statique des invariants | Les invariants structurels du corpus sont vérifiés statiquement par la chaîne de build plutôt que tenus par convention, dans les limites des propriétés effectivement vérifiables. |
 | ADR-001 — Sparse Set | Chaque composant a un stockage indépendant, isolé, sans connaissance mutuelle entre stockages. |
 | ADR-002 — Query Model | Une Query est une vue passive, spécialisée statiquement, qui ne produit jamais de donnée. |
 | ADR-003 — Contrat de système | Un système est une fonction déclarative dont le contrat est déductible de son interface ; il ne décide jamais quand il s'exécute. |
@@ -106,6 +111,13 @@ Cette table raconte, en une ligne par domaine, l'histoire de la fermeture concep
 | ADR-N01 — Réseau | Chaque instance de `World` reste locale et déterministe ; le réseau ne fait que garantir la bonne séquence d'Acquisition. |
 | ADR-AU01 — Audio | Le Shell ne décide jamais une transition audio — seulement son application, une fois décidée en amont. |
 | ADR-Sc01 — Scripts | Un script n'a jamais de pile d'exécution suspendue hors du `World` ; l'interface de son interpréteur est fixe, jamais variable selon le script chargé. |
+
+### ADR proposées (non adoptées)
+Ces ADR sont en cours d'examen. Elles ne figurent ni dans la chronologie des découvertes, ni dans les tables de synthèse, ni dans les invariants majeurs, et ne font autorité sur rien tant qu'elles ne sont pas adoptées.
+
+| ADR | Statut | Décision proposée |
+|---|---|---|
+| ADR-W01 — Répartition des responsabilités entre Engine, Extensions et Games | **Proposé — non adopté** (numérotation provisoire) | Engine, Extension et Application désignent des niveaux de responsabilité dans la construction d'une application, et non des régimes d'exécution ; les dépendances de production et de build vont de l'Application vers les Extensions et vers Engine, jamais en sens inverse. |
 
 ## Comment évaluer une nouvelle idée
 Cette méthode a été appliquée, de facto, tout au long de la construction de ce corpus. La voici formalisée, pour qu'elle continue à s'appliquer à mesure que Verbum grandit :

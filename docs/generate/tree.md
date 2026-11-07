@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-11-07 02:08:41
+**Généré le:** 2026-11-07 09:59:02
 
 ## Racine du Workspace
 
@@ -172,7 +172,8 @@
 │   │   ├── ADR-S01-shell-responsabilites.md
 │   │   ├── ADR-S03-acquisition-evenements.md
 │   │   ├── ADR-SV01-sauvegarde.md
-│   │   └── ADR-Sc01-scripts.md
+│   │   ├── ADR-Sc01-scripts.md
+│   │   └── ADR-W01-repartition-workspace.md
 │   ├── concepts
 │   │   ├── 00-principes.md
 │   │   ├── 01-runtime-ecs.md
@@ -214,6 +215,6 @@
     ├── when-context-leaves-the-conversation-to-enter-the-corpus.md
     └── why-the-name-verbum.md
 
-8 directories, 52 files
+8 directories, 53 files
 ```
 
