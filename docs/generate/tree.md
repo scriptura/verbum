@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-11-07 14:42:21
+**Généré le:** 2026-11-09 08:54:31
 
 ## Racine du Workspace
 
@@ -179,7 +179,8 @@
 │   │   ├── 01-runtime-ecs.md
 │   │   └── 02-concepts.md
 │   ├── README.md
-│   └── ROADMAP.md
+│   ├── ROADMAP.md
+│   └── technology-selection-note.md
 ├── generate
 │   └── tree.md
 ├── handoffs
@@ -216,6 +217,6 @@
     ├── when-context-leaves-the-conversation-to-enter-the-corpus.md
     └── why-the-name-verbum.md
 
-8 directories, 54 files
+8 directories, 55 files
 ```
 
