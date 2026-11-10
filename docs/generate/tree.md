@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-11-09 08:54:31
+**Généré le:** 2026-11-10 22:18:45
 
 ## Racine du Workspace
 
@@ -179,8 +179,7 @@
 │   │   ├── 01-runtime-ecs.md
 │   │   └── 02-concepts.md
 │   ├── README.md
-│   ├── ROADMAP.md
-│   └── technology-selection-note.md
+│   └── ROADMAP.md
 ├── generate
 │   └── tree.md
 ├── handoffs
@@ -208,8 +207,11 @@
 │   ├── 05-verbum-assets.md
 │   ├── 06-verbum-scripts-execution.md
 │   ├── 06-verbum-scripts-report-u3.md
-│   ├── 06-verbum-scripts.md
-│   └── 06.1-adr-w01-workspace-report.md
+│   └── 06-verbum-scripts.md
+├── notes
+│   ├── adr-w01-workspace-report.md
+│   ├── page-axes-shell-boucle-presentation.md
+│   └── technology-selection-note.md
 └── reflexivity
     ├── filiation.md
     ├── methodological-lineage-from-marius-to-verbum.md
@@ -217,6 +219,6 @@
     ├── when-context-leaves-the-conversation-to-enter-the-corpus.md
     └── why-the-name-verbum.md
 
-8 directories, 55 files
+9 directories, 56 files
 ```
 
