@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-11-10 22:18:45
+**Généré le:** 2026-11-11 01:20:00
 
 ## Racine du Workspace
 
@@ -170,6 +170,7 @@
 │   │   ├── ADR-R02-pipeline-production.md
 │   │   ├── ADR-R03-backend.md
 │   │   ├── ADR-S01-shell-responsabilites.md
+│   │   ├── ADR-S02-loop-pattern-and-shell-control.md
 │   │   ├── ADR-S03-acquisition-evenements.md
 │   │   ├── ADR-SV01-sauvegarde.md
 │   │   ├── ADR-Sc01-scripts.md
@@ -219,6 +220,6 @@
     ├── when-context-leaves-the-conversation-to-enter-the-corpus.md
     └── why-the-name-verbum.md
 
-9 directories, 56 files
+9 directories, 57 files
 ```
 
