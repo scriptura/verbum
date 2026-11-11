@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-11-11 22:30:13
+**Généré le:** 2026-11-11 23:17:13
 
 ## Racine du Workspace
 
@@ -159,20 +159,21 @@
 │   │   ├── ADR-000-language-and-material-invariants.md
 │   │   ├── ADR-001-sparse-set.md
 │   │   ├── ADR-002-query-model.md
-│   │   ├── ADR-003-contrat-systeme.md
-│   │   ├── ADR-004-modele-execution.md
-│   │   ├── ADR-005-ressources.md
+│   │   ├── ADR-003-system-contract.md
+│   │   ├── ADR-004-execution-model.md
+│   │   ├── ADR-005-resources.md
 │   │   ├── ADR-006-command-buffer.md
 │   │   ├── ADR-A01-assets.md
 │   │   ├── ADR-AU01-audio.md
-│   │   ├── ADR-N01-reseau.md
-│   │   ├── ADR-R01-modele-donnee-rendu.md
-│   │   ├── ADR-R02-pipeline-production.md
+│   │   ├── ADR-N01-network.md
+│   │   ├── ADR-R01-rendering-data-model.md
+│   │   ├── ADR-R02-production-pipeline.md
 │   │   ├── ADR-R03-backend.md
-│   │   ├── ADR-S01-shell-responsabilites.md
+│   │   ├── ADR-S01-shell-responsibilities.md
 │   │   ├── ADR-S02-loop-pattern-and-shell-control.md
-│   │   ├── ADR-S03-acquisition-evenements.md
-│   │   ├── ADR-SV01-sauvegarde.md
+│   │   ├── ADR-S03-event-acquisition.md
+│   │   ├── ADR-S04-shell-s-temporal-policy.md
+│   │   ├── ADR-SV01-backup.md
 │   │   ├── ADR-Sc01-scripts.md
 │   │   └── ADR-W01-repartition-workspace.md
 │   ├── concepts
@@ -221,6 +222,6 @@
     ├── when-context-leaves-the-conversation-to-enter-the-corpus.md
     └── why-the-name-verbum.md
 
-9 directories, 58 files
+9 directories, 59 files
 ```
 
