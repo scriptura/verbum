@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-11-11 01:20:00
+**Généré le:** 2026-11-11 22:30:13
 
 ## Racine du Workspace
 
@@ -212,6 +212,7 @@
 ├── notes
 │   ├── adr-w01-workspace-report.md
 │   ├── page-axes-shell-boucle-presentation.md
+│   ├── page-axes-shell-s-temporal-policy.md
 │   └── technology-selection-note.md
 └── reflexivity
     ├── filiation.md
@@ -220,6 +221,6 @@
     ├── when-context-leaves-the-conversation-to-enter-the-corpus.md
     └── why-the-name-verbum.md
 
-9 directories, 57 files
+9 directories, 58 files
 ```
 
