@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-11-11 23:17:13
+**Généré le:** 2026-11-13 04:01:00
 
 ## Racine du Workspace
 
@@ -202,6 +202,7 @@
 │   ├── 02-verbum-forge-execution.md
 │   ├── 02-verbum-forge.md
 │   ├── 03-verbum-shell-execution.md
+│   ├── 03-verbum-shell-temporal-policy.md
 │   ├── 03-verbum-shell.md
 │   ├── 04-verbum-renderer-execution.md
 │   ├── 04-verbum-renderer.md
@@ -222,6 +223,6 @@
     ├── when-context-leaves-the-conversation-to-enter-the-corpus.md
     └── why-the-name-verbum.md
 
-9 directories, 59 files
+9 directories, 60 files
 ```
 
