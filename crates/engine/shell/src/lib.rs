@@ -517,6 +517,6 @@ pub use clock::MonotonicClock;
 pub use inbox::{DepositHandle, Inbox, InboxFull};
 pub use pacing::FixedStepPacing;
 pub use policy::{PolicyError, TemporalPolicy};
-pub use progressor::{Deadline, Phase, Progress, ProgressError, Progressor, Wake};
+pub use progressor::{Deadline, Progress, ProgressError, ProgressState, Progressor, Wake};
 pub use schedule::TimeError;
 pub use shell::run_loop;

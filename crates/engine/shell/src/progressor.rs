@@ -16,7 +16,7 @@
 //! chemin distinct.
 //!
 //! Terminal : un arrêt observé, une erreur d'infrastructure ou une erreur temporelle rend
-//! l'objet terminal. Toute progression suivante rend `{0, NoDeadline, phase}` sans lire
+//! l'objet terminal. Toute progression suivante rend `{0, NoDeadline, state}` sans lire
 //! l'horloge ni couper l'`Inbox`. La cause d'un échec se récupère une seule fois par
 //! [`Progressor::take_error`].
 //!
@@ -45,9 +45,12 @@ impl Deadline {
         Self(Duration::from_nanos(ns))
     }
 
-    /// Durée écoulée depuis l'origine de l'horloge à laquelle l'échéance est fixée.
+    /// Décalage de l'échéance par rapport à l'origine de l'horloge.
     ///
-    /// Peut être antérieure à l'instant de restitution (échéance déjà due).
+    /// Ce n'est **pas** une durée restante avant l'échéance : elle peut être antérieure à
+    /// l'instant de restitution (échéance déjà due). La conversion vers un `Instant`
+    /// (origine + décalage) appartient à l'adaptateur externe, qui doit la faire par une
+    /// addition vérifiée (`checked_add`), sans panique possible.
     #[must_use]
     pub fn as_duration(&self) -> Duration {
         self.0
@@ -65,9 +68,9 @@ pub enum Wake {
 
 /// État du `Progressor` après une progression.
 ///
-/// Nom provisoire (spécification r3 § 12.2).
+/// Distinct de la « phase » du `World` (vocabulaire normatif), ignorée du Shell.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Phase {
+pub enum ProgressState {
     /// Non terminal : d'autres progressions sont possibles.
     Running,
     /// Terminal : arrêt observé.
@@ -85,7 +88,7 @@ pub struct Progress {
     /// Besoin de réveil.
     pub wake: Wake,
     /// État après la progression.
-    pub phase: Phase,
+    pub state: ProgressState,
 }
 
 /// Cause d'un échec : transportée, jamais transformée.
@@ -108,7 +111,7 @@ pub struct Progressor<Ev: Copy, E, C, S, I> {
     infrastructure: I,
     /// Prochaine échéance non exécutée ; `None` tant que la première progression n'a pas eu lieu.
     next: Option<u64>,
-    phase: Phase,
+    state: ProgressState,
     error: Option<ProgressError<E>>,
 }
 
@@ -136,18 +139,18 @@ where
             inbox,
             infrastructure,
             next: None,
-            phase: Phase::Running,
+            state: ProgressState::Running,
             error: None,
         }
     }
 
     /// Exécute une progression (voir la documentation du module).
     pub fn progress(&mut self) -> Progress {
-        if self.phase != Phase::Running {
+        if self.state != ProgressState::Running {
             return Progress {
                 iterations: 0,
                 wake: Wake::NoDeadline,
-                phase: self.phase,
+                state: self.state,
             };
         }
         let quantum: NonZeroU64 = self.policy.quantum_ns();
@@ -165,7 +168,7 @@ where
             return Progress {
                 iterations: 0,
                 wake: Wake::At(Deadline::from_ns(next)),
-                phase: Phase::Running,
+                state: ProgressState::Running,
             };
         }
 
@@ -174,11 +177,11 @@ where
         for _ in 0..due {
             match iterate(&mut self.stop, &mut self.inbox, &mut self.infrastructure) {
                 Iteration::Stopped => {
-                    self.phase = Phase::Stopped;
+                    self.state = ProgressState::Stopped;
                     return Progress {
                         iterations: done,
                         wake: Wake::NoDeadline,
-                        phase: Phase::Stopped,
+                        state: ProgressState::Stopped,
                     };
                 }
                 Iteration::Failed(error) => {
@@ -209,13 +212,13 @@ where
         Progress {
             iterations: done,
             wake: Wake::At(Deadline::from_ns(next)),
-            phase: Phase::Running,
+            state: ProgressState::Running,
         }
     }
 
     /// Récupère la cause de l'échec, **une seule fois** (déplacement, aucun `Clone`).
     ///
-    /// Un second appel rend `None` ; la phase reste `Failed`.
+    /// Un second appel rend `None` ; l'état reste `Failed`.
     pub fn take_error(&mut self) -> Option<ProgressError<E>> {
         self.error.take()
     }
@@ -226,11 +229,11 @@ where
 
     fn fail(&mut self, error: ProgressError<E>, done: u32) -> Progress {
         self.error = Some(error);
-        self.phase = Phase::Failed;
+        self.state = ProgressState::Failed;
         Progress {
             iterations: done,
             wake: Wake::NoDeadline,
-            phase: Phase::Failed,
+            state: ProgressState::Failed,
         }
     }
 }
@@ -263,7 +266,7 @@ mod tests {
         );
         let r = p.progress();
         assert_eq!(r.iterations, 0);
-        assert_eq!(r.phase, Phase::Stopped);
+        assert_eq!(r.state, ProgressState::Stopped);
         assert_eq!(r.wake, Wake::NoDeadline);
         assert_eq!(p.inbox.cut(), [5, 3, 9]);
         drop(p);
