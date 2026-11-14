@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-11-14 20:04:28
+**Généré le:** 2026-11-14 23:04:42
 
 ## Racine du Workspace
 
@@ -91,6 +91,7 @@
 │   │   │   │   └── script_headless.rs
 │   │   │   ├── src
 │   │   │   │   ├── clock.rs
+│   │   │   │   ├── driver.rs
 │   │   │   │   ├── inbox.rs
 │   │   │   │   ├── lib.rs
 │   │   │   │   ├── pacing.rs
@@ -113,6 +114,7 @@
 │   │   │   │   ├── script_loaded.rs
 │   │   │   │   ├── script_suspend.rs
 │   │   │   │   ├── stop_before_cut.rs
+│   │   │   │   ├── temporal_drivers.rs
 │   │   │   │   ├── temporal_equivalence.rs
 │   │   │   │   ├── temporal_progress.rs
 │   │   │   │   └── temporal_structure.rs
@@ -157,7 +159,7 @@
 ├── Cargo.toml
 └── README.md
 
-37 directories, 114 files
+37 directories, 116 files
 ```
 
 ## Documentation du projet

@@ -13,7 +13,7 @@
 
 const MANIFEST: &str = include_str!("../Cargo.toml");
 
-const SOURCES: [(&str, &str); 8] = [
+const SOURCES: [(&str, &str); 9] = [
     ("lib.rs", include_str!("../src/lib.rs")),
     ("shell.rs", include_str!("../src/shell.rs")),
     ("inbox.rs", include_str!("../src/inbox.rs")),
@@ -22,6 +22,7 @@ const SOURCES: [(&str, &str); 8] = [
     ("schedule.rs", include_str!("../src/schedule.rs")),
     ("clock.rs", include_str!("../src/clock.rs")),
     ("progressor.rs", include_str!("../src/progressor.rs")),
+    ("driver.rs", include_str!("../src/driver.rs")),
 ];
 
 /// Code d'une source : lignes de commentaire retirées, commentaires de fin de ligne coupés.

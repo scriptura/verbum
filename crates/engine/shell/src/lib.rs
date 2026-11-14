@@ -15,6 +15,11 @@
 //! l'[`Inbox`] et l'invocation de l'infrastructure. Cette boucle ne met pas en
 //! œuvre la politique temporelle ADR-S04.
 //!
+//! Le pilote [`run_blocking`] est le pilote bloquant à politique temporelle
+//! ADR-S04 : il possède un [`Progressor`], enchaîne ses progressions et attend
+//! chaque échéance par une fermeture injectée ([`sleep_until`] fournit l'attente
+//! par défaut). Contrairement à [`run_loop`], il applique la politique (q, K, M).
+//!
 //! # Ressource empruntant des octets (porte G-LT)
 //!
 //! Une ressource du vrai `World` peut emprunter des octets que l'appelant possède ;
@@ -506,6 +511,7 @@
 //! ```
 
 mod clock;
+mod driver;
 mod inbox;
 mod pacing;
 mod policy;
@@ -514,6 +520,7 @@ mod schedule;
 mod shell;
 
 pub use clock::MonotonicClock;
+pub use driver::{run_blocking, sleep_until};
 pub use inbox::{DepositHandle, Inbox, InboxFull};
 pub use pacing::FixedStepPacing;
 pub use policy::{PolicyError, TemporalPolicy};
