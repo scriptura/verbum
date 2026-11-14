@@ -2,10 +2,9 @@
 
 //! Cadencement à pas fixe — politique **provisoire**.
 //!
-//! Ce module isole la seule politique temporelle du Shell. Elle est
-//! provisoire : elle ne préjuge pas de la politique réelle (ADR-S04, non
-//! rédigée) et reste remplaçable, car la boucle ne consomme qu'une fermeture
-//! `FnMut()`.
+//! ADR-S04 est adoptée. Ce cadencement ne met pas en œuvre sa politique
+//! temporelle ; il reste un mécanisme de cadence externe utilisable par
+//! `run_loop`.
 //!
 //! Ni `Instant` ni `Duration` ne sont jamais remis à l'infrastructure, et le
 //! `World` ne reçoit jamais de durée ni d'instant.

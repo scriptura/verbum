@@ -10,10 +10,10 @@
 //! public et aucune abstraction de la plateforme. Il ne nomme aucun type du
 //! noyau et n'a aucune dépendance.
 //!
-//! État actuel (unité U4) : boucle bornée ([`run_loop`]), cadencement à pas fixe
-//! **provisoire** ([`FixedStepPacing`]) et boîte de réception à capacité fixe
-//! ([`Inbox`], [`DepositHandle`], [`InboxFull`]) dont la coupure alimente le lot
-//! remis à l'infrastructure à chaque itération.
+//! La boucle [`run_loop`] est un pilote bloquant à cadence externe. Son cœur
+//! d'itération interne centralise l'observation de l'arrêt, la coupure de
+//! l'[`Inbox`] et l'invocation de l'infrastructure. Cette boucle ne met pas en
+//! œuvre la politique temporelle ADR-S04.
 //!
 //! # Ressource empruntant des octets (porte G-LT)
 //!
@@ -507,8 +507,11 @@
 
 mod inbox;
 mod pacing;
+mod policy;
+mod schedule;
 mod shell;
 
 pub use inbox::{DepositHandle, Inbox, InboxFull};
 pub use pacing::FixedStepPacing;
+pub use policy::{PolicyError, TemporalPolicy};
 pub use shell::run_loop;
