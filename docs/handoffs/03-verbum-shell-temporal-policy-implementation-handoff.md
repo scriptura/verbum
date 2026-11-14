@@ -123,7 +123,7 @@ Rien d'autre ne démarre avant sa porte. Une session par unité est la pratique 
 
 ## 9. Points ouverts à ne pas trancher
 
-D-N1 (q, K, M de `games/demo`) ; D-N2 (durées non entières, périmètre de F2, sources de l'étape 6) ; D-N3 (véhicule d'enregistrement de V2) ; D-N4 (layout du paquet) ; D-N5 (portée et production du paquet de `games/demo`) ; D-N6 (granularité des sessions ; défaut recommandé : une unité par session, regroupement possible sur décision de l'utilisateur ; ne bloque pas T4). Questions d'exécution : PO-1 (avancement de `next` après erreur ; proposition : non avancé), PO-3 (`Deadline` non représentable en `Instant` : adaptateur natif), nom `Phase` (collision de vocabulaire). La mutation T4 « arrêt avant coupure » est fermée par le test de conformité du § 3.3.
+D-N1 (q, K, M de `games/demo`) ; D-N2 (durées non entières, périmètre de F2, sources de l'étape 6) ; D-N3 (véhicule d'enregistrement de V2) ; D-N4 (layout du paquet) ; D-N5 (portée et production du paquet de `games/demo`) ; D-N6 (granularité des sessions ; défaut recommandé : une unité par session, regroupement possible sur décision de l'utilisateur ; ne bloque pas T4). Questions d'exécution : PO-1 (avancement de `next` après erreur ; proposition : non avancé), PO-3 (`Deadline` non représentable en `Instant` : adaptateur natif), nom `Phase` (collision de vocabulaire) : **point clos, décision définitive** — type `ProgressState`, champ `Progress.state`. La mutation T4 « arrêt avant coupure » est fermée par le test de conformité du § 3.3.
 
 ## 10. Confirmation
 

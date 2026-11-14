@@ -240,7 +240,7 @@ Gabarit de compte rendu de **toutes** les unités : celui de `03-verbum-shell-ex
 - **Décisions d'exécution** : PO-1 (avancement de `next` après une erreur postérieure à l'invocation ; proposition de la spéc. : non avancé, sans effet observable car terminal).
 - **Acceptation** : toutes les lignes attendues ; compteur d'itérations conservé sur erreur (E7) ; quatre contrôles ; Miri ; MSRV.
 - **Commits** : (1) types, construction, initialisation I-3 ; (2) boucle, plafond K, conservation ; (3) abandon R1 ; (4) bras terminaux et E7/E8/E9.
-- **Alerte de nommage** : `Phase` entre en collision avec le vocabulaire normatif (« phase » = unité de cohérence du `World`, ignorée du Shell par ADR-S01 pt 3). Nom provisoire selon la spéc. § 12.2 ; renommage à proposer à l'exécution.
+- **Nommage — décision close (définitive)** : le type `Phase` entrait en collision avec le vocabulaire normatif (« phase » = unité de cohérence du `World`, ignorée du Shell par ADR-S01 pt 3). Le type est `ProgressState` et le champ `Progress.state`. Point fermé ; aucune réouverture sans nouvel arbitrage.
 
 ### T5b — `Progressor` : arrêt, erreur, acquisition
 
@@ -421,7 +421,7 @@ Contrôles propres au chantier A à chaque unité : `cargo tree -p verbum-shell 
 | RK-4 | F2 touche des sources de l'étape 6 (`forge/src/script.rs`, tests `SCR-F*`) | modifications additives sous arbitrage explicite ; sinon F2 reste bloquée |
 | RK-5 | q, K, M de composition non choisis | D-N1 avant F3c ; les tests restent sur valeurs de test |
 | RK-6 | Premier test à fil réel (D6) | jointure sans `sleep` ; comportement sous Miri constaté |
-| RK-7 | Collision de nom `Phase` | renommage proposé à l'exécution de T5a |
+| RK-7 | Collision de nom `Phase` | **Clos** : `ProgressState` / champ `state` (décision définitive, T5a) |
 | RK-8 | Valeur de `SCRIPT_MAX_STEPS_PER_TICK` confondue avec K | distinction rappelée (spéc. § 8) |
 | RK-9 | Comptes rendus additifs dans des documents d'étapes closes | additif seulement, sections datées, sur décision explicite de l'utilisateur déjà consignée |
 | RK-10 | PO-3 (`Deadline` non représentable en `Instant`) | traité à l'adaptateur natif ; hors chantier |

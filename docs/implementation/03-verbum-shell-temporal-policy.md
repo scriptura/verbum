@@ -139,9 +139,9 @@ where
 }
 ```
 
-**État conservé** : politique (q, K, M) ; échéancier (`Option<u64>`, § 6) ; source de temps ; arrêt ; `Inbox` ; infrastructure ; phase ; cause d'erreur (`Option<ProgressError<E>>`).
+**État conservé** : politique (q, K, M) ; échéancier (`Option<u64>`, § 6) ; source de temps ; arrêt ; `Inbox` ; infrastructure ; état de progression (`ProgressState`) ; cause d'erreur (`Option<ProgressError<E>>`).
 
-**API publique minimale** : construction, progression, compte rendu, récupération de l'erreur. Types associés : `TemporalPolicy`, `PolicyError`, `Progress`, `Phase`, `Wake`, `Deadline`, `ProgressError`, `TimeError`, `MonotonicClock`.
+**API publique minimale** : construction, progression, compte rendu, récupération de l'erreur. Types associés : `TemporalPolicy`, `PolicyError`, `Progress`, `ProgressState`, `Wake`, `Deadline`, `ProgressError`, `TimeError`, `MonotonicClock`.
 
 **Dispatch statique.** Aucun trait public ajouté (les bornes sont des traits `FnMut` de la bibliothèque standard), aucun `dyn`, aucun `Box`, aucune allocation de masquage. Conséquence assumée : les types de fermeture ne sont pas nommables ; un adaptateur qui stocke un `Progressor` est lui-même générique (ou utilise des `fn` / types nommés).
 
@@ -149,14 +149,14 @@ where
 
 ```rust
 #[derive(Clone, Copy)]
-pub struct Progress { pub iterations: u32, pub wake: Wake, pub phase: Phase }
-pub enum Phase { Running, Stopped, Failed }
+pub struct Progress { pub iterations: u32, pub wake: Wake, pub state: ProgressState }
+pub enum ProgressState { Running, Stopped, Failed }
 pub enum Wake { At(Deadline), NoDeadline }
 ```
 
 - `progress()` **ne rend jamais** un `Result` : le nombre d'itérations **effectivement exécutées par cette progression** reste accessible même lorsqu'une erreur survient (par exemple trois itérations achevées, puis `ScheduleOverflow`).
-- `Phase::Failed` ne porte pas la cause. Elle se récupère **séparément**, **une seule fois**, par `take_error()` (déplacement, aucun `Clone`). Un second appel rend `None` ; la phase reste `Failed`.
-- **État terminal stable** : toute progression ultérieure rend `{0 itération, NoDeadline, phase inchangée}` sans lire l'horloge, sans coupure, sans relancer de travail ; `take_error` n'y change rien.
+- `ProgressState::Failed` ne porte pas la cause. Elle se récupère **séparément**, **une seule fois**, par `take_error()` (déplacement, aucun `Clone`). Un second appel rend `None` ; l'état reste `Failed`.
+- **État terminal stable** : toute progression ultérieure rend `{0 itération, NoDeadline, état inchangé}` sans lire l'horloge, sans coupure, sans relancer de travail ; `take_error` n'y change rien.
 - Hors terminal, `wake` est toujours `At(..)` ; en terminal, `NoDeadline`.
 - Pilote bloquant à politique : sur `Failed`, il appelle `take_error()` et rend l'erreur ; sur `Stopped`, il rend le total d'itérations.
 
@@ -173,7 +173,7 @@ pub enum Wake { At(Deadline), NoDeadline }
 
 ```text
 progress():
-  si terminal                       → {0, NoDeadline, phase}              // aucune lecture d'horloge
+  si terminal                       → {0, NoDeadline, state}              // aucune lecture d'horloge
   t_in ← read()                     // erreur → terminal Failed(Time), 0 itération
   next ← init_paresseuse(t_in)      // § 6 : si jamais initialisé, next = t_in
   e ← due_capped(next, q, t_in, K)
@@ -194,7 +194,7 @@ progress():
 
 ### 5.5 Transitions d'état par chemin
 
-| Chemin | Lectures | Itérations comptées | `next` final | Phase | Réveil | Décision M |
+| Chemin | Lectures | Itérations comptées | `next` final | État (`state`) | Réveil | Décision M |
 |---|---|---|---|---|---|---|
 | A. Rien dû (échéancier déjà initialisé) | 1 | 0 | inchangé (> t_entrée) | Running | `next` | non |
 | B. ≥ 1 itération, R = 0 | 2 | e | `next` > t_fin | Running | `next` | R ≤ M |
@@ -403,9 +403,9 @@ Si aucune échéance n'est due : **aucune coupure, aucune itération, aucune obs
 | E5 | Dépôt pendant une itération d'une progression de 3 | dans le lot de l'itération suivante ; un lot par itération, lots vides comptés, aucun lot rejoué (cf. AQ-1, AQ-7b) |
 | E6 | Dépôt, progression « rien dû », puis progression avec itération | dépôt dans le lot de la première itération effective |
 | E7 | Débordement de `next + q` après la j-ième itération (j ≥ 2) | `Failed` ; **`iterations = j` accessible** ; cause `Time(ScheduleOverflow)` via `take_error()` |
-| E8 | Progression après terminal | 0 itération ; phase inchangée ; **0 lecture** ; aucune coupure ; `NoDeadline` |
+| E8 | Progression après terminal | 0 itération ; état inchangé ; **0 lecture** ; aucune coupure ; `NoDeadline` |
 | E9 | `ClockOutOfRange` à t_entrée / à t_fin (séquences monotones) | `Failed` ; causes **distinctes** de `ScheduleOverflow` ; compteur cohérent |
-| E10 | `take_error()` appelé deux fois | `Some` puis `None` ; phase `Failed` stable ; aucune progression relancée |
+| E10 | `take_error()` appelé deux fois | `Some` puis `None` ; état `Failed` stable ; aucune progression relancée |
 | E11 | Erreur de construction (q = 0, K = 0, M = 0) | **aucun `Progressor` constructible** |
 
 ### TP-D — pilotes et non-régression
@@ -434,7 +434,7 @@ Les unités T1 à T7 peuvent démarrer avec les **valeurs temporelles de test** 
 
 **T4 — Cœur d'itération extrait** · *Objectif* : `iterate()` ; `run_loop` réécrit au-dessus, **signature et comportement inchangés** ; documentation de `run_loop` : « boucle bloquante à cadence externe, hors politique temporelle S04 » (§ 9.1). · *Prérequis* : aucun. · *Fichiers* : `src/shell.rs`. · *Invariant* : S02 pt 2, 3, 13. · *Tests* : TP-D4, D5. · *Acceptation* : suites F-4 et exemples F-5 inchangés et verts.
 
-**T5 — `Progressor`** · *Objectif* : objet persistant, `progress()`, compte rendu, phase, `take_error`, initialisation I-3. · *Prérequis* : T1 à T4. · *Fichiers* : `src/progressor.rs` (créé), `src/lib.rs`, `tests/temporal_progress.rs` (créé). · *Invariant* : C-3 à C-14 ; aucune allocation sur le chemin d'itération ; dispatch statique. · *Tests* : TP-P, TP-S, TP-E, TP-D7, D8, D9. · *Acceptation* : toutes les lignes attendues du § 10 ; compteur d'itérations conservé sur erreur.
+**T5 — `Progressor`** · *Objectif* : objet persistant, `progress()`, compte rendu, état (`ProgressState`), `take_error`, initialisation I-3. · *Prérequis* : T1 à T4. · *Fichiers* : `src/progressor.rs` (créé), `src/lib.rs`, `tests/temporal_progress.rs` (créé). · *Invariant* : C-3 à C-14 ; aucune allocation sur le chemin d'itération ; dispatch statique. · *Tests* : TP-P, TP-S, TP-E, TP-D7, D8, D9. · *Acceptation* : toutes les lignes attendues du § 10 ; compteur d'itérations conservé sur erreur.
 
 **T6 — Pilote bloquant à politique** · *Objectif* : fonction à attenteur injectable utilisant `Progressor::progress`. · *Prérequis* : T5. · *Fichiers* : `src/driver.rs`, `tests/temporal_drivers.rs`. · *Invariant* : S02 pt 3 ; S04 pt 12. · *Tests* : TP-D1, D2. · *Acceptation* : aucun `sleep` dans les tests ; aucune copie de la logique K/M.
 

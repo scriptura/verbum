@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-11-14 05:47:41
+**Généré le:** 2026-11-14 20:04:28
 
 ## Racine du Workspace
 
@@ -113,7 +113,9 @@
 │   │   │   │   ├── script_loaded.rs
 │   │   │   │   ├── script_suspend.rs
 │   │   │   │   ├── stop_before_cut.rs
-│   │   │   │   └── temporal_progress.rs
+│   │   │   │   ├── temporal_equivalence.rs
+│   │   │   │   ├── temporal_progress.rs
+│   │   │   │   └── temporal_structure.rs
 │   │   │   └── Cargo.toml
 │   │   └── verbum
 │   │       ├── src
@@ -155,7 +157,7 @@
 ├── Cargo.toml
 └── README.md
 
-37 directories, 112 files
+37 directories, 114 files
 ```
 
 ## Documentation du projet
@@ -197,6 +199,7 @@
 │   ├── 01-verbum-scheduler-handoff.md
 │   ├── 02-verbum-forge-handoff.md
 │   ├── 03-verbum-shell-implementation-handoff.md
+│   ├── 03-verbum-shell-temporal-policy-T6-handoff.md
 │   ├── 03-verbum-shell-temporal-policy-implementation-handoff.md
 │   ├── 04-verbum-renderer-implementation-handoff.md
 │   ├── 05-verbum-assets-implementation-handoff.md
@@ -210,6 +213,7 @@
 │   ├── 01-verbum-scheduler.md
 │   ├── 02-verbum-forge-execution.md
 │   ├── 02-verbum-forge.md
+│   ├── 03-verbum-shell-execution-ADR-S04-T5-section.md
 │   ├── 03-verbum-shell-execution.md
 │   ├── 03-verbum-shell-temporal-policy-roadmap.md
 │   ├── 03-verbum-shell-temporal-policy.md
@@ -233,6 +237,6 @@
     ├── when-context-leaves-the-conversation-to-enter-the-corpus.md
     └── why-the-name-verbum.md
 
-9 directories, 62 files
+9 directories, 64 files
 ```
 
