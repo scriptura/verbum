@@ -505,13 +505,18 @@
 //! assert_eq!(*world.resources().out.get().expect("sortie"), 7716);
 //! ```
 
+mod clock;
 mod inbox;
 mod pacing;
 mod policy;
+mod progressor;
 mod schedule;
 mod shell;
 
+pub use clock::MonotonicClock;
 pub use inbox::{DepositHandle, Inbox, InboxFull};
 pub use pacing::FixedStepPacing;
 pub use policy::{PolicyError, TemporalPolicy};
+pub use progressor::{Deadline, Phase, Progress, ProgressError, Progressor, Wake};
+pub use schedule::TimeError;
 pub use shell::run_loop;

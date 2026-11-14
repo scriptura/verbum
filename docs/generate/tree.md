@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-11-14 03:41:41
+**Généré le:** 2026-11-14 05:26:30
 
 ## Racine du Workspace
 
@@ -90,14 +90,18 @@
 │   │   │   │   ├── level_headless.rs
 │   │   │   │   └── script_headless.rs
 │   │   │   ├── src
+│   │   │   │   ├── clock.rs
 │   │   │   │   ├── inbox.rs
 │   │   │   │   ├── lib.rs
 │   │   │   │   ├── pacing.rs
 │   │   │   │   ├── policy.rs
+│   │   │   │   ├── progressor.rs
 │   │   │   │   ├── schedule.rs
 │   │   │   │   └── shell.rs
 │   │   │   ├── tests
 │   │   │   │   ├── script_support
+│   │   │   │   │   └── mod.rs
+│   │   │   │   ├── temporal_support
 │   │   │   │   │   └── mod.rs
 │   │   │   │   ├── acceptance.rs
 │   │   │   │   ├── acquisition.rs
@@ -108,7 +112,8 @@
 │   │   │   │   ├── pacing.rs
 │   │   │   │   ├── script_loaded.rs
 │   │   │   │   ├── script_suspend.rs
-│   │   │   │   └── stop_before_cut.rs
+│   │   │   │   ├── stop_before_cut.rs
+│   │   │   │   └── temporal_progress.rs
 │   │   │   └── Cargo.toml
 │   │   └── verbum
 │   │       ├── src
@@ -150,7 +155,7 @@
 ├── Cargo.toml
 └── README.md
 
-36 directories, 108 files
+37 directories, 112 files
 ```
 
 ## Documentation du projet

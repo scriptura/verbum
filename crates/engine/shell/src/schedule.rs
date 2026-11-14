@@ -16,20 +16,19 @@
 //! comportement face à une source décroissante n'est pas spécifié ; les fonctions ne
 //! paniquent pas pour autant.
 //!
-//! Les éléments sont `pub(crate)` et consommés par le `Progressor` (unité ultérieure) ;
-//! d'ici là, ils ne sont utilisés que par les tests.
-
-#![cfg_attr(not(test), expect(dead_code))]
+//! Les fonctions sont `pub(crate)` et consommées par le `Progressor`.
 
 use core::num::{NonZeroU32, NonZeroU64};
 
 /// Erreur de fonctionnement du calcul temporel (état terminal côté `Progressor`).
 ///
-/// Variante unique à ce stade ; elle sera étendue par l'unité qui introduit l'horloge.
+/// Les deux causes sont distinctes (spécification r3 § 4.4).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TimeError {
     /// `next + q` ou `t_fin + q` dépasse `u64::MAX`.
     ScheduleOverflow,
+    /// Une lecture d'horloge dépasse `u64::MAX` nanosecondes (environ 584 ans).
+    ClockOutOfRange,
 }
 
 /// Nombre d'itérations à exécuter : `min(K, |D|)`, où D est l'ensemble des échéances
