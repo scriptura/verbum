@@ -348,7 +348,7 @@ Si aucune échéance n'est due : **aucune coupure, aucune itération, aucune obs
 
 ## 10. Matrice de tests [Proposition]
 
-**Harnais** : horloge = fermeture qui rend la suite scriptée de `Duration` et compte ses lectures ; **la suite doit être non décroissante, le harnais refuse (panique à la construction) toute suite décroissante** ; attenteur scripté ; aucun `sleep`, aucun `Instant`, aucune horloge murale. Base : q = 10, K = 3, M = 5 (valeurs de test).
+**Harnais** : horloge = fermeture qui rend la suite scriptée de `Duration` et compte ses lectures ; **la suite doit être non décroissante, le harnais refuse (panique à la construction) toute suite décroissante** ; attenteur scripté ; aucun `sleep`, aucun `Instant`, aucune horloge murale. **Exception unique, arbitrée (T7)** : le test D3 lit une seule origine réelle par `MonotonicClock::start().origin()` pour vérifier la conversion `Deadline → Instant` ; D1 et D6 n'utilisent aucun `Instant`. Base : q = 10, K = 3, M = 5 (valeurs de test).
 **Préfixe Σ0** : première progression, lectures [100, 100] → 1 itération, réveil 110 ; `next` = 110 ensuite. **Chaque ligne des tableaux TP-P et TP-S est un scénario indépendant** : elle repart d'un `Progressor` neuf suivi de Σ0 (`next` = 110), sauf mention contraire. Valeurs issues du modèle de référence.
 
 ### TP-A — arithmétique pure

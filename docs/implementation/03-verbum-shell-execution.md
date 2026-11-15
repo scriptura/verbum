@@ -262,3 +262,39 @@ Le rapport de U5 contient en plus un tableau S1 à S15 : pour chacun, l'identifi
 - **A-3.** M-S13 conservée : elle vérifie le scénario d'AQ-1 si la synchronisation est conservée pendant l'invocation ; copie isolée, limite de temps, blocage ou panique rapporté comme détection ; aucun nouveau test d'acceptation fonctionnel. Le plan (U4) porte désormais la précision « synchronisation libérée avant l'invocation » et M-S13.
 
 Aucun point d'arbitrage ne reste ouvert dans ce document.
+
+---
+
+# Section « ADR-S04 » — clôture de T6 et T7 (à ajouter à `03-verbum-shell-execution.md`)
+
+Non normatif. Cette section est à **ajouter** à la section distincte « ADR-S04 » de `03-verbum-shell-execution.md`, à la suite de la section T5a à T5c. Le fichier d'exécution lui-même n'a pas été fourni à la session : il n'est pas modifié et le point d'insertion est à choisir par l'utilisateur.
+
+Convention : **[ER]** = exécuté par Claude sur son environnement réduit (crate `verbum-shell` isolé, sans les dev-dependencies du dépôt, rustc 1.97.0) ; **[DR]** = exécuté par Olivier sur le dépôt réel. Aucun résultat n'est attribué à l'autre acteur.
+
+## T6 — Pilote bloquant à politique (validée le 14 novembre 2026)
+
+- **Responsabilité** : `run_blocking(progressor, wait_until) -> Result<u64, ProgressError<E>>` conduit un `Progressor` jusqu'à son état terminal : `progress()`, puis `wait_until(échéance)` après chaque progression `Running` avec échéance (même sans itération exécutée), jusqu'à `Stopped` (total cumulé) ou `Failed` (erreur prélevée par `take_error()`, rendue sans transformation ni clonage). Aucune logique d'échéancier, K ou M : la politique n'existe que dans `Progressor::progress`. `sleep_until(MonotonicClock) -> impl FnMut(Deadline)` fournit l'attente par défaut (calcul sur `Duration`, `thread::sleep` seulement si la durée est strictement positive).
+- **Décisions de forme (arbitrées)** : le pilote prend **possession** du `Progressor`, qui doit être fraîchement construit (aucun `progress()` ni `take_error()` préalable) ; `Running` sans échéance et `Failed` sans erreur à prélever sont des violations d'invariant (`unreachable!` avec message explicite, `# Panics` documenté) ; aucune variante d'erreur publique ajoutée ; `time_until(target, now)` reste privée ; l'attenteur et le `Progressor` doivent partager la même `MonotonicClock` (précondition documentée, non imposée par un type).
+- **Livrables (état final)** : `src/driver.rs` (créé), `tests/temporal_drivers.rs` (créé), `src/lib.rs` (paragraphe `//!`, `mod driver;`, exports `run_blocking` et `sleep_until` ; doctests intacts), `tests/temporal_structure.rs` (`driver.rs` ajouté à `SOURCES`, 8 → 9 ; aucune assertion modifiée). Aucune modification de `Progressor`, `MonotonicClock`, `run_loop`, `Cargo.toml`.
+- **Tests** : 8 tests d'intégration (script de référence D1 moitié bloquante, D2 ×2, arrêt immédiat, erreur d'infrastructure inchangée, horloge hors plage, débordement d'échéancier, précondition violée en `#[should_panic(expected = "précondition violée")]`) ; possession vérifiée par `Rc::strong_count` ; 4 tests unitaires sur `time_until` (futur, exact, passé, extrêmes).
+- **Résultats [ER]** : 94 tests verts en debug et en release (hors `frame_loop` et doctests, qui exigent les dev-dependencies) ; clippy `--all-targets -D warnings`, fmt, doc `-D warnings`, `cargo tree -e normal` sans dépendance ; D7 vert avec `driver.rs` inclus. Deux corrections en cours d'unité : `#[must_use]` redondant sur `sleep_until` (`clippy::double_must_use`) retiré ; section `# Errors` ajoutée à la documentation de `run_blocking`.
+- **Mutations [ER]** (une à la fois, copie isolée) : 12 mutations de comportement tuées (attente omise, total non cumulé / remis à zéro / majoré, opérandes de `time_until` inversés, écart absolu, durée nulle ou égale à l'échéance, attente conditionnée aux itérations, échec rendu en `Ok`, erreur substituée, branche sans erreur rendue en `Ok`) et 4 injections D7 (`Instant`, `dyn`, `Box`, `f64` dans `driver.rs`) détectées. Trois survivantes, de deux classes **équivalentes** : appel de l'attenteur sur `Stopped` avec échéance (motif mort : `progress()` rend `NoDeadline` en état terminal) ; `if true` à la place de `!remaining.is_zero()` (`thread::sleep(ZERO)` équivalent).
+- **Résultats [DR]** : l'utilisateur a intégré les quatre fichiers définitifs et exécuté les contrôles prévus : verts ou résultat attendu, Miri inclus (communication de l'utilisateur ; détail par commande non transmis à la session).
+- **Non démontré** : sommeil réel de `sleep_until` (seul le calcul est testé, limitation acceptée) ; branche `Running` + `NoDeadline` couverte par revue seulement (inatteignable par l'API publique).
+- **Commit** : 1 (réalisé par l'utilisateur).
+
+## T7 — Harnais du pilote événementiel (validée le 14 novembre 2026)
+
+- **Responsabilité** : simuler le `about_to_wait` d'une boucle de plateforme sans `winit` et établir l'équivalence des deux pilotes (S02 pt 3). Aucun module de production.
+- **Livrables (état final)** : `tests/temporal_drivers.rs` étendu (17 tests au total). `src/`, `Cargo.toml`, `tests/temporal_support/mod.rs`, D7 et tests historiques inchangés.
+- **Contenu** : harnais `EventApp` / `FakeEventLoop` (possède le `Progressor`, un `progress()` par `about_to_wait`, consigne `Deadline` ou sortie) ; projection d'issue propre au test (aucun `Clone` ni `PartialEq` ajouté en production) ; **D1** : 7 scénarios exécutés deux fois indépendamment (`run_blocking` et harnais), comparés entre eux (journal des lots, invocations et échéances, issue, lectures d'horloge) **et** à des littéraux, état terminal du harnais compris, sans `Instant` ; **D3** : `MonotonicClock::start().origin()` puis `checked_add(deadline.as_duration())`, vérification arithmétique ; **D6** : fil secondaire, dépôts 1 à 5, jointure, progression sans rien de dû (aucune invocation), progression due : lot complet, exact, ordonné ; sans `sleep`.
+- **Résultats [ER]** : 103 tests verts en debug, suite verte en release ; clippy `-D warnings`, fmt, doc, `cargo tree -e normal` sans dépendance ; D6 stable sur 5 exécutions consécutives. Miri non disponible dans l'environnement réduit.
+- **Mutations [ER]** : 14 tuées sur 14, aucune survivante (harnais : total non cumulé ou majoré, échéance jamais demandée ou conditionnée aux itérations, `Failed` rendu en `Ok`, sortie jamais demandée, double `progress()`, état terminal faux ; D3 : décalage de 1 ns, durée nulle ; D6 : aucun dépôt, ordre inversé, dernier dépôt perdu ; production, hors périmètre de l'unité : `Inbox::cut` vide, détecté aussi par D6).
+- **Résultats [DR]** : l'utilisateur a intégré le fichier définitif et exécuté les contrôles prévus : conformes, **Miri inclus** (donc D6, premier test à fil réel du Shell, exécutable sous Miri).
+- **Écart arbitré** : l'origine de D3 est lue par `MonotonicClock::start().origin()` (une seule lecture d'horloge réelle, dans `clock.rs`), exception explicite à « aucun `Instant` » du harnais (spéc. § 10, précisée ; roadmap D-14).
+- **Non démontré** : sommeil réel de `sleep_until` ; `Deadline` non représentable en `Instant` (PO-3, adaptateur natif) ; plateformes réelles (suspension, réveil sur échéance passée, E1).
+- **Commit** : 1 (réalisé par l'utilisateur).
+
+## Porte P-D
+
+T6 et T7 validées. P-C franchie par T6 (T8 non retenue, décision du 15 novembre 2026) ; **P-D franchie** : équivalence des deux pilotes établie. **J-A prononcé le 15 novembre 2026** (matrice C-1 à C-16 acceptée ; voir roadmap § 11.1). Le chantier A est clos. Prochaine étape : V2-0 (chantier B), dans une nouvelle session.

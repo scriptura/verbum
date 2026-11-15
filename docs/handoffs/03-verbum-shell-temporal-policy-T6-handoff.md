@@ -1,5 +1,7 @@
 # Handoff — reprise du chantier ADR-S04 à l'unité T6
 
+> **Statut : CLOS (15 novembre 2026).** T6 et T7 sont validées, T8 n'est pas retenue, J-A est prononcé. Ce document est conservé comme **trace historique** : son § 2 (« T6 prochaine unité ») et son § 6 sont périmés. **Ne pas le fournir** à une nouvelle session ; l'état à jour est dans la roadmap r1.1 (§ 1.1 et § 11.1). Le chantier suivant (V2-0) a son propre message d'ouverture.
+
 Document de passation, **non normatif**, pour une nouvelle session Claude. Date : 14 novembre 2026.
 
 ## 1. Interdiction

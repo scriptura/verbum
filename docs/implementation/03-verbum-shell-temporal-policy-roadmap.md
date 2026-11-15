@@ -1,13 +1,28 @@
-# Verbum — Roadmap d'implémentation de la politique temporelle du Shell (ADR-S04) — r1, 13 novembre 2026
+# Verbum — Roadmap d'implémentation de la politique temporelle du Shell (ADR-S04) — r1.1 (mise à jour d'état du 15 novembre 2026 ; r1 du 13 novembre 2026)
 
 ## 1. Statut et périmètre
 
-**Non normative. Non implémentée. Révision 1.** Document de planification opérationnelle, subordonné :
+**Non normative. Chantier A (Shell temporel) clos : T1 à T7 validées, T8 non retenue, J-A prononcé (15 novembre 2026) ; chantiers B, C, G non démarrés. Révision 1.1 : mise à jour d'état (§ 1.1), fiches T6 et T7, divergences D-13 à D-15, état des jalons (§ 11.1) ; le contenu des autres unités et les décisions sont inchangés.** Document de planification opérationnelle, subordonné :
 - aux ADR adoptées (ADR-000, ADR-004, ADR-A01, ADR-S01, ADR-S02, ADR-S03, **ADR-S04 adoptée le 11 novembre 2026**, ADR-W01) ;
 - à la spécification d'implémentation `03-verbum-shell-temporal-policy.md`, r3 consolidée ;
 - aux portes de gouvernance des étapes Forge et Assets (G-CM, R-ADAPT).
 
 La spécification dit **ce qui est construit** ; cette roadmap dit **dans quel ordre, avec quels prérequis et quelles preuves**. Elle ne recopie aucun algorithme.
+
+### 1.1 État d'avancement (15 novembre 2026)
+
+Convention : **[DR]** = contrôles exécutés par Olivier sur le dépôt réel (build, test, clippy, fmt, `cargo tree`, Miri, MSRV 1.85.0 selon l'unité) ; **[ER]** = environnement réduit de la session Claude. Le détail par unité est dans le suivi d'exécution (`03-verbum-shell-execution-ADR-S04-T6-T7-section.md` pour T6 et T7 ; section T5 pour T5a à T5c).
+
+| Unité | État | Porte |
+|---|---|---|
+| T4, T1, T2, T3 | **validées** | **P-A** franchie |
+| T5a, T5b, T5c | **validées** | **P-B** franchie |
+| T6 pilote bloquant à politique | **validée** (14 novembre 2026, [DR] verts, Miri inclus) | **P-C** franchie par T6 ; T8 non retenue (§ 11.1) |
+| T7 harnais du pilote événementiel | **validée** (14 novembre 2026, [DR] verts, Miri inclus) | **P-D** franchie : équivalence des deux pilotes établie |
+| T8 exemple conforme S04 | **non retenue** (décision du 15 novembre 2026) : facultative, comportement déjà exercé par les tests, exemple de F3c plus représentatif | — |
+| V2-0, V2-C, V2-L, V2-P, V2-F, V2-Z, F2, F3a, F3b, F3c, G1 | non démarrées | inchangées |
+
+Le jalon **J-A est prononcé** (15 novembre 2026, § 11.1). Prochaine étape : V2-0.
 
 **Aucune implémentation n'est autorisée par ce document.** Aucun code, test, `Cargo.toml`, ADR, format d'artefact ou commit n'est créé par la mission qui l'a produit. La validation, l'exécution des commandes, la revue et les commits appartiennent à l'utilisateur.
 
@@ -133,7 +148,7 @@ Validation :  G1 (tout ce qui précède)
 
 | Catégorie | Travaux |
 |---|---|
-| **Démarrables** (après validation de cette roadmap ; aucun prérequis externe) | **T4, T1, T2, V2-0** ; puis, dans l'ordre interne du chantier A : T3, T5a, T5b, T5c, T6, T7, T8 |
+| **Démarrables** (aucun prérequis externe) | **V2-0**. *État initial (r1) : T4, T1, T2, V2-0, puis T3, T5a, T5b, T5c, T6, T7, T8 ; T4 à T7 sont validées* |
 | **Conditionnels** (après une validation ou un document précis) | V2-C (V2-0 validé) ; F3a (décision D-N5) |
 | **Bloqués** | V2-L, V2-P, V2-F, V2-Z (portes P-V2 et P-CONC, G-CM) ; F2 (V2-F + arbitrage D-N2) ; F3b (V2-Z) ; F3c (F3b + D-N1) ; intégration native (micro-PoC, R03/S05 : hors chantier) |
 
@@ -145,16 +160,16 @@ Distinctions demandées : **développement du Shell avec q de test** = chantier 
 
 | Ordre | Phase | Unité | Chantier | Dépend de | Statut | Jalon / porte |
 |---:|---|---|---|---|---|---|
-| 1 | A | **T4** cœur d'itération | A | — | Démarrable | G-REG |
-| 2 | A | **T1** `TemporalPolicy` | A | — | Démarrable | |
-| 3 | A | **T2** arithmétique d'échéancier | A | — | Démarrable | |
-| 4 | A | **T3** horloge | A | T2 | séquence interne | **P-A** |
-| 5 | B | **T5a** `Progressor` nominal | A | T1–T4 | séquence interne | |
-| 6 | B | **T5b** arrêt, erreurs, acquisition | A | T5a | séquence interne | |
-| 7 | B | **T5c** conformité structurelle, rejeu historique | A | T5a | séquence interne | **P-B** |
-| 8 | C | **T6** pilote bloquant à politique | A | T5a, T5b | séquence interne | |
-| 9 | C | T8 exemple conforme S04 (opt.) | A | T5, T6 | séquence interne | **P-C** |
-| 10 | D | **T7** harnais événementiel | A | T5, T6 | séquence interne | **P-D** (équivalence des pilotes) |
+| 1 | A | **T4** cœur d'itération | A | — | **Validée** | G-REG |
+| 2 | A | **T1** `TemporalPolicy` | A | — | **Validée** | |
+| 3 | A | **T2** arithmétique d'échéancier | A | — | **Validée** | |
+| 4 | A | **T3** horloge | A | T2 | **Validée** | **P-A** (franchie) |
+| 5 | B | **T5a** `Progressor` nominal | A | T1–T4 | **Validée** | |
+| 6 | B | **T5b** arrêt, erreurs, acquisition | A | T5a | **Validée** | |
+| 7 | B | **T5c** conformité structurelle, rejeu historique | A | T5a | **Validée** | **P-B** (franchie) |
+| 8 | C | **T6** pilote bloquant à politique | A | T5a, T5b | **Validée** | |
+| 9 | C | T8 exemple conforme S04 (opt.) | A | T5, T6 | **Non retenue** | **P-C** (franchie par T6) |
+| 10 | D | **T7** harnais événementiel | A | T5, T6 | **Validée** | **P-D** (franchie : équivalence des pilotes) |
 | ∥ | E | **V2-0** plan V2 | B | — | Démarrable | **P-V2** (validation) |
 | ∥ | E | **V2-C** conception du paquet | B | V2-0 | Conditionnel | **P-CONC** |
 | 11 | E | V2-L lecteur v2 du manifeste | B | P-V2, P-CONC | Bloqué | |
@@ -173,10 +188,10 @@ Distinctions demandées : **développement du Shell avec q de test** = chantier 
 
 | Phase | Entrée | Sortie |
 |---|---|---|
-| **A** | roadmap validée | T4, T1, T2, T3 validées ; G-REG vert ; `cargo tree -p verbum-shell -e normal` sans dépendance |
-| **B** | P-A | T5a, T5b, T5c validées ; matrice TP-P, TP-S, TP-E complète ; D7, D8, D9 verts |
-| **C** | P-B | T6 validée ; D2 et moitié bloquante de D1 verts ; aucun `sleep` dans les tests |
-| **D** | P-C | T7 validée ; D1 complet, D3, D6 verts : équivalence des deux pilotes établie |
+| **A** | roadmap validée | T4, T1, T2, T3 validées ; G-REG vert ; `cargo tree -p verbum-shell -e normal` sans dépendance — **franchie** |
+| **B** | P-A | T5a, T5b, T5c validées ; matrice TP-P, TP-S, TP-E complète ; D7, D8, D9 verts — **franchie** |
+| **C** | P-B | T6 validée ; D2 et moitié bloquante de D1 verts ; aucun `sleep` dans les tests — **franchie** (T8 non retenue) |
+| **D** | P-C | T7 validée ; D1 complet, D3, D6 verts : équivalence des deux pilotes établie — **franchie** |
 | **E** | P-V2 + P-CONC | V2-Z validée ; VQ-1 à VQ-7 et VQ-9 verts ; tests de l'étape 2, 5, 6 inchangés |
 | **E′** | P-E + arbitrage D-N2 | règle appliquée, tests de la Forge, aucune régression |
 | **F** | P-D, P-E, F3a | F3b et F3c validées ; VQ-8 vert ; exemple de `games/demo` de code 0 |
@@ -269,6 +284,7 @@ Gabarit de compte rendu de **toutes** les unités : celui de `03-verbum-shell-ex
 - **Tests** : D2 (réveil déjà passé : attente nulle, aucune boucle active supplémentaire) ; moitié « pilote bloquant » de D1 (résultats comparés à des littéraux). Une fermeture d'attente par défaut (dormir `deadline − now`, jamais en négatif) est fournie ; son calcul est testé avec horloge scriptée ; le sommeil réel n'est exercé que par les exemples.
 - **Acceptation** : aucun `sleep` ni horloge murale dans les tests ; aucune copie de la logique K/M ; `run_loop` intact (D4 rejoué) ; MSRV.
 - **Commit** : 1.
+- **Statut : validée (14 novembre 2026).** Réalisé : `run_blocking(progressor, wait_until) -> Result<u64, ProgressError<E>>` (prend **possession** d'un `Progressor` fraîchement construit ; `unreachable!` avec message explicite pour `Running` sans échéance et pour `Failed` dont l'erreur a déjà été prélevée) ; `sleep_until(MonotonicClock)` (calcul sur `Duration` par `time_until`, privée, testée en `#[cfg(test)]` ; `thread::sleep` seulement si la durée est strictement positive ; aucun `Instant` dans `driver.rs`) ; `lib.rs` : paragraphe `//!` et exports ; `temporal_structure.rs` : `driver.rs` ajouté aux sources contrôlées par D7 (divergence D-13).
 
 ### T8 — Exemple conforme S04 (optionnelle)
 
@@ -276,6 +292,7 @@ Gabarit de compte rendu de **toutes** les unités : celui de `03-verbum-shell-ex
 - **Prérequis** : T5, T6. **Fichiers** : créé `examples/policy_headless.rs`.
 - **Acceptation** : code de sortie 0 ; horloge et attenteur scriptés ; valeurs de test (q = 10, K = 3, M = 5) ; aucune valeur de jeu.
 - **Commit** : 1. **Porte P-C** : T6 (et T8 si retenue) validées.
+- **Statut : non retenue (décision du 15 novembre 2026).** Enregistrée comme écartée, non comme unité en attente. Raisons : facultative ; comportement déjà exercé par les tests du `Progressor` et des pilotes ; F3c produira un exemple headless d'assemblage applicatif dont le quantum provient du paquet. Aucune unité aval n'en dépendait.
 
 ### T7 — Harnais du pilote événementiel
 
@@ -286,6 +303,7 @@ Gabarit de compte rendu de **toutes** les unités : celui de `03-verbum-shell-ex
 - **Points d'attention** : D6 est le **premier test à fil réel** du Shell (les étapes 3 à 6 s'en abstenaient) : comportement sous Miri à constater ; PO-3 (échéance non représentable en `Instant`) est une question d'adaptateur natif, hors de ce harnais.
 - **Acceptation** : équivalence établie ; aucun type de plateforme.
 - **Commit** : 1. **Porte P-D**.
+- **Statut : validée (14 novembre 2026) ; P-D franchie.** Réalisé dans `tests/temporal_drivers.rs` (extension, aucun changement de `src/` ni de `temporal_support`) : D1 différentiel (deux exécutions indépendantes, `run_blocking` et harnais simulant `about_to_wait`, comparées entre elles **et** à des littéraux, sans `Instant`) ; D3 (`MonotonicClock::start().origin()` + `checked_add`, vérification arithmétique) ; D6 (fil secondaire, jointure, sans `sleep` ; Miri vert côté [DR]). Voir D-14.
 
 ### V2-0 — Plan V2 (véhicule documentaire)
 
@@ -410,6 +428,9 @@ Contrôles propres au chantier A à chaque unité : `cargo tree -p verbum-shell 
 | D-10 | PO-2 résolu : `SCRIPT_MAX_STEPS_PER_TICK = 16` (provisoire, indépendante de K) | lecture de `script.rs` |
 | D-11 | E11 vérifié en T1 au niveau politique, reconfirmé par la signature en T5a | `Progressor` n'existe pas en T1 |
 | D-12 | Harnais d'horloge scriptée explicite (`temporal_support`) | partagé par T5 à T7 ; la spéc. ne le localisait pas |
+| D-13 | T6 modifie `tests/temporal_structure.rs` : `driver.rs` est ajouté à la liste `SOURCES` de D7 (aucune assertion modifiée) | arbitrage du 14 novembre 2026 : `driver.rs` doit être soumis aux contrôles D7 ; `Instant` reste confiné à `clock.rs` et `pacing.rs` |
+| D-14 | Le test D3 (T7) lit **une** origine d'horloge réelle, par `MonotonicClock::start().origin()` ; la spéc. § 10 (harnais) énonce « aucun `Instant` » | D3 exige une conversion `Deadline → Instant` ; D1 et D6 restent sans `Instant` ; arbitré le 14 novembre 2026. Précision reportée dans la spéc. (§ 10, harnais) |
+| D-15 | Forme du pilote bloquant (spéc. § 9.2, laissée à l'implémentation) : possession du `Progressor`, précondition « fraîchement construit », panique documentée (`# Panics`) en cas de violation | arbitrage du 14 novembre 2026 ; pas de variante d'erreur publique ajoutée |
 
 ### 10.2 Risques
 
@@ -432,10 +453,10 @@ Contrôles propres au chantier A à chaque unité : `cargo tree -p verbum-shell 
 |---|---|---|
 | **D-N1** | valeurs q, K, M de composition de `games/demo` | F3c |
 | **D-N2** | règle des durées non entières, périmètre de F2, autorisation de modifier des sources de l'étape 6 ; mise à jour documentaire probable (plan V2 ou note Forge), ADR non nécessaire a priori, à confirmer | F2 |
-| **D-N3** | véhicule d'enregistrement de V2 ; nom et numéro du plan V2 | V2-0 |
+| **D-N3** | véhicule d'enregistrement de V2 ; nom et numéro du plan V2. **[Arbitré] (15 novembre 2026) sur le principe** : document autonome de plan d'implémentation, non normatif, dans `docs/implementation/` (ni ADR, ni réécriture de la roadmap, ni annexe de la spécification temporelle). **Nom et numéro : à proposer par la session V2-0 après examen de l'arborescence, validation avant rédaction** | V2-0 |
 | **D-N4** | validation du layout du paquet (sortie de V2-C) | V2-L, V2-P |
 | **D-N5** | portée de `games/demo` : consommateur (script ou système minimal), production du paquet dans l'application (dev-dependency de la Forge, exemple, autre), nom du crate | F3a |
-| **D-N6** | granularité des sessions d'implémentation (défaut proposé : une unité par session) | handoff |
+| **D-N6** | granularité des sessions d'implémentation. **[Arbitré] (15 novembre 2026)** : une unité par session par défaut ; regroupement de petites unités étroitement liées seulement après arbitrage explicite | handoff |
 
 **Nouvelle décision architecturale indispensable : aucune identifiée.** La dépendance R03/S05 (« 0..N itérations pour 0..1 frame ») n'est pas incontournable pour ce chantier : F3c est headless.
 
@@ -450,3 +471,11 @@ Contrôles propres au chantier A à chaque unité : `cargo tree -p verbum-shell 
 | **Fin complète** | J-A, J-V2, J-F3, J-F2 et P-G ; liste « non démontré » consignée ; **l'intégration native reste hors chantier** |
 
 Une clôture partielle « conforme S04 sans F2 » n'est possible que sur décision de l'utilisateur, car ADR-S04 pt 2 exige une règle explicite pour les durées non entières.
+
+### 11.1 État des jalons (15 novembre 2026)
+
+| Jalon | État |
+|---|---|
+| **J-A** | **Prononcé le 15 novembre 2026.** P-A, P-B, P-C, P-D franchies ; T8 non retenue ; consommateurs historiques, Miri et MSRV : [DR] verts à chaque unité ; matrice C-1 à C-16 → tests **acceptée** (annexe A de `03-verbum-shell-temporal-policy-remaining-work.md`). Quatre contrats sont vérifiés par structure ou par revue, non par exécution, et acceptés comme tels sans test artificiel : C-2 (API et visibilité des champs), C-10 (branche `Running` sans échéance, inatteignable), C-15 (non-garanties, documentation et ADR-S04), C-16 (D7 et revue des contrats). |
+| J-V2, J-F3, J-F2 | Non atteints, travaux non démarrés. |
+| Fin complète | Non atteinte. |
