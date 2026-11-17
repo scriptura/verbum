@@ -3,7 +3,7 @@
 ## Statut
 Document de planification interne, non normatif, révisable sans ADR (même statut que `ROADMAP.md` et les plans des étapes 2 à 4). Il détaille l'étape 5 en unités. Il n'introduit aucun invariant : chaque exigence cite sa source, et tout ce qui ne découle pas du corpus est signalé comme tel. **Aucun code, aucune modification d'ADR, aucune modification d'un document validé.** (r1.3 : seule exception de périmètre, `crates/engine/schedule/src/system.rs`, voir §13.)
 
-**État : validé (r1.2) ; révision r1.3 soumise à validation.**
+**État : validé.**
 
 **Révision r1.3 — passages modifiés, et seulement ceux-ci (décision de l'utilisateur du 30 octobre 2026, après l'échec constaté de G-LT sur le dépôt réel) :** (1) en-tête et état ; (2) §0, « Non lus » : la faisabilité de la vue empruntée avec le Scheduler était **[Non vérifié]** et s'est révélée fausse tel quel (E0478, E0491) ; (3) §5, A-2 option a, réserve ; (4) §7.2, preuve G-LT ; (5) §8, ligne U1, porte d'arrêt ; (6) §11 risque 2 ; (7) §13, **exception explicite et strictement limitée à `crates/engine/schedule/src/system.rs`** (trois bornes de durée de vie, voir ci-dessous) ; (8) §14, critère 6 ; (9) §15. Layouts, unités, arbitrages A-1 à A-6, autres résultats attendus : inchangés ; aucun ADR modifié.
 
