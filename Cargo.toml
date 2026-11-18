@@ -13,7 +13,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.85"
 authors = ["Olivier Chavarin"]
@@ -23,12 +23,12 @@ keywords = ["ecs", "game-engine", "dod", "aot", "deterministic"]
 categories = ["game-engines", "data-structures"]
 
 [workspace.dependencies]
-verbum-assets = { path = "crates/engine/assets", version = "0.1.0" }
-verbum-forge = { path = "crates/engine/forge", version = "0.1.0" }
-verbum-ecs = { path = "crates/engine/ecs", version = "0.1.0" }
-verbum-schedule = { path = "crates/engine/schedule", version = "0.1.0" }
-verbum-render = { path = "crates/engine/render", version = "0.1.0" }
-verbum-script = { path = "crates/extensions/script", version = "0.1.0" }
+verbum-assets = { path = "crates/engine/assets", version = "0.2.0" }
+verbum-forge = { path = "crates/engine/forge", version = "0.2.0" }
+verbum-ecs = { path = "crates/engine/ecs", version = "0.2.0" }
+verbum-schedule = { path = "crates/engine/schedule", version = "0.2.0" }
+verbum-render = { path = "crates/engine/render", version = "0.2.0" }
+verbum-script = { path = "crates/extensions/script", version = "0.2.0" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
