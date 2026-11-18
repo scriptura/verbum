@@ -27,7 +27,7 @@ Cœur du moteur [Verbum](https://github.com/scriptura/verbum) : un ECS strict,
 ## Statut
 
 Crate du workspace [Verbum](https://github.com/scriptura/verbum). Voir
-[`docs/architecture/01-runtime-ecs.md`](https://github.com/scriptura/verbum/blob/main/docs/architecture/01-runtime-ecs.md)
+[`docs/architecture/01-runtime-ecs.md`](https://github.com/scriptura/verbum/blob/main/docs/architecture/concepts/01-runtime-ecs.md)
 pour le modèle normatif.
 
 ## Licence
