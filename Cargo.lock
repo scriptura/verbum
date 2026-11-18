@@ -129,7 +129,7 @@ checksum = "a2c754d6c33795a1c324727428e5a7dedb5b06195f9890bdbcba760d3e246563"
 
 [[package]]
 name = "verbum"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "verbum-ecs",
  "verbum-schedule",
@@ -137,15 +137,15 @@ dependencies = [
 
 [[package]]
 name = "verbum-assets"
-version = "0.2.0"
+version = "0.2.1"
 
 [[package]]
 name = "verbum-ecs"
-version = "0.2.0"
+version = "0.2.1"
 
 [[package]]
 name = "verbum-forge"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "toml",
  "verbum-assets",
@@ -154,7 +154,7 @@ dependencies = [
 
 [[package]]
 name = "verbum-render"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "verbum-ecs",
  "verbum-schedule",
@@ -162,21 +162,21 @@ dependencies = [
 
 [[package]]
 name = "verbum-schedule"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "verbum-ecs",
 ]
 
 [[package]]
 name = "verbum-script"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "verbum-assets",
 ]
 
 [[package]]
 name = "verbum-shell"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "verbum-assets",
  "verbum-ecs",
