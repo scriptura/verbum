@@ -17,6 +17,8 @@ mod script;
 mod sprite;
 mod tileset;
 
+pub mod manifest_v2;
+
 pub use font::{
     FONT_FIXED_PAYLOAD_LEN, FONT_FORMAT_ID, FONT_FORMAT_VERSION, FONT_RECORD_LEN, Font, Glyph,
 };

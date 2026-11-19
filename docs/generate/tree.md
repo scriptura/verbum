@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-11-19 08:02:33
+**Généré le:** 2026-11-19 12:51:38
 
 ## Racine du Workspace
 
@@ -16,6 +16,7 @@
 │   │   │   │   ├── lib.rs
 │   │   │   │   ├── load.rs
 │   │   │   │   ├── manifest.rs
+│   │   │   │   ├── manifest_v2.rs
 │   │   │   │   ├── map.rs
 │   │   │   │   ├── script.rs
 │   │   │   │   ├── sprite.rs
@@ -167,7 +168,7 @@
 ├── Cargo.toml
 └── README.md
 
-37 directories, 124 files
+37 directories, 125 files
 ```
 
 ## Documentation du projet

@@ -176,7 +176,7 @@ pub enum ManifestError {
     Truncated,
     /// Signature différente de [`MANIFEST_SIGNATURE`].
     Signature,
-    /// Version différente de [`MANIFEST_VERSION`].
+    /// Version du manifeste non prise en charge par ce lecteur.
     Version,
     /// Octets au-delà de `10 + 16 × n`.
     TrailingBytes,
@@ -228,7 +228,17 @@ impl<'a> Manifest<'a> {
             return Err(ManifestError::Version);
         }
 
-        let count = u64::from(u32::from_le_bytes([*n0, *n1, *n2, *n3]));
+        Self::from_region(u32::from_le_bytes([*n0, *n1, *n2, *n3]), rest)
+    }
+
+    /// Validation commune des entrées, partagée par `parse` (v1) et le lecteur v2 : `count`
+    /// est le nombre d'entrées déclaré, `rest` les octets qui suivent l'en-tête.
+    ///
+    /// Ordre des contrôles : longueur attendue `count × 16` (calculée en `u64` avec
+    /// opérations vérifiées, conversion en `usize` vérifiée), longueur exacte
+    /// (`Truncated`, `TrailingBytes`), puis unicité des identifiants.
+    pub(crate) fn from_region(count: u32, rest: &'a [u8]) -> Result<Manifest<'a>, ManifestError> {
+        let count = u64::from(count);
         let expected = count
             .checked_mul(MANIFEST_ENTRY_LEN as u64)
             .and_then(|len| usize::try_from(len).ok())
