@@ -6,6 +6,9 @@
 //! (premier décodage de chaque artefact et, pour une carte, fermeture de sa référence ;
 //! résultat abandonné), niveau 4 (même opération, puis dépôt) : le dépôt n'est jamais
 //! appelé si l'un des niveaux 1 à 3 échoue.
+//!
+//! Les niveaux 2 à 4 forment un noyau unique (`load_core`), partagé par le chargement
+//! historique et le chargement de paquet.
 
 use crate::format::{Asset, Decoded, Format, decode};
 use crate::manifest::{ArtifactIndex, BindingError, Manifest, ManifestError, SlotIndex};
@@ -55,20 +58,48 @@ pub enum ReferenceError {
 /// artefact : le décodeur est une fonction pure de ses octets, empruntés de manière
 /// immuable pendant l'appel, donc la seconde lecture ne peut pas échouer si la première
 /// a réussi. Cette garantie ne couvre pas une panique de `deposit`.
+///
+/// Le niveau 1 est exécuté ici ; les niveaux 2 à 4 sont ceux de `load_core`, partagé
+/// avec le chargement de paquet.
 pub fn load<'a>(
     manifest: &[u8],
     artifacts: &[&'a [u8]],
     slot_formats: &[Format],
+    deposit: impl FnMut(SlotIndex, Asset<'a>),
+) -> Result<(), LoadError> {
+    // Niveau 1.
+    let manifest = Manifest::parse(manifest).map_err(LoadError::Manifest)?;
+    load_core(
+        &manifest,
+        artifacts.len(),
+        |position| artifacts.get(position).copied(),
+        slot_formats,
+        deposit,
+    )
+}
+
+/// Noyau des niveaux 2 à 4, partagé par `load` (v1) et `load_package` (v2) : dispatch
+/// statique, aucune allocation, aucun contrôle dupliqué.
+///
+/// `artifact_count` est le nombre d'artefacts fournis ; `artifact(position)` rend les octets
+/// de l'artefact de rang `position`. Le niveau 1 est exécuté par l'appelant. La fermeture
+/// n'est appelée qu'avec des rangs validés par `check_bindings` (inférieurs à
+/// `artifact_count`) : un `None` est donc un invariant interne violé, non une erreur
+/// d'entrée.
+pub(crate) fn load_core<'a>(
+    manifest: &Manifest<'_>,
+    artifact_count: usize,
+    artifact: impl Fn(usize) -> Option<&'a [u8]>,
+    slot_formats: &[Format],
     mut deposit: impl FnMut(SlotIndex, Asset<'a>),
 ) -> Result<(), LoadError> {
-    // Niveau 1, puis niveau 2 (liaisons, puis format de chaque slot).
-    let manifest = Manifest::parse(manifest).map_err(LoadError::Manifest)?;
+    // Niveau 2 (liaisons, puis format de chaque slot).
     manifest
-        .check_bindings(artifacts.len(), slot_formats.len())
+        .check_bindings(artifact_count, slot_formats.len())
         .map_err(LoadError::Binding)?;
     for entry in manifest.entries() {
         let expected = expected_format(slot_formats, entry.slot_index());
-        let bytes = artifact_bytes(artifacts, entry.artifact_index());
+        let bytes = artifact_bytes(&artifact, entry.artifact_index());
         // Seule une identité connue, différente du format attendu, est rejetée ici ; une
         // identité inconnue ou un préfixe incomplet reste au niveau 3.
         if Format::of_identity(bytes).is_some_and(|found| found != expected) {
@@ -84,10 +115,10 @@ pub fn load<'a>(
         let index = entry.artifact_index();
         let expected = expected_format(slot_formats, entry.slot_index());
         materialize(
-            &manifest,
+            manifest,
             slot_formats,
             expected,
-            artifact_bytes(artifacts, index),
+            artifact_bytes(&artifact, index),
         )
         .map_err(|failure| failure.at(index))?;
     }
@@ -95,8 +126,8 @@ pub fn load<'a>(
     // Niveau 4 : redécodage et dépôt, seulement si les niveaux 1 à 3 ont réussi.
     for entry in manifest.entries() {
         let expected = expected_format(slot_formats, entry.slot_index());
-        let bytes = artifact_bytes(artifacts, entry.artifact_index());
-        match materialize(&manifest, slot_formats, expected, bytes) {
+        let bytes = artifact_bytes(&artifact, entry.artifact_index());
+        match materialize(manifest, slot_formats, expected, bytes) {
             Ok(asset) => deposit(entry.slot_index(), asset),
             // Violation interne impossible (octets immuables, décodeur déterministe,
             // première lecture réussie) : active aussi en production, hors `LoadError`.
@@ -158,11 +189,11 @@ fn expected_format(slot_formats: &[Format], slot: SlotIndex) -> Format {
 }
 
 /// Octets de l'artefact désigné ; l'indice a été validé par `check_bindings`.
-fn artifact_bytes<'b>(artifacts: &[&'b [u8]], index: ArtifactIndex) -> &'b [u8] {
-    match usize::try_from(index.get())
-        .ok()
-        .and_then(|position| artifacts.get(position))
-    {
+fn artifact_bytes<'a>(
+    artifact: &impl Fn(usize) -> Option<&'a [u8]>,
+    index: ArtifactIndex,
+) -> &'a [u8] {
+    match usize::try_from(index.get()).ok().and_then(artifact) {
         Some(bytes) => bytes,
         None => unreachable!("artifact_index validé par check_bindings"),
     }

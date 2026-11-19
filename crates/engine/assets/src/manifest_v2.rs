@@ -58,10 +58,6 @@ pub(crate) enum ManifestV2Error {
 /// octets de `q_ns` (`Truncated`), `q_ns` nul (`ZeroQuantum`), quatre octets de `n`
 /// (`Truncated`), puis la validation commune des entrées : longueur attendue, longueur
 /// exacte, unicité des identifiants. Aucune allocation.
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "utilisé par le chargement de paquet, V2-P")
-)]
 pub(crate) fn read_manifest_v2(
     bytes: &[u8],
 ) -> Result<(NonZeroU64, Manifest<'_>), ManifestV2Error> {

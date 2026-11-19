@@ -18,6 +18,7 @@ mod sprite;
 mod tileset;
 
 pub mod manifest_v2;
+pub mod package;
 
 pub use font::{
     FONT_FIXED_PAYLOAD_LEN, FONT_FORMAT_ID, FONT_FORMAT_VERSION, FONT_RECORD_LEN, Font, Glyph,
@@ -29,6 +30,7 @@ pub use manifest::{
     MANIFEST_SIGNATURE, MANIFEST_VERSION, Manifest, ManifestEntry, ManifestError, SlotIndex,
 };
 pub use map::{MAP_FIXED_PAYLOAD_LEN, MAP_FORMAT_ID, MAP_FORMAT_VERSION, Map};
+pub use package::{PackageError, load_package};
 pub use script::{
     Instruction, SCRIPT_FIXED_PAYLOAD_LEN, SCRIPT_FORMAT_ID, SCRIPT_FORMAT_VERSION,
     SCRIPT_INSTRUCTION_LEN, SCRIPT_MAX_STEPS_PER_TICK, SCRIPT_REGISTERS, Script,
