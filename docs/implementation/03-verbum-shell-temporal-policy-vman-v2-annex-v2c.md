@@ -1,8 +1,8 @@
-# Verbum — Annexe V2-C : note de conception du paquet `VMAN` v2 — r5 (version finale soumise à validation)
+# Verbum — Annexe V2-C : note de conception du paquet `VMAN` v2 — r5
 
 ## 0. Statut, portée, marqueurs
 
-**Non normative. Note de conception, révision 5, version finale soumise à validation (19 novembre 2026), annexe à statut distinct du plan `03-verbum-shell-temporal-policy-vman-v2.md` (r1, § 10.2, ARB-19). Elle remplace les révisions 1 à 4.** Elle ne modifie pas le corps du plan. Elle n'autorise aucune implémentation : V2-L et V2-P restent bloquées jusqu'à **P-CONC**, validation explicite de l'utilisateur, **non franchie**.
+**Statut : validée (19 novembre 2026, par l'utilisateur).** **Non normative. Note de conception, révision 5, version finale (19 novembre 2026), annexe à statut distinct du plan `03-verbum-shell-temporal-policy-vman-v2.md` (r1, § 10.2, ARB-19). Elle remplace les révisions 1 à 4.** Elle ne modifie pas le corps du plan. **P-CONC est franchie** (19 novembre 2026, prononcée par l'utilisateur) : la conception V2-C est validée. Cette note n'autorise elle-même aucune implémentation ; V2-L puis V2-P s'ouvrent chacune dans une session dédiée (D-N6), sur la base de cette note et du plan V2-0.
 
 Aucun code, test, `Cargo.toml`, ADR ou commit n'est créé. Les extraits Rust sont des **esquisses non normatives**. Aucune commande n'a été exécutée par la session : tout énoncé « démontré » désigne un raisonnement et des tests prévus, non des résultats.
 
@@ -10,9 +10,9 @@ Changements de la révision 5 (arbitrages, quatrième série) :
 - **A-1 clos : option X** (§ 4.5.4). L'enveloppe délimite la section de manifeste par le premier offset ; elle ne recalcule ni ne lit la longueur du manifeste ; l'écart de longueur relève du lecteur. Séparation explicite des responsabilités (§ 4.5.1). Options Y refusée, Z exclue.
 - **A-2 confirmé, avec ordre de priorité** des contrôles d'extraction (§ 4.2, § 4.5.4).
 - **Clos** : preuve du § 4.2 acceptée ; P-3, P-4 ; nomenclature Forge (P-5) ; P-7 ; `Version` (doc) ; O-1 option `unreachable!` écartée.
-- **F-14** : résultat négatif déclaré par l'utilisateur pour `VPKG` sur le dépôt réel ; commande, périmètre et état du dépôt **non encore consignés**. **P-1 reste une proposition, non adoptée**, en attente d'un dossier de preuve vérifiable (§ 3.5).
-- **P-2 adopté** (19 novembre 2026), y compris `manifest_v2::ENTRY_LEN` conservée publique ; les valeurs de `package::SIGNATURE` et `package::VERSION` restent soumises à P-1.
-- **Reste à traiter** : P-1 seule. **Ouvert hors P-CONC** : O-1 (bloque V2-F seulement). Aucun cas limite de classification ne demeure.
+- **P-1 adoptée** (19 novembre 2026) : `package::SIGNATURE = *b"VPKG"` et `package::VERSION = 1`. Dossier de preuve consigné (§ 3.5, F-14) : commit `d30a1c725a33abbe48e41c83bb7744e68b263d7a`.
+- **P-2 adopté** (19 novembre 2026), y compris `manifest_v2::ENTRY_LEN` conservée publique.
+- **P-CONC franchie.** **Seul point ouvert** : O-1, qui bloque V2-F uniquement (ni V2-L ni V2-P). Aucune proposition ni aucun cas limite de classification ne demeure.
 - Mentions « sous réserve de A-1 / A-2 » supprimées ; RK-4, RK-13, § 13 mis à jour.
 
 Changements de la révision 4 (arbitrages du 18 novembre 2026, troisième série) :
@@ -28,7 +28,7 @@ Changements de la révision 3 (seconde série) : notation `n'` (enveloppe) / `n`
 | **[Contrat]** | Posé par une ADR adoptée ou par la spécification r3 |
 | **[Fait]** | Constaté dans un fichier fourni ou par une commande exécutée par l'utilisateur |
 | **[Arbitré]** | Décision de l'utilisateur (17, 18 et 19 novembre 2026) |
-| **[Proposition]** | Choix de cette note, en attente de validation ; ne vaut pas décision |
+| **[Proposition]** | Choix de cette note, en attente de validation ; ne vaut pas décision (aucune au statut final) |
 | **[Ouvert]** | Non déterminé ; énoncé sans choix |
 
 Sources lues : les cinq documents de référence, le plan V2, la spécification r3, la roadmap r1.1, ADR-000, ADR-A01, ADR-S04 ; `assets/src/{lib,manifest,header,format,load,sprite,tileset,map,font,script}.rs`, `forge/src/{lib,batch,id,sprite,script}.rs`, `forge/tests/pipeline.rs`, `script/src/{lib,table}.rs`, `shell/Cargo.toml`, `shell/tests/borrowed_resource.rs`, `Cargo.toml` et `Cargo.lock` racine, `tree.md` du 17 novembre 2026.
@@ -57,18 +57,17 @@ Sources lues : les cinq documents de référence, le plan V2, la spécification 
 | **Modules et réexport (P-3)** | Modules publics `package` et `manifest_v2` ; aucune constante générique à la racine ; constantes v1 inchangées. `load_package` et `PackageError` réexportés à la racine, par continuité avec `load`. |
 | **Lecteur et erreur (P-4)** | Le lecteur v2 de V2-L rend un type d'erreur interne ; `PackageError` n'est introduit que par V2-P. |
 | **`Version` (doc)** | Formulation française : « Version du manifeste non prise en charge par ce lecteur. » Commentaire seul, en V2-L ; aucune assertion modifiée. |
-| **P-2** | Constantes des modules `package` et `manifest_v2` : noms, types, visibilités, consommateurs et justifications du § 6.1 adoptés. `manifest_v2::ENTRY_LEN` conservée comme constante publique : elle expose à la Forge la largeur déclarée par le format v2 ; `Manifest::from_region` utilise la largeur commune `MANIFEST_ENTRY_LEN` ; l'assertion de compilation garantit leur cohérence. La duplication de déclaration entre v1 et v2 est intentionnelle (deux contrats de format, un invariant commun), sans coût d'exécution ni dépendance entre lecteurs. **Les valeurs de `package::SIGNATURE` et `package::VERSION` restent soumises à P-1** : leur présence au tableau ne vaut pas adoption de `VPKG` / `1`. |
+| **P-1** | `package::SIGNATURE = *b"VPKG"` et `package::VERSION = 1` : **adoptés**, sur le dossier de preuve du § 3.5. |
+| **P-2** | Constantes des modules `package` et `manifest_v2` : noms, types, visibilités, consommateurs et justifications du § 6.1 adoptés. `manifest_v2::ENTRY_LEN` conservée comme constante publique : elle expose à la Forge la largeur déclarée par le format v2 ; `Manifest::from_region` utilise la largeur commune `MANIFEST_ENTRY_LEN` ; l'assertion de compilation garantit leur cohérence. La duplication de déclaration entre v1 et v2 est intentionnelle (deux contrats de format, un invariant commun), sans coût d'exécution ni dépendance entre lecteurs. |
 | **Forge (P-5)** | Nomenclature acceptée : `compile_package`, `CompiledPackage`, `as_bytes`. Contrat de signature et de comportement explicité (§ 7.1). V-F1 ; `compile_assets` strictement inchangée ; q validé avant la compilation (`ForgeError::ZeroValue("q")`) ; V-F2 non autorisée ; type résultat à champs privés exposant le paquet complet sans accesseurs séparés ; `TooManyAssets` jamais détourné. |
 | **O-1** | Ouvert, bloque **V2-F seulement** ; l'option fondée sur une assertion de compilation et un `unreachable!` est définitivement écartée. |
 | **Digest** | Écarté définitivement. |
 | **Unités et tests (P-7)** | Fichiers par unité : prévisions acceptées, confirmées à l'ouverture de chaque unité. V2-L et V2-P séparées ; **D-N6** : une unité par session par défaut, aucun regroupement implicite ; `expect(dead_code)` temporaires, localisés ; T1 ; tests historiques inchangés ; noms de tests laissés à cette note, avec correspondance aux VQ. |
 | **Provenance** | La garantie protège la chaîne normale de production et de chargement, non la fabrication volontaire d'un paquet structurellement valide (§ 11.1). |
 
-### 1.2 Proposition restante [Proposition]
+### 1.2 Propositions restantes
 
-| # | Proposition | Section |
-|---|---|---|
-| **P-1** | Signature d'enveloppe `VPKG`, version d'enveloppe `1`. Résultat négatif **déclaré** sur le dépôt réel (F-14), dossier de preuve à consigner (§ 3.5). **Non adoptée** ; en attente de la vérification. | § 3.5 |
+Aucune. P-1 et P-2 sont adoptées (§ 1.1).
 
 ### 1.3 Ouvert
 
@@ -76,7 +75,7 @@ Sources lues : les cinq documents de référence, le plan V2, la spécification 
 |---|---|---|
 | **O-1** | Représentation de l'erreur Forge pour une taille ou un offset non représentable, et pour les invariants de la sortie de `compile_assets` | bloque **V2-F** seulement ; n'empêche pas V2-L ni V2-P ; hors P-CONC |
 
-Aucun cas limite de classification ne reste à arbitrer (A-1 et A-2 clos, § 4.5.4).
+Aucun cas limite de classification ne reste à arbitrer (A-1 et A-2 clos, § 4.5.4). O-1 est le seul point ouvert.
 
 ---
 
@@ -97,7 +96,7 @@ Aucun cas limite de classification ne reste à arbitrer (A-1 et A-2 clos, § 4.5
 | F-11 | `[dependencies]` d'Assets vide, dev-dépendances comprises ; `rust-version = "1.85"`. | `Cargo.toml` |
 | F-12 | `TemporalPolicy::from_nanos(u64, u32, u32)` refuse déjà q = 0. | plan V2 § 4.9 |
 | F-13 | Commande exécutée par l'utilisateur (18 novembre 2026) : `grep -rnI -E 'VPKG\|0x56[[:space:]]*,[[:space:]]*0x50[[:space:]]*,[[:space:]]*0x4[Bb][[:space:]]*,[[:space:]]*0x47\|\\x56\\x50\\x4[Bb]\\x47' crates docs` : **aucun résultat**. Périmètre : `crates` et `docs`. Les fichiers de cette annexe ne figuraient pas encore dans `docs`. La recherche sur le dépôt complet est traitée en F-14. | utilisateur |
-| F-14 | Recherche de `VPKG` sur le dépôt réel dans son état actuel (déclaration de l'utilisateur, 19 novembre 2026) : **aucun résultat**. La commande exacte et le périmètre précis ne sont pas consignés ici ; ils ne sont pas vérifiés par la session. | utilisateur |
+| F-14 | Recherche de `VPKG` sur le dépôt réel, effectuée par l'utilisateur (19 novembre 2026), dossier validé : commit `d30a1c725a33abbe48e41c83bb7744e68b263d7a`, dépôt propre ; contenu versionné à HEAD et copie de travail (fichiers non suivis et binaires parcourus compris, hors `.git` et `target`) ; 15 occurrences, **toutes documentaires dans la note V2-C**, aucune dans le code, les formats, les fixtures ou les binaires parcourus. Non exécutée par la session. Détail au § 3.5. | utilisateur |
 
 ---
 
@@ -119,8 +118,8 @@ Frontières : `B_0 = T`, `B_1 = s_0`, …, `B_{n'} = s_{n'−1}`, `B_{n'+1} = le
 
 | Zone | Offset | Taille | Contenu |
 |---|---:|---:|---|
-| Signature d'enveloppe | 0 | 4 | proposition `VPKG` (P-1) |
-| Version d'enveloppe | 4 | 2 | `u16` LE, proposition `1` (P-1) |
+| Signature d'enveloppe | 0 | 4 | `VPKG` (P-1, adoptée) |
+| Version d'enveloppe | 4 | 2 | `u16` LE, `1` (P-1, adoptée) |
 | Nombre d'artefacts `n'` | 6 | 4 | `u32` LE, lu avant la table : il détermine sa taille |
 | Table : `s_i` | 10 + 8·i | 8 | début de l'artefact `i`, `u64` LE, absolu |
 | Manifeste : signature | T | 4 | `VMAN` |
@@ -152,7 +151,7 @@ Lot de référence de l'étape 2 : « a » (sprite 32×16, slot 1), « foobar »
 
 ```
 octets          contenu
-[0..4)          56 50 4B 47                         signature d'enveloppe VPKG (proposition)
+[0..4)          56 50 4B 47                         signature d'enveloppe VPKG (P-1)
 [4..6)          01 00                               version d'enveloppe 1
 [6..10)         02 00 00 00                         n' = 2
 [10..18)        4C 00 00 00 00 00 00 00             s_0 = 76
@@ -169,23 +168,48 @@ octets          contenu
 
 Paquet vide (`n' = n = 0`, 28 octets) : `56 50 4B 47 01 00 00 00 00 00` puis `56 4D 41 4E 02 00`, q (8 octets), `00 00 00 00`.
 
-### 3.5 Identité d'enveloppe : statut [Proposition P-1]
+### 3.5 Identité d'enveloppe : statut [Arbitré, P-1 adoptée]
 
 | Élément | Valeur | Statut |
 |---|---|---|
-| Signature | `VPKG` (`56 50 4B 47`) | **Proposition P-1, non adoptée.** Absente des fichiers lus (F-7) ; recherche `crates` et `docs` négative (F-13) ; recherche sur le dépôt réel négative **déclarée** (F-14), non encore consignée de manière vérifiable. |
-| Version initiale | `1` (`u16` LE) | **Proposition P-1**, même statut. Indépendante de la version du manifeste (2) : l'enveloppe v1 contient un manifeste v2. |
+| Signature | `VPKG` (`56 50 4B 47`) | **Adoptée (P-1).** Absente des fichiers lus (F-7) ; recherche `crates` et `docs` négative (F-13) ; recherche sur le dépôt réel négative, dossier de preuve ci-dessous (F-14). |
+| Version initiale | `1` (`u16` LE) | **Adoptée (P-1).** Indépendante de la version du manifeste (2) : l'enveloppe v1 contient un manifeste v2. |
 
-Les occurrences purement documentaires du nouveau format dans les documents V2 (plan, roadmap, cette annexe) sont attendues et sans effet sur la collision. **Dossier de preuve de P-1 (à consigner par l'utilisateur ; non exécuté par la session) :**
+Les occurrences purement documentaires du nouveau format dans les documents V2 (plan, roadmap, cette annexe) sont attendues et sans effet sur la collision. 
+
+**Dossier de preuve de P-1 (recherche effectuée par l'utilisateur ; non exécutée par la session) :**
 
 | Élément | Valeur |
 |---|---|
-| Commande exacte | *à fournir* |
-| Périmètre (répertoires, exclusions) | *à fournir* |
-| État du dépôt (référence de révision ou date) | *à fournir* |
-| Résultat | *à fournir* (déclaré : aucun résultat) |
+| Commandes exactes | deux commandes, reproduites ci-dessous (variante `crates` et `docs` : F-13) |
+| Périmètre | contenu versionné à HEAD ; copie de travail, y compris fichiers non suivis et fichiers binaires parcourus ; hors `.git` et `target` |
+| État du dépôt | dépôt propre, commit `d30a1c725a33abbe48e41c83bb7744e68b263d7a` |
+| Résultat | 15 occurrences, toutes des références documentaires dans la note V2-C ; aucune occurrence préexistante pertinente dans le code, les formats, les fixtures ou les fichiers binaires parcourus |
 
-**Limite explicite.** La recherche textuelle vérifie les occurrences dans les sources et documents. Elle **ne démontre pas** l'absence de la séquence d'octets `56 50 4B 47` dans les fichiers binaires et n'est pas présentée comme une vérification binaire. Une vérification binaire exigerait une recherche d'octets distincte, non réalisée ; la séquence étant l'ASCII `VPKG`, une recherche traitant les binaires comme du texte (option `-a` de `grep`) serait un moyen possible, **proposé, non exécuté, non requis par cette note**.
+Commandes exactes, fournies par l'utilisateur. Motif commun :
+
+```bash
+PATTERN='VPKG|0x56[[:space:]]*,[[:space:]]*0x50[[:space:]]*,[[:space:]]*0x4[Bb][[:space:]]*,[[:space:]]*0x47|\\x56\\x50\\x4[Bb]\\x47|86[[:space:]]*,[[:space:]]*80[[:space:]]*,[[:space:]]*75[[:space:]]*,[[:space:]]*71'
+```
+
+Dépôt versionné à HEAD :
+
+```bash
+git grep -n -a -o -E "$PATTERN" HEAD -- .
+```
+
+Copie de travail, fichiers binaires et non suivis compris :
+
+```bash
+grep -r -n -a -b -o -E \
+  --exclude-dir=.git \
+  --exclude-dir=target \
+  "$PATTERN" .
+```
+
+Les deux commandes ont retourné `0`, avec les 15 occurrences exclusivement dans la note V2-C. `git grep -b` avait été écarté, la version de Git installée ne le supportant pas ; la recherche avec `grep -b` a fourni les positions en octets.
+
+**Limite explicite.** Les fichiers compressés ou encodés ne sont pas couverts ; la limite est identifiée et ne remet pas en cause la conclusion dans le périmètre de compatibilité visé. Les recherches ont utilisé `grep -a` : les fichiers binaires ont été traités comme du texte, ce qui permet de trouver la séquence ASCII `VPKG` (et ses écritures littérales) dans les fichiers binaires parcourus. Cela ne permet pas de conclure sur le contenu de fichiers compressés ou transformés.
 
 Un manifeste v1 nu donné comme paquet échoue sur la signature d'enveloppe, la signature `VPKG` différant de `VMAN`.
 
@@ -460,14 +484,14 @@ Aucune allocation, aucune copie d'artefact.
 
 ## 6. API publique, constantes, visibilité, erreurs
 
-### 6.1 Constantes et espaces de noms [Arbitré : modules ; P-2 adopté, sauf les valeurs soumises à P-1]
+### 6.1 Constantes et espaces de noms [Arbitré : modules ; P-1 et P-2 adoptés]
 
 Le format v1 conserve **toutes** ses constantes et leurs valeurs, à la racine : `MANIFEST_SIGNATURE`, `MANIFEST_VERSION`, `MANIFEST_HEADER_LEN`, `MANIFEST_ENTRY_LEN`. Les nouvelles constantes sont publiques mais sous deux modules publics, sans nom générique à la racine. Le chemin qualifié distingue enveloppe, manifeste v1 et manifeste v2.
 
 | Nom exact | Module | Type | Valeur | Visibilité | Consommateur | Justification |
 |---|---|---|---|---|---|---|
-| `SIGNATURE` | `package` | `[u8; 4]` | `*b"VPKG"` (**P-1**, non adoptée) | publique | extraction (V2-P) ; Forge (V2-F) | publique : la Forge, autre crate, écrit ces octets (précédent : constantes v1 à la racine) ; identité de l'enveloppe, distincte de `VMAN` |
-| `VERSION` | `package` | `u16` | `1` (**P-1**, non adoptée) | publique | extraction ; Forge | publique : écrite par la Forge ; version de l'enveloppe, indépendante de celle du manifeste |
+| `SIGNATURE` | `package` | `[u8; 4]` | `*b"VPKG"` (**P-1**, adoptée) | publique | extraction (V2-P) ; Forge (V2-F) | publique : la Forge, autre crate, écrit ces octets (précédent : constantes v1 à la racine) ; identité de l'enveloppe, distincte de `VMAN` |
+| `VERSION` | `package` | `u16` | `1` (**P-1**, adoptée) | publique | extraction ; Forge | publique : écrite par la Forge ; version de l'enveloppe, indépendante de celle du manifeste |
 | `HEADER_LEN` | `package` | `usize` | `10` | publique | extraction ; Forge (calcul de `T`) | publique : la Forge calcule `T` ; en-tête d'enveloppe seul, distinct de `MANIFEST_HEADER_LEN` (10, v1) et de `manifest_v2::HEADER_LEN` |
 | `OFFSET_WIDTH` | `package` | `usize` | `8` | publique | extraction ; Forge (calcul de `T`) | publique : largeur d'un offset de table, nécessaire à la Forge pour `T = 10 + 8·n'` |
 | `SIGNATURE` | `manifest_v2` | `[u8; 4]` | `*b"VMAN"` | publique | lecteur v2 (V2-L) ; Forge | publique : écrite par la Forge ; égale à la signature v1 (D-1d), liée par assertion de compilation |
@@ -802,21 +826,21 @@ La garantie de V2 protège **la chaîne normale de production et de chargement**
 | RK-10 | `expect(dead_code)` : un oubli de retrait en V2-P fait échouer `clippy` | voulu |
 | RK-11 | Premiers modules publics d'Assets : surface d'API élargie par les `pub` internes aux deux modules | éléments internes `pub(crate)` ; revue de l'API publique en V2-L et V2-P |
 | RK-12 | O-1 : représentation des erreurs Forge | arbitrage avant V2-F |
-| RK-13 | Collision de signature `VPKG` | recherche négative **déclarée** (F-14), dossier de preuve à consigner (§ 3.5) ; limite : fichiers binaires non vérifiés ; P-1 non adoptée |
+| RK-13 | Collision de signature `VPKG` | recherche négative, dossier de preuve consigné (§ 3.5, F-14) ; limite : fichiers compressés ou encodés non couverts ; P-1 adoptée |
 
-**Non démontré** : exécution de tout test, de Miri et de la MSRV ; codes d'erreur des doctests `compile_fail` ; comportement sur cible 32 bits ; performance du chargement ; correspondance q ↔ artefacts (F2) ; authenticité du paquet ; absence de `VPKG` dans les fichiers binaires ; la recherche textuelle (F-14) n'est pas une vérification binaire et n'est pas vérifiée par la session.
+**Non démontré** : exécution de tout test, de Miri et de la MSRV ; codes d'erreur des doctests `compile_fail` ; comportement sur cible 32 bits ; performance du chargement ; correspondance q ↔ artefacts (F2) ; authenticité du paquet ; absence de `VPKG` dans les fichiers compressés ou encodés ; la recherche textuelle (F-14) n'est pas une vérification binaire exhaustive et n'a pas été exécutée par la session.
 
 ---
 
 ## 12. Effets prévus sur le corps du plan V2 (non appliqués)
 
-À P-CONC, le plan V2 pourrait être mis à jour (aucune modification faite ici) : § 4.5 (règle de séparation des constantes : espaces de noms) ; § 4.8 (sujets désormais décidés) ; § 8 (B-1, B-4 : E3) ; § 9 (R-C1 à R-C13 résolus par cette note, sauf O-1) ; § 10.3 à 10.5 (fichiers) ; § 14 (décisions ouvertes : D-N4, B-1, B-4, noms, emplacement des tests ; ajout de O-1 ; A-1 et A-2 clos). La roadmap reste compatible : V2-L livre le lecteur v2 additif, V2-P l'enveloppe, le noyau partagé et le retour de q.
+P-CONC étant franchie, le plan V2 pourra être mis à jour (aucune modification faite ici) : § 4.5 (règle de séparation des constantes : espaces de noms) ; § 4.8 (sujets désormais décidés) ; § 8 (B-1, B-4 : E3) ; § 9 (R-C1 à R-C13 résolus par cette note, sauf O-1) ; § 10.3 à 10.5 (fichiers) ; § 14 (décisions ouvertes : D-N4, B-1, B-4, noms, emplacement des tests ; ajout de O-1 ; A-1 et A-2 clos). La roadmap reste compatible : V2-L livre le lecteur v2 additif, V2-P l'enveloppe, le noyau partagé et le retour de q.
 
 ---
 
 ## 13. Critères P-CONC et suite
 
-### 13.1 Critères proposés pour franchir P-CONC [Proposition]
+### 13.1 Critères de franchissement de P-CONC [satisfaits ; P-CONC franchie]
 
 | # | Critère | Section |
 |---|---|---|
@@ -831,21 +855,20 @@ La garantie de V2 protège **la chaîne normale de production et de chargement**
 | 9 | Décisions adoptées distinguées des propositions et des points ouverts | § 1 |
 | 10 | Aucun code, test, `Cargo.toml`, ADR modifié ; aucun commit | § 0 |
 
-### 13.2 À traiter, et clos
+### 13.2 Statut final des décisions
 
-**À traiter avant P-CONC :**
-1. **P-1** : `VPKG` et version `1`, **en attente du dossier de preuve** (§ 3.5) ; ne peut être marquée adoptée avant sa consignation.
+**P-CONC : franchie** (19 novembre 2026).
 
-**Ouvert hors P-CONC :** **O-1**, avant V2-F seulement.
+**Seul point ouvert :** **O-1**, représentation de l'erreur Forge ; portée limitée à **V2-F** ; ne bloque ni V2-L ni V2-P.
 
-**Clos (arbitrés)** : P-2 (sauf les valeurs soumises à P-1), A-1 (option X), A-2 (avec priorité), preuve du § 4.2, P-3, P-4, P-5 (nomenclature, contrat), P-7, documentation de `Version`.
+**Clos (arbitrés)** : P-1 (`VPKG`, version `1`), P-2, A-1 (option X), A-2 (avec priorité), preuve du § 4.2, P-3, P-4, P-5 (nomenclature, contrat), P-7, documentation de `Version`, exclusion de l'option `unreachable!` pour O-1.
 
-### 13.3 Suite prévue (sans autorisation tant que P-CONC n'est pas franchie)
+### 13.3 Suite prévue (chaque unité dans sa session dédiée, D-N6)
 
-1. **Clôture V2-C** : examen de la version finale (r5), consignation du dossier de preuve de P-1, arbitrage de P-1, validation P-CONC.
+1. **Clôture V2-C** : réalisée par cette révision (clôture documentaire).
 2. **V2-L** (session dédiée) : lecteur de manifeste v2 additif, helper commun, documentation de `Version`, constantes `manifest_v2`.
 3. **V2-P** (session dédiée) : enveloppe, extraction, noyau partagé, `load_package`, `PackageError`.
 4. **V2-F** (session dédiée) : voie de compilation Forge, après résolution de O-1.
 5. **V2-Z** (session dédiée) : régression globale et clôture.
 
-P-CONC n'est **pas franchie**. Aucune implémentation V2-L ou V2-P n'est autorisée avant votre validation explicite.
+P-CONC est **franchie**. V2-L n'est pas démarrée dans la session de V2-C : son ouverture est préparée dans une nouvelle session, sur la base de cette note et du plan V2-0.
