@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-11-17 22:56:10
+**Généré le:** 2026-11-19 08:02:33
 
 ## Racine du Workspace
 
@@ -20,7 +20,8 @@
 │   │   │   │   ├── script.rs
 │   │   │   │   ├── sprite.rs
 │   │   │   │   └── tileset.rs
-│   │   │   └── Cargo.toml
+│   │   │   ├── Cargo.toml
+│   │   │   └── README.md
 │   │   ├── ecs
 │   │   │   ├── src
 │   │   │   │   ├── command.rs
@@ -40,7 +41,8 @@
 │   │   │   │   ├── query.rs
 │   │   │   │   ├── resources.rs
 │   │   │   │   └── world_identity.rs
-│   │   │   └── Cargo.toml
+│   │   │   ├── Cargo.toml
+│   │   │   └── README.md
 │   │   ├── forge
 │   │   │   ├── src
 │   │   │   │   ├── batch.rs
@@ -53,7 +55,8 @@
 │   │   │   │   └── tileset.rs
 │   │   │   ├── tests
 │   │   │   │   └── pipeline.rs
-│   │   │   └── Cargo.toml
+│   │   │   ├── Cargo.toml
+│   │   │   └── README.md
 │   │   ├── render
 │   │   │   ├── src
 │   │   │   │   ├── accumulator.rs
@@ -63,7 +66,8 @@
 │   │   │   │   └── representation.rs
 │   │   │   ├── tests
 │   │   │   │   └── pipeline.rs
-│   │   │   └── Cargo.toml
+│   │   │   ├── Cargo.toml
+│   │   │   └── README.md
 │   │   ├── schedule
 │   │   │   ├── examples
 │   │   │   │   └── headless.rs
@@ -82,7 +86,8 @@
 │   │   │   │   ├── acceptance.rs
 │   │   │   │   ├── access.rs
 │   │   │   │   └── tick.rs
-│   │   │   └── Cargo.toml
+│   │   │   ├── Cargo.toml
+│   │   │   └── README.md
 │   │   ├── shell
 │   │   │   ├── examples
 │   │   │   │   ├── console.rs
@@ -118,11 +123,13 @@
 │   │   │   │   ├── temporal_equivalence.rs
 │   │   │   │   ├── temporal_progress.rs
 │   │   │   │   └── temporal_structure.rs
-│   │   │   └── Cargo.toml
+│   │   │   ├── Cargo.toml
+│   │   │   └── README.md
 │   │   └── verbum
 │   │       ├── src
 │   │       │   └── lib.rs
-│   │       └── Cargo.toml
+│   │       ├── Cargo.toml
+│   │       └── README.md
 │   ├── extensions
 │   │   ├── collisions
 │   │   │   └── README.md
@@ -149,7 +156,8 @@
 │   │       │   ├── state.rs
 │   │       │   ├── step.rs
 │   │       │   └── table.rs
-│   │       └── Cargo.toml
+│   │       ├── Cargo.toml
+│   │       └── README.md
 │   └── games
 │       └── demo
 │           └── README.md
@@ -159,7 +167,7 @@
 ├── Cargo.toml
 └── README.md
 
-37 directories, 116 files
+37 directories, 124 files
 ```
 
 ## Documentation du projet
@@ -219,6 +227,7 @@
 │   ├── 03-verbum-shell-execution.md
 │   ├── 03-verbum-shell-temporal-policy-remaining-work.md
 │   ├── 03-verbum-shell-temporal-policy-roadmap.md
+│   ├── 03-verbum-shell-temporal-policy-vman-v2-annex-v2c.md
 │   ├── 03-verbum-shell-temporal-policy-vman-v2.md
 │   ├── 03-verbum-shell-temporal-policy.md
 │   ├── 03-verbum-shell.md
@@ -241,6 +250,6 @@
     ├── when-context-leaves-the-conversation-to-enter-the-corpus.md
     └── why-the-name-verbum.md
 
-9 directories, 66 files
+9 directories, 67 files
 ```
 
