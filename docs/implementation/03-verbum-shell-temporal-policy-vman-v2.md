@@ -371,7 +371,7 @@ Défini en `05-verbum-assets-execution.md` § 3.1 : seules sont admises, dans un
 | GV-3 | Les vérifications v2 sont des **ajouts** ; elles ne remplacent ni ne reformulent un test historique |
 | GV-4 | Aucune autorisation d'adaptation mécanique n'est ouverte par ce plan ; l'autorisation historique (§ 6.2) n'est pas reconduite par interprétation |
 | GV-5 | Toute modification d'un test, d'une assertion, d'un littéral ou d'un comportement v1, ou toute adaptation de signature, entraîne **arrêt et arbitrage explicite** |
-| GV-6 | Un ajout dans un fichier de tests existant ne modifie aucune assertion historique mais modifie le fichier : l'emplacement des tests additifs est **[Ouvert]**, réservé à V2-C et V2-P (R-C10) |
+| GV-6 | Un ajout dans un fichier de tests existant ne modifie aucune assertion historique mais modifie le fichier : l'emplacement des tests additifs est **[Arbitré]** : tests additifs dans des modules ou fichiers nouveaux (annexe V2-C § 8.2, § 10) ; V2-F : nouveau fichier `crates/engine/forge/tests/package.rs`, `tests/pipeline.rs` intact (20 novembre 2026) |
 | GV-7 | La consignation d'une éventuelle exception, une à une, se fait au compte rendu de l'unité concernée |
 
 ### 6.4 Matrice de correspondance
@@ -406,7 +406,7 @@ Constat factuel (source, texte, observation), exposé des options minimales, auc
 | VQ | Énoncé (spéc. § 7.3) | Unité | Tests historiques voisins | Notes |
 |---|---|---|---|---|
 | VQ-1 | Manifeste v2 littéral écrit à la main, indépendant des constantes : `parse` v2 rend q attendu | V2-L | `m1` | — |
-| VQ-2 | q = 0 refusé à trois frontières : octets (niveau 1), Forge, `TemporalPolicy` | V2-L (octets), V2-F (Forge) | `p2_3`, `scr_f3` (`ZeroValue`) | Octets : **B-1 [Ouvert]**. Forge : `ZeroValue("q")` [Arbitré]. `TemporalPolicy` : refus déjà porté par T1 (vérifié dans `policy.rs`, § 4.9 : `PolicyError::ZeroQuantum`) |
+| VQ-2 | q = 0 refusé à trois frontières : octets (niveau 1), Forge, `TemporalPolicy` | V2-L (octets), V2-F (Forge) | `p2_3`, `scr_f3` (`ZeroValue`) | Octets : **B-1 [Arbitré]** (`PackageError::ZeroQuantum`, annexe V2-C). Forge : `ZeroValue("q")` [Arbitré]. `TemporalPolicy` : refus déjà porté par T1 (vérifié dans `policy.rs`, § 4.9 : `PolicyError::ZeroQuantum`) |
 | VQ-3 | Longueur exacte `18 + 16·n` : tronqué, octets en trop, `n` incohérent ; ordre d'octets explicite | V2-L | `m2`, `m3`, `t6_4`, `f8` | little-endian (ARB-10) |
 | VQ-4 | Un manifeste v1 ne produit **jamais** un q ; refus typé avant toute progression | V2-L | `m4` | `Version` réutilisée [Arbitré] |
 | VQ-5 | Aller-retour Forge → paquet → lecture : q égal ; v1 : mêmes octets que `compile_assets` ; invariance à l'ordre ; q différent → manifeste différent, artefacts identiques | V2-F | `f2`, `f3`, `f7` | Condition : production v1 octet pour octet inchangée |
@@ -421,10 +421,10 @@ Constat factuel (source, texte, observation), exposé des options minimales, auc
 |---|---|
 | Constat [Fait] | `Manifest::parse` rejette déjà `version ≠ 1` par `ManifestError::Version` (G5 : `Version` n'est référencée que dans `manifest.rs`, constructeur et `m4`). **Ce refus n'est asserté nulle part à la frontière de `load`** |
 | Répartition [Arbitré] | **V2-L** vérifie la lecture du manifeste et le rejet des versions incompatibles ; **V2-P** vérifie le comportement du chargement historique face à un manifeste v2, notamment l'**absence de dépôt** |
-| Assertion visée [Proposition] | chargement historique + manifeste v2 → `LoadError::Manifest(ManifestError::Version)` ; compteur de dépôts nul |
+| Assertion visée [Arbitré, annexe V2-C § 10.3, `pk10`] | chargement historique + manifeste v2 → `LoadError::Manifest(ManifestError::Version)` ; compteur de dépôts nul |
 | Contrainte [Arbitré] | vérification **additive** ; `m4` inchangé |
 | Réserve | Si V2-C estime que `Version` ne correspond pas à la sémantique du rejet, toute autre erreur doit être **justifiée** et arbitrée (ARB-6) |
-| Emplacement du test | **[Ouvert]** : V2-C et V2-P (GV-6) |
+| Emplacement du test | **[Arbitré]** : annexe V2-C § 10.2 et § 10.3 (`mv8` dans `manifest_v2.rs`, `pk10` dans `package.rs`, tests Assets ; fichiers historiques non modifiés) |
 
 ---
 
@@ -432,10 +432,10 @@ Constat factuel (source, texte, observation), exposé des options minimales, auc
 
 | # | Besoin | État | Contenu et contraintes |
 |---|---|---|---|
-| B-1 | q = 0 refusé au niveau 1 (Assets) | **[Ouvert] V2-C** | Aucune variante de `ManifestError` ne convient (`Truncated`, `Signature`, `Version`, `TrailingBytes`, `DuplicateId`). `Version` n'est pas détournée (ARB-14). Contraintes : compatibilité source des énumérations publiques sans `#[non_exhaustive]` ; aucun `match` exhaustif dans le dépôt lu ; pistes à examiner **sans choix** : ajout d'une variante additive, type d'erreur propre au lecteur v2, autre représentation |
+| B-1 | q = 0 refusé au niveau 1 (Assets) | **[Arbitré] V2-C** (`PackageError::ZeroQuantum`, annexe § 6.3) — analyse initiale conservée ci-contre | Aucune variante de `ManifestError` ne convient (`Truncated`, `Signature`, `Version`, `TrailingBytes`, `DuplicateId`). `Version` n'est pas détournée (ARB-14). Contraintes : compatibilité source des énumérations publiques sans `#[non_exhaustive]` ; aucun `match` exhaustif dans le dépôt lu ; pistes à examiner **sans choix** : ajout d'une variante additive, type d'erreur propre au lecteur v2, autre représentation |
 | B-2 | Refus d'un v2 par le chemin historique | Couvert par `Version` | Assertion à la frontière de `load` : VQ-9b (V2-P) |
 | B-3 | Refus d'un v1 par le chemin v2 | `ManifestError::Version` [Arbitré] | Ajustement de la documentation de `Version` (cite `MANIFEST_VERSION`), sans variante |
-| B-4 | Erreurs de l'enveloppe du paquet | **[Ouvert] V2-C** | Besoin décrit, sans variante ; à examiner avec B-1 |
+| B-4 | Erreurs de l'enveloppe du paquet | **[Arbitré] V2-C** (`PackageError`, annexe § 6.3) | Besoin décrit à l'origine, sans variante ; à examiner avec B-1 |
 | B-5 | q = 0 côté Forge | `ForgeError::ZeroValue("q")` [Arbitré] | Contrat actuel : « le champ vaut zéro » ; précédent direct : `script.rs`, `ZeroValue("ticks")` construit sans l'assistant `dimension` ; `OutOfRange` (documenté pour `u16`) ne convient pas ; aucune variante |
 | B-6 | Paquet v1 ou sans q côté application | **[Dépendance] F3b** | Hors Assets et Forge (VQ-8) |
 
@@ -491,7 +491,7 @@ Contraintes transverses héritées des étapes 5 et 6 : quatre contrôles à cha
 ### 10.3 V2-L — lecteur v2 du manifeste (`verbum-assets`)
 | Rubrique | Contenu |
 |---|---|
-| Objectif | Lire un manifeste v2 portant q une seule fois (D-1d) ; refuser q nul au niveau des octets (**B-1 [Ouvert]**) ; refuser les versions incompatibles ; `parse` intact |
+| Objectif | Lire un manifeste v2 portant q une seule fois (D-1d) ; refuser q nul au niveau des octets (**B-1 [Arbitré]**) ; refuser les versions incompatibles ; `parse` intact |
 | Prérequis | P-V2 et P-CONC |
 | Fichiers (prévisions) | `assets/src/manifest.rs` ou module additif (emplacement : V2-C) ; `assets/src/lib.rs` (exports additifs) ; `Cargo.toml` inchangé |
 | Tests | VQ-1, VQ-2 (octets), VQ-3, VQ-4 ; VQ-7 : `m1` à `m8` inchangés |
@@ -516,11 +516,11 @@ Contraintes transverses héritées des étapes 5 et 6 : quatre contrôles à cha
 ### 10.5 V2-F — voie de compilation additive (`verbum-forge`)
 | Rubrique | Contenu |
 |---|---|
-| Objectif | Recevoir q explicitement ; refuser q = 0 par `ForgeError::ZeroValue("q")` ; produire le paquet (unique producteur) ; laisser `compile_assets` et son doctest inchangés ; production v1 octet pour octet identique |
+| Objectif | Recevoir q explicitement ; refuser q = 0 par `CompilePackageError::Forge(ForgeError::ZeroValue("q"))` (O-1 clos, option B ; annexe V2-C § 7.3) ; produire le paquet (unique producteur) ; laisser `compile_assets` et son doctest inchangés ; production v1 octet pour octet identique |
 | Prérequis | V2-P |
-| Fichiers (prévisions) | `forge/src/batch.rs` ou module additif ; `lib.rs` ; `forge/src/sprite.rs` seulement si une variante est arbitrée ; `tests/pipeline.rs` (ajouts seulement, GV-6) |
-| Tests | VQ-2 (Forge), VQ-5, VQ-9c |
-| Familles de mutation | q non écrit ; q écrit deux fois ; octets v1 altérés ; paquet recomposable hors constructeur |
+| Fichiers (prévisions) | nouveau module `forge/src/package.rs` (annexe V2-C § 8.2) ; `lib.rs` (exports) ; **nouveau `crates/engine/forge/tests/package.rs`** (arbitrage du 20 novembre 2026) ; `batch.rs` et `sprite.rs` inchangés (O-1 clos : option B, aucune variante de `ForgeError`) ; **`tests/pipeline.rs` intact** |
+| Tests | VQ-2 (Forge), VQ-5, VQ-9c ; `pf1`–`pf8` (`tests/package.rs`) et `pl1`–`pl4` (unitaires, fonction pure de layout, `forge/src/package.rs`) : annexe V2-C § 10.4 |
+| Familles de mutation | layout (conversion saturante, `as`, seuil `isize::MAX`, allocation avant validation, P7 masqué) ; q non écrit ; q écrit deux fois ; octets v1 altérés ; paquet recomposable hors constructeur |
 | Non-régression | `f2`, `f3`, `f7`, `f8`, `vm_1`, `t6_4`, `t6_6`, `scr_f5` inchangés |
 | Acceptation | VQ-2, 5, 9c verts ; `cargo tree -i toml --workspace` (inchangé, formulation de la roadmap) ; `cargo tree -i verbum-forge --workspace -e normal` (aucun dépendant) |
 | Miri | `cargo +nightly miri test -p verbum-forge -- --skip p3_1 --skip p3_2 --skip t6_1 --skip t6_3 --skip t6_6` : **partiel** (exclusions connues de l'étape 5), rapporté comme tel |
@@ -633,21 +633,30 @@ Le plan V2 est la référence centrale. À V2-Z, les comptes rendus Assets et Fo
 ## 14. Décisions
 
 ### 14.1 Adoptées
-ARB-1 à ARB-23 (§ 4.2) ; D-1, D-1b, D-1c, D-1d, R-1, D-N3, D-N6 (§ 4.1, § 12).
+ARB-1 à ARB-23 (§ 4.2) ; D-1, D-1b, D-1c, D-1d, R-1, D-N3, D-N6 (§ 4.1, § 12) ; **O-1** (annexe V2-C § 7.3, clos le 19 novembre 2026 : option B, type d'erreur distinct `CompilePackageError`, aucune variante ajoutée à `ForgeError`).
+
+Décisions confiées à V2-C, **closes** par l'annexe V2-C r5.2 (P-CONC franchie le 19 novembre 2026) ; le fond des arbitrages n'est pas modifié ici :
+
+| Décision | Résolution | Référence |
+|---|---|---|
+| D-N4 : layout du paquet | **Résolue** : L3b (enveloppe `VPKG` version 1, compteur `n'` `u32`, table de offsets `u64` absolus little-endian, manifeste v2, artefacts) | annexe § 3, P-1 |
+| B-1 : q = 0 au niveau des octets | **Résolue** : `PackageError::ZeroQuantum` ; `Version` non détournée ; aucune variante ajoutée aux énumérations historiques | annexe § 6.3, E3 |
+| B-4 : erreurs de l'enveloppe | **Résolue** : `PackageError` (`Truncated`, `Signature`, `Version`, `Offsets`, `ZeroQuantum`, `Load`), `non_exhaustive` | annexe § 4.5, § 6.3, E3 |
+| Noms et visibilité des constantes v2 (ARB-22) | **Résolus** : espaces de noms `package` et `manifest_v2` | annexe § 6.1, P-1, P-2 |
+| Nom et API de la voie de compilation | **Résolus** : `compile_package`, `CompiledPackage`, `as_bytes` ; erreur `CompilePackageError` | annexe § 7, P-5, O-1 |
+| Emplacement des tests additifs, dont VQ-9b (GV-6) | **Résolu** : modules et fichiers nouveaux ; V2-F : `crates/engine/forge/tests/package.rs`, `tests/pipeline.rs` intact | annexe § 8.2, § 10, P-7 ; arbitrage du 20 novembre 2026 |
+| Assertion exacte de VQ-9b | **Résolue** : `LoadError::Manifest(ManifestError::Version)` et zéro dépôt (`pk10`, V2-P) | annexe § 10.3 |
 
 ### 14.2 Ouvertes
 
 | Décision | Réservée à | Remarque |
 |---|---|---|
-| D-N4 : layout du paquet | V2-C (P-CONC) | — |
-| B-1 : q = 0 au niveau des octets | V2-C | `Version` exclue |
-| B-4 : erreurs de l'enveloppe | V2-C | — |
-| Noms et visibilité des constantes v2 ; nom de la voie de compilation | V2-C | ARB-22 |
-| Emplacement des tests additifs, dont VQ-9b | V2-C et V2-P | GV-6 |
-| Assertion exacte de VQ-9b | V2-P | `Version` proposée |
 | D-N2 : durées non entières | F2 | G-ARB-F2 |
 | D-N5 : portée de `games/demo` | F3a | — |
 | D-N1 : valeurs q, K, M | F3c | — |
+
+Aucune décision du chantier V2-L, V2-P, V2-F ni V2-Z ne reste ouverte. Les trois lignes ci-dessus relèvent des unités F2, F3a et F3c, hors chantier V2.
+
 
 ---
 

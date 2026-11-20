@@ -9,12 +9,14 @@ mod batch;
 mod font;
 mod id;
 mod map;
+mod package;
 mod script;
 mod sprite;
 mod tileset;
 
 pub use batch::{AssetKind, AssetSource, CompiledSet, compile_assets};
 pub use font::compile_font;
+pub use package::{CompilePackageError, CompiledPackage, compile_package};
 pub use script::compile_script;
 pub use sprite::{ForgeError, compile_sprite};
 pub use tileset::compile_tileset;

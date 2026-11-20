@@ -1,18 +1,32 @@
-# Verbum — Annexe V2-C : note de conception du paquet `VMAN` v2 — r5
+# Verbum — Annexe V2-C : note de conception du paquet `VMAN` v2 — r5.2
 
 ## 0. Statut, portée, marqueurs
 
 **Statut : validée (19 novembre 2026, par l'utilisateur).** **Non normative. Note de conception, révision 5, version finale (19 novembre 2026), annexe à statut distinct du plan `03-verbum-shell-temporal-policy-vman-v2.md` (r1, § 10.2, ARB-19). Elle remplace les révisions 1 à 4.** Elle ne modifie pas le corps du plan. **P-CONC est franchie** (19 novembre 2026, prononcée par l'utilisateur) : la conception V2-C est validée. Cette note n'autorise elle-même aucune implémentation ; V2-L puis V2-P s'ouvrent chacune dans une session dédiée (D-N6), sur la base de cette note et du plan V2-0.
 
+**Mise à jour r5.1 (20 novembre 2026) : O-1 clos (option B, arbitrage du 19 novembre 2026).** Seuls les passages concernés sont modifiés : § 0, § 1.1, § 1.3, § 7.1 à 7.3, § 8.1, § 8.2, § 10.4 à 10.6, RK-12, « Non démontré », § 12, § 13. Aucun autre passage n'est touché.
+
+**Mise à jour r5.2 (20 novembre 2026) : harmonisation documentaire, validée par l'utilisateur.** Registre des décisions du plan V2-0 (§ 14) synchronisé avec le § 12 ; emplacement des tests V2-F arbitré (`crates/engine/forge/tests/package.rs`, `tests/pipeline.rs` intact) ; tests `pl1`–`pl4` maintenus dans le périmètre V2-F ; § 12 mis à jour. Aucun arbitrage antérieur n'est modifié.
+
 Aucun code, test, `Cargo.toml`, ADR ou commit n'est créé. Les extraits Rust sont des **esquisses non normatives**. Aucune commande n'a été exécutée par la session : tout énoncé « démontré » désigne un raisonnement et des tests prévus, non des résultats.
+
+Changements de la révision 5.2 (harmonisation) :
+- **Emplacement des tests V2-F arbitré** : nouveau fichier `crates/engine/forge/tests/package.rs` ; `tests/pipeline.rs` intact (§ 8.2, § 10.4).
+- **`pl1`–`pl4` maintenus** dans le périmètre V2-F, avec la ligne de mutations associée (§ 10.4, § 10.5).
+- Plan V2-0 : § 14 synchronisé (§ 12), § 10.5 et GV-6 alignés.
+
+Changements de la révision 5.1 (clôture de O-1) :
+- **O-1 clos : option B** (type d'erreur distinct `CompilePackageError`) ; option A (variante ajoutée à `ForgeError`) écartée ; E3 non rouvert (§ 7.3).
+- Contrat exact de `CompilePackageError`, signature de `compile_package`, correspondance P1–P7 ↔ variantes, contraintes pour V2-F, réserve sur les cibles 32 bits (§ 7.1, § 7.3).
+- Plus aucun point ouvert dans cette note.
 
 Changements de la révision 5 (arbitrages, quatrième série) :
 - **A-1 clos : option X** (§ 4.5.4). L'enveloppe délimite la section de manifeste par le premier offset ; elle ne recalcule ni ne lit la longueur du manifeste ; l'écart de longueur relève du lecteur. Séparation explicite des responsabilités (§ 4.5.1). Options Y refusée, Z exclue.
 - **A-2 confirmé, avec ordre de priorité** des contrôles d'extraction (§ 4.2, § 4.5.4).
-- **Clos** : preuve du § 4.2 acceptée ; P-3, P-4 ; nomenclature Forge (P-5) ; P-7 ; `Version` (doc) ; O-1 option `unreachable!` écartée.
+- **Clos** : preuve du § 4.2 acceptée ; P-3, P-4 ; nomenclature Forge (P-5) ; P-7 ; `Version` (doc) ; O-1 option `unreachable!` écartée ; **O-1 clos (option B, r5.1)**.
 - **P-1 adoptée** (19 novembre 2026) : `package::SIGNATURE = *b"VPKG"` et `package::VERSION = 1`. Dossier de preuve consigné (§ 3.5, F-14) : commit `d30a1c725a33abbe48e41c83bb7744e68b263d7a`.
 - **P-2 adopté** (19 novembre 2026), y compris `manifest_v2::ENTRY_LEN` conservée publique.
-- **P-CONC franchie.** **Seul point ouvert** : O-1, qui bloque V2-F uniquement (ni V2-L ni V2-P). Aucune proposition ni aucun cas limite de classification ne demeure.
+- **P-CONC franchie.** **O-1, seul point ouvert de la révision 5, est clos en r5.1** (§ 7.3). Aucune proposition, aucun cas limite de classification et aucun point ouvert ne demeure.
 - Mentions « sous réserve de A-1 / A-2 » supprimées ; RK-4, RK-13, § 13 mis à jour.
 
 Changements de la révision 4 (arbitrages du 18 novembre 2026, troisième série) :
@@ -52,15 +66,15 @@ Sources lues : les cinq documents de référence, le plan V2, la spécification 
 | **A-1** | **Option X.** Le rôle de l'enveloppe est de délimiter la section de manifeste au moyen du premier offset ; la longueur attendue du manifeste relève du lecteur et de son contrôle de cohérence interne. L'extraction ne lit aucun octet du manifeste et ne recalcule pas sa longueur. Option Y refusée (duplique la règle de longueur, rend `EntryCountMismatch` inatteignable) ; option Z exclue. Section trop courte : `Load(Manifest(Truncated))` ; trop longue : `Load(Manifest(TrailingBytes))`. |
 | **A-2** | Section de manifeste de longueur nulle : `len ≤ T` → `Truncated` (absence physique, `n' = 0` compris) ; `len > T`, `n' > 0` et `s_0 ≤ T` → `Offsets`. **Priorité** : le contrôle physique précède le contrôle de la table (§ 4.2). Pour `n' = 0` et `len > T`, le manifeste occupe le reste du paquet, sa validité relève du lecteur. |
 | **Ordre du lecteur v2** | Disponibilité contrôlée champ par champ : six octets, signature, version, huit octets de q, lecture de q et rejet de zéro, quatre octets de `n`, lecture de `n`, longueur attendue vérifiée, longueur exacte, doublons. Pour un manifeste de 14 à 17 octets : `q = 0` → `ZeroQuantum` ; `q ≠ 0` → `Truncated`. |
-| **E3** | `PackageError` public, `#[non_exhaustive]`, variantes `Truncated`, `Signature`, `Version`, `Offsets`, `ZeroQuantum`, `Load(LoadError)`. Aucune variante ajoutée à `ManifestError`, `LoadError`, `ForgeError`. Version de manifeste incompatible dans une enveloppe valide : `Load(LoadError::Manifest(ManifestError::Version))`. Manifeste v1 nu donné comme paquet : `Signature`. |
+| **E3** | `PackageError` public, `#[non_exhaustive]`, variantes `Truncated`, `Signature`, `Version`, `Offsets`, `ZeroQuantum`, `Load(LoadError)`. Aucune variante ajoutée à `ManifestError`, `LoadError`, `ForgeError`. Version de manifeste incompatible dans une enveloppe valide : `Load(LoadError::Manifest(ManifestError::Version))`. Manifeste v1 nu donné comme paquet : `Signature`. **E3 n'est pas rouvert par O-1** : l'erreur de production est portée par un type distinct, `CompilePackageError` (§ 7.3). |
 | **API de chargement** | Nom `load_package` ; retour `Result<NonZeroU64, PackageError>` ; assets par le mécanisme de dépôt existant ; q rendu seulement si le chargement complet réussit ; aucun accès public autonome à q. |
 | **Modules et réexport (P-3)** | Modules publics `package` et `manifest_v2` ; aucune constante générique à la racine ; constantes v1 inchangées. `load_package` et `PackageError` réexportés à la racine, par continuité avec `load`. |
 | **Lecteur et erreur (P-4)** | Le lecteur v2 de V2-L rend un type d'erreur interne ; `PackageError` n'est introduit que par V2-P. |
 | **`Version` (doc)** | Formulation française : « Version du manifeste non prise en charge par ce lecteur. » Commentaire seul, en V2-L ; aucune assertion modifiée. |
 | **P-1** | `package::SIGNATURE = *b"VPKG"` et `package::VERSION = 1` : **adoptés**, sur le dossier de preuve du § 3.5. |
 | **P-2** | Constantes des modules `package` et `manifest_v2` : noms, types, visibilités, consommateurs et justifications du § 6.1 adoptés. `manifest_v2::ENTRY_LEN` conservée comme constante publique : elle expose à la Forge la largeur déclarée par le format v2 ; `Manifest::from_region` utilise la largeur commune `MANIFEST_ENTRY_LEN` ; l'assertion de compilation garantit leur cohérence. La duplication de déclaration entre v1 et v2 est intentionnelle (deux contrats de format, un invariant commun), sans coût d'exécution ni dépendance entre lecteurs. |
-| **Forge (P-5)** | Nomenclature acceptée : `compile_package`, `CompiledPackage`, `as_bytes`. Contrat de signature et de comportement explicité (§ 7.1). V-F1 ; `compile_assets` strictement inchangée ; q validé avant la compilation (`ForgeError::ZeroValue("q")`) ; V-F2 non autorisée ; type résultat à champs privés exposant le paquet complet sans accesseurs séparés ; `TooManyAssets` jamais détourné. |
-| **O-1** | Ouvert, bloque **V2-F seulement** ; l'option fondée sur une assertion de compilation et un `unreachable!` est définitivement écartée. |
+| **Forge (P-5)** | Nomenclature acceptée : `compile_package`, `CompiledPackage`, `as_bytes`. Contrat de signature et de comportement explicité (§ 7.1). V-F1 ; `compile_assets` strictement inchangée ; q validé avant la compilation (`CompilePackageError::Forge(ForgeError::ZeroValue("q"))`) ; V-F2 non autorisée ; type résultat à champs privés exposant le paquet complet sans accesseurs séparés ; `TooManyAssets` jamais détourné. |
+| **O-1** | **Clos (19 novembre 2026, r5.1) : option B.** Type d'erreur distinct `CompilePackageError { Forge(ForgeError), PackageTooLarge, InconsistentBatch }`, `#[non_exhaustive]` ; `compile_package` rend `Result<CompiledPackage, CompilePackageError>` ; aucune variante ajoutée à `ForgeError` ; E3 non rouvert ; option A et option `unreachable!` écartées. Contrat : § 7.3. |
 | **Digest** | Écarté définitivement. |
 | **Unités et tests (P-7)** | Fichiers par unité : prévisions acceptées, confirmées à l'ouverture de chaque unité. V2-L et V2-P séparées ; **D-N6** : une unité par session par défaut, aucun regroupement implicite ; `expect(dead_code)` temporaires, localisés ; T1 ; tests historiques inchangés ; noms de tests laissés à cette note, avec correspondance aux VQ. |
 | **Provenance** | La garantie protège la chaîne normale de production et de chargement, non la fabrication volontaire d'un paquet structurellement valide (§ 11.1). |
@@ -71,11 +85,9 @@ Aucune. P-1 et P-2 sont adoptées (§ 1.1).
 
 ### 1.3 Ouvert
 
-| # | Point | Effet |
-|---|---|---|
-| **O-1** | Représentation de l'erreur Forge pour une taille ou un offset non représentable, et pour les invariants de la sortie de `compile_assets` | bloque **V2-F** seulement ; n'empêche pas V2-L ni V2-P ; hors P-CONC |
+Aucun. **O-1** (représentation de l'erreur Forge pour une taille ou un offset non représentable, et pour les invariants de la sortie de `compile_assets`) est **clos** : option B, § 7.3. V2-F n'est plus bloquée ; elle s'ouvre dans une session dédiée (D-N6).
 
-Aucun cas limite de classification ne reste à arbitrer (A-1 et A-2 clos, § 4.5.4). O-1 est le seul point ouvert.
+Aucun cas limite de classification ne reste à arbitrer (A-1 et A-2 clos, § 4.5.4).
 
 ---
 
@@ -589,21 +601,30 @@ Texte adopté (commentaire seul, V2-L ; aucune assertion modifiée) : « Version
 | `compile_package` | fonction | publique | tests Forge ; application (F3b) |
 | `CompiledPackage` | type résultat, champ privé `Vec<u8>` | publique, sans constructeur public | tests Forge, application |
 | `CompiledPackage::as_bytes` | méthode `&self -> &[u8]` | publique | idem |
+| `CompilePackageError` | énumération d'erreur de `compile_package` (O-1, option B) | publique, exposée à la racine du crate Forge avec `compile_package` | tests Forge ; application (F3b) |
 
 ```rust
-// esquisse non normative
+// contrat arbitré (O-1, option B) ; corps non normatifs
 pub fn compile_package(
     sources: &[AssetSource<'_>],
     slot_count: usize,
     quantum_ns: u64,
-) -> Result<CompiledPackage, ForgeError>;   // type d'erreur : O-1
+) -> Result<CompiledPackage, CompilePackageError>;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum CompilePackageError {
+    Forge(ForgeError),
+    PackageTooLarge,
+    InconsistentBatch,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CompiledPackage { /* champ privé */ }
 impl CompiledPackage { pub fn as_bytes(&self) -> &[u8]; }
 ```
 
-**Contrat.** `compile_package(sources, slot_count, quantum_ns)` : `quantum_ns == 0` → `ForgeError::ZeroValue("q")` avant toute compilation ; sinon mêmes erreurs et même ordre que `compile_assets` ; en cas de succès, un `CompiledPackage` dont `as_bytes()` est le paquet complet (enveloppe, manifeste v2, artefacts) et rien d'autre. `CompiledPackage` : champ privé, aucun constructeur public, aucun accesseur de q, du manifeste ou des artefacts. Le type d'erreur pour les tailles non représentables reste **O-1**.
+**Contrat.** `compile_package(sources, slot_count, quantum_ns)` : `quantum_ns == 0` → `CompilePackageError::Forge(ForgeError::ZeroValue("q"))` avant toute compilation ; sinon mêmes erreurs et même ordre que `compile_assets`, enveloppées dans `CompilePackageError::Forge(_)` ; en cas de succès, un `CompiledPackage` dont `as_bytes()` est le paquet complet (enveloppe, manifeste v2, artefacts) et rien d'autre. `CompiledPackage` : champ privé, aucun constructeur public, aucun accesseur de q, du manifeste ou des artefacts. Les tailles et offsets non représentables et les invariants de la sortie de `compile_assets` sont portés par `PackageTooLarge` et `InconsistentBatch` (§ 7.3, **O-1 clos**).
 
 **API minimale** : `as_bytes` seule. Aucun accesseur séparé du manifeste ou des artefacts (contrairement à `CompiledSet`) ; aucun constructeur public ; aucune méthode qui rende q. Nomenclature **acceptée** (P-5) ; motifs : le préfixe `compile_` suit `compile_assets` ; `package` reprend le vocabulaire de `package::` et de `load_package`. Alternative non retenue : un suffixe de version (`compile_assets_v2`), qui désignerait le format plutôt que le produit.
 
@@ -611,33 +632,80 @@ impl CompiledPackage { pub fn as_bytes(&self) -> &[u8]; }
 
 ### 7.2 Algorithme de production (V-F1)
 
-1. `quantum_ns == 0` → `ForgeError::ZeroValue("q")`, **avant** toute compilation : une erreur de source ne masque pas q nul.
-2. `let set = compile_assets(sources, slot_count)?` : mêmes erreurs, même ordre, mêmes octets que la voie v1.
+1. `quantum_ns == 0` → `CompilePackageError::Forge(ForgeError::ZeroValue("q"))`, **avant** toute compilation : une erreur de source ne masque pas q nul.
+2. `let set = compile_assets(sources, slot_count).map_err(CompilePackageError::Forge)?` : mêmes erreurs, même ordre, mêmes octets que la voie v1.
 3. Composants repris du manifeste v1, sans conversion : le compteur (octets `6..10` de `set.manifest()`) et les entrées (octets à partir de `MANIFEST_HEADER_LEN`). Un compteur identique est écrit dans l'enveloppe (`n'`) et dans le manifeste (`n`).
 4. Manifeste v2 : `manifest_v2::SIGNATURE`, `manifest_v2::VERSION` LE, `quantum_ns` LE, compteur, entrées.
-5. Offsets : `T = package::HEADER_LEN + package::OFFSET_WIDTH · n'` ; `s_0 = T + manifest_v2::HEADER_LEN + manifest_v2::ENTRY_LEN · n` ; `s_{i+1} = s_i + longueur(artefact i)`. **Toute opération est vérifiée** (`checked_*`, `try_from`) ; offsets écrits en `u64` LE.
+5. Offsets : `T = package::HEADER_LEN + package::OFFSET_WIDTH · n'` ; `s_0 = T + manifest_v2::HEADER_LEN + manifest_v2::ENTRY_LEN · n` ; `s_{i+1} = s_i + longueur(artefact i)`. **Toute opération est vérifiée** (`checked_*`, `try_from`) ; offsets écrits en `u64` LE. Les échecs sont classés par la table P1–P7 (§ 7.3). Le calcul du layout est isolé dans une fonction pure et précède toute allocation du paquet.
 6. Assemblage : en-tête, table, manifeste v2, artefacts, dans cet ordre ; `debug_assert` sur la longueur totale.
 7. Retour de `CompiledPackage`.
 
 Allocations et copies acceptées (build). La Forge n'ajoute aucune dépendance ; `Cargo.lock` inchangé.
 
-### 7.3 O-1 : erreurs de représentation côté Forge [Ouvert]
+### 7.3 O-1 : erreurs de représentation côté Forge [Arbitré — clos, option B]
 
-**Règle imposée** : toute arithmétique de taille et d'offset est vérifiée. Aucun `unwrap_or(MAX)`, aucune saturation, aucun `as`, aucun `unreachable!` qui masquerait un échec possible, aucun détournement de `TooManyAssets` ni de `PayloadTooLarge`. Aucune variante n'est ajoutée sans arbitrage.
+**Décision (19 novembre 2026).** Option B : type d'erreur distinct pour `compile_package`, qui encapsule `ForgeError`. Option A (variante ajoutée à `ForgeError`) **écartée** : `ForgeError` est une énumération publique exhaustive, sans `#[non_exhaustive]` ; toute variante serait une rupture de compatibilité source pour d'éventuels consommateurs externes inconnus. **E3 n'est pas rouvert** : aucune variante n'est ajoutée à `ManifestError`, `LoadError` ni `ForgeError`. L'option fondée sur une assertion de compilation et un `unreachable!` reste définitivement écartée.
 
-Faits :
-- les étapes 3 et 5 contiennent des conversions, additions et découpages dont l'échec est improbable (la sortie de `compile_assets` respecte son layout documenté, épinglé par `f2`, `f8`, `vm_1` ; `compile_assets` refuse plus de `u32::MAX` entrées), mais non établi par les types ;
-- elles doivent rendre une erreur typée ;
-- aucune variante existante de `ForgeError` ne convient sans détournement.
+**Règle imposée (inchangée).** Toute arithmétique de taille et d'offset est vérifiée. Aucun `as`, aucune saturation, aucun `unwrap_or(MAX)`, aucun `unreachable!` ni assertion qui masquerait un échec possible, aucun détournement de `TooManyAssets`, de `PayloadTooLarge` ni de `ZeroValue`.
 
-Options (l'option fondée sur une assertion de compilation et un `unreachable!` est **définitivement écartée**) :
+#### 7.3.1 Contrat de `CompilePackageError`
 
-| Option | Effet |
+```rust
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum CompilePackageError {
+    Forge(ForgeError),
+    PackageTooLarge,
+    InconsistentBatch,
+}
+
+pub fn compile_package(
+    sources: &[AssetSource<'_>],
+    slot_count: usize,
+    quantum_ns: u64,
+) -> Result<CompiledPackage, CompilePackageError>;
+```
+
+| Élément | Contrat |
 |---|---|
-| B | nouvelle variante de `ForgeError` pour une taille ou un offset de paquet non représentable (arbitrage requis) |
-| C | type d'erreur distinct pour `compile_package`, qui encapsule `ForgeError` (API différente de `compile_assets`) |
+| Exposition | `CompilePackageError` et `compile_package` à la racine du crate Forge |
+| Nom | `PackageError` évité côté Forge : ce nom désigne déjà l'erreur de chargement d'Assets (`non_exhaustive`, `Load(LoadError)`) |
+| `Forge(ForgeError)` | erreurs de `compile_assets`, **et** q nul : `Forge(ForgeError::ZeroValue("q"))` |
+| `PackageTooLarge` | taille ou offset de paquet non représentable ; couvre aussi une capacité supérieure à `isize::MAX`. Le nom ne dit pas « dépassement arithmétique » : la capacité n'en est pas nécessairement un |
+| `InconsistentBatch` | violation d'un invariant structurel de la sortie de `compile_assets` |
+| Variantes de `ForgeError` | aucune ajoutée ; `TooManyAssets` et `ZeroValue` non détournés |
+| `compile_assets`, `compile_assets_with`, `CompiledSet`, `batch.rs` | inchangés |
 
-Le choix attend V2-F. **Aucune implémentation de V2-F ne démarre avant sa résolution.** V2-L et V2-P n'en dépendent pas.
+#### 7.3.2 Correspondance P1–P7 ↔ variantes
+
+| # | Opération ou invariant | Variante |
+|---|---|---|
+| P1 | `n'` = `u32::try_from(artifacts.len())` : un échec après un `compile_assets` réussi révèle une incohérence interne | `InconsistentBatch` |
+| P2 | `T = 10 + 8·n'` | `PackageTooLarge` |
+| P3 | `s_0 = T + 18 + 16·n` | `PackageTooLarge` |
+| P4 | offsets cumulés `s_{i+1} = s_i + longueur(artefact i)` | `PackageTooLarge` |
+| P5 | longueur totale, ou capacité demandée, supérieure à `isize::MAX` (rejet **avant** `Vec::with_capacity`) | `PackageTooLarge` |
+| P6 | `u64::try_from(usize)` pour les offsets écrits | `PackageTooLarge` |
+| P7 | invariants de la sortie de `compile_assets` : manifeste de longueur `10 + 16·n`, artefact non vide, compte cohérent | `InconsistentBatch` |
+
+P7 impose une erreur explicite : jamais `unreachable!`, jamais d'assertion.
+
+#### 7.3.3 Contraintes pour V2-F
+
+1. Le calcul du layout est isolé dans une **fonction pure**, testable sans allocation (forme indicative : `package_layout(entries_len, artifact_lens)`).
+2. Les tests couvrent les calculs de taille et d'offset et le seuil `isize::MAX`, avec des **longueurs synthétiques** (aucune allocation de cette taille).
+3. L'allocation ne commence **qu'après** validation complète du layout ; une capacité supérieure à `isize::MAX` est rejetée avant `Vec::with_capacity`.
+4. L'échec d'allocation dans les limites représentables reste **hors contrat**.
+5. Aucun `as`, aucune saturation, aucun `unwrap_or(MAX)`, aucun `unreachable!`.
+6. `compile_assets` ne change pas ; V-F1 (réutilisation de `compile_assets_with` sans modification) inchangée.
+
+#### 7.3.4 Réserve sur les cibles 32 bits
+
+Les cibles 32 bits **n'ont pas été testées** dans le dépôt. Cette limite reste documentée (RK-5, RK-14, « Non démontré ») et ne doit pas être présentée comme une validation. Les calculs sont corrects par construction, indépendamment de la largeur de `usize` (arithmétique vérifiée, aucune conversion non contrôlée) : c'est un argument de conception, non un résultat de test.
+
+#### 7.3.5 Constat hors périmètre
+
+`map.rs::encode_map` contient `u32::try_from(payload).unwrap_or(u32::MAX)`, inatteignable car protégé par `parse_map`. Signalé, **non traité** ici (hors périmètre de V2 et de cette clôture).
 
 ---
 
@@ -651,7 +719,7 @@ Le choix attend V2-F. **Aucune implémentation de V2-F ne démarre avant sa rés
 | Extraction, niveaux 1 à 4, q | oui | non |
 | Production du paquet | non | oui, unique |
 | Cohérence manifeste ↔ artefacts | structurelle (niveaux 1 à 4) | par construction (même appel) |
-| Validation de q > 0 | octets (`ZeroQuantum`) | paramètre (`ZeroValue("q")`) |
+| Validation de q > 0 | octets (`ZeroQuantum`) | paramètre (`CompilePackageError::Forge(ForgeError::ZeroValue("q"))`) |
 
 ### 8.2 Fichiers par unité et sessions [P-7 clos ; D-N6]
 
@@ -661,10 +729,10 @@ Le choix attend V2-F. **Aucune implémentation de V2-F ne démarre avant sa rés
 |---|---|---|
 | **V2-L** | `manifest.rs` (helper `from_region` ; commentaire de `Version`) ; nouveau `manifest_v2.rs` (constantes, lecteur v2, type d'erreur interne, tests) ; `lib.rs` (`pub mod manifest_v2`) | aucun |
 | **V2-P** | `load.rs` (`load_core`, `load` mince) ; nouveau `package.rs` (constantes, `PackageError`, extraction, `load_package`, tests) ; `lib.rs` (`pub mod package`, réexport) | aucun |
-| **V2-F** (après O-1) | aucun | nouveau `package.rs` ; `lib.rs` (exports) ; nouveau `tests/package.rs` |
+| **V2-F** (O-1 clos ; session dédiée) | aucun | nouveau `package.rs` ; `lib.rs` (exports) ; nouveau `crates/engine/forge/tests/package.rs` (**arbitré**, 20 novembre 2026) |
 | **V2-Z** | consignations additives | consignations additives |
 
-Les listes sont des prévisions, confirmées à l'ouverture de chaque unité. `batch.rs`, `sprite.rs`, `script.rs`, `tests/pipeline.rs` ne sont pas modifiés. V2-L ne livre aucun chargement de paquet : seulement le lecteur de manifeste v2.
+Les listes sont des prévisions, confirmées à l'ouverture de chaque unité. `batch.rs`, `sprite.rs`, `script.rs`, `tests/pipeline.rs` ne sont pas modifiés (pour `tests/pipeline.rs` : arbitrage du 20 novembre 2026, les tests du producteur de paquet ont leur propre fichier). V2-L ne livre aucun chargement de paquet : seulement le lecteur de manifeste v2.
 
 **Lint temporaire (V2-L).** Le lecteur v2 et son type d'erreur sont `pub(crate)` et inutilisés hors tests entre V2-L et V2-P. Forme adoptée :
 
@@ -751,7 +819,7 @@ Noms laissés à cette note ; ils peuvent être ajustés au document d'exécutio
 | doctests | `compile_fail` : noyau, extraction, lecteur v2 inaccessibles de l'extérieur (codes à épingler au constat du rouge) ; `compile_fail` : libérer le tampon après `load_package` puis utiliser un `Asset` déposé ; jumeau valide |
 | Inchangés | `l1`–`l5`, `tb1`, `ld1`, `sf1`–`sf6`, `rf1`–`rf6`, `scr_l*`, doctests LT-5n/5t, `lt5` |
 
-### 10.4 V2-F (`forge/tests/package.rs`, en mémoire ; après résolution de O-1)
+### 10.4 V2-F (`crates/engine/forge/tests/package.rs`, en mémoire ; O-1 clos ; `tests/pipeline.rs` intact)
 
 | Test | Énoncé |
 |---|---|
@@ -759,10 +827,11 @@ Noms laissés à cette note ; ils peuvent être ajustés au document d'exécutio
 | `pf2` | aller-retour : `compile_package` → `load_package` : mêmes slots que T6.1 ; q égal |
 | `pf3` | entrées du manifeste v2 et artefacts égaux à ceux de `compile_assets` du même lot |
 | `pf4` | permutation de l'entrée : mêmes identifiants et slots, `artifact_index` permutés ; q différent : paquet différent **exactement aux 8 octets de q**, offsets et artefacts identiques |
-| `pf5` | `q = 0` : `ZeroValue("q")`, aucune sortie ; **priorité** sur une source invalide |
-| `pf6` | mêmes erreurs que `compile_assets` pour un lot invalide avec `q ≠ 0` |
+| `pf5` | `q = 0` : `Forge(ZeroValue("q"))`, aucune sortie ; **priorité** sur une source invalide |
+| `pf6` | mêmes erreurs que `compile_assets` pour un lot invalide avec `q ≠ 0`, enveloppées dans `Forge(_)` |
 | `pf7` | lot vide : 28 octets ; `load_package` : `Ok(q)`, aucun dépôt |
 | `pf8` | `compile_fail` : `CompiledPackage` sans constructeur, sans champ public, sans `manifest()` ni `artifacts()` |
+| `pl1`–`pl4` (**unitaires** dans `forge/src/package.rs`, la fonction de layout étant privée ; **maintenus dans le périmètre V2-F**, 20 novembre 2026) | fonction de layout pure, longueurs synthétiques : `pl1` valeurs exactes de `T`, `s_0` et des offsets (lot vide, lot de référence) ; `pl2` dépassement de P2, P3, P4, P6 → `PackageTooLarge` ; `pl3` seuil `isize::MAX` (exactement accepté, +1 refusé), avant toute allocation → `PackageTooLarge` ; `pl4` invariants P1 et P7 violés (compte, longueur de manifeste, artefact vide) → `InconsistentBatch` |
 | Inchangés | `f2`, `f3`, `f7`, `f8`, `vm_1`, `t6_4`, `t6_6`, `scr_f5`, doctest de `compile_assets` |
 
 ### 10.5 Mutations (copies isolées, une à la fois ; une erreur de compilation ne compte pas comme détection)
@@ -785,6 +854,7 @@ Noms laissés à cette note ; ils peuvent être ajustés au document d'exécutio
 | V2-F | q non écrit ou écrit deux fois ; offsets calculés avec `10 + 16·n` ; artefacts permutés ; table big-endian | `pf1`, `pf2` |
 | V2-F | contrôle de q après la compilation ; q nul accepté | `pf5` |
 | V2-F | entrées issues d'une autre compilation ; accesseurs séparés exposés | `pf3`, `pf8` |
+| V2-F | conversion saturante ou `as` dans le layout ; seuil `isize::MAX` décalé ; allocation avant validation du layout ; P7 traité par `unreachable!` ou assertion ; `PackageTooLarge` et `InconsistentBatch` permutés | `pl1`–`pl4` |
 
 ### 10.6 Critères de sortie et portes
 
@@ -794,7 +864,7 @@ Pour chaque unité : `cargo build --workspace`, `cargo test --workspace`, `cargo
 |---|---|
 | V2-L | `mv1`–`mv9` verts ; `m1`–`m8` inchangés ; `expect(dead_code)` locaux seulement ; Miri `-p verbum-assets` intégral |
 | V2-P | `pk1`–`pk14` et doctests verts ; suites historiques inchangées ; **`expect(dead_code)` retirés** ; Miri intégral Assets |
-| V2-F | **O-1 résolu** ; `pf1`–`pf8` verts ; `cargo tree -i toml --workspace` inchangé ; `cargo tree -i verbum-forge --workspace -e normal` sans dépendant ; Miri Forge **partiel** (exclusions connues de l'étape 5, rapporté comme tel) |
+| V2-F | **O-1 clos (option B)** ; `pf1`–`pf8` et `pl1`–`pl4` verts ; `compile_assets` et `ForgeError` inchangés ; `cargo tree -i toml --workspace` inchangé ; `cargo tree -i verbum-forge --workspace -e normal` sans dépendant ; Miri Forge **partiel** (exclusions connues de l'étape 5, rapporté comme tel) |
 | V2-Z | VQ-1 à VQ-7 et VQ-9 verts ; consignations additives ; liste « non démontré » ; **P-E** |
 
 **G-CM** : arrêt avec rapport si un niveau est créé, supprimé ou réordonné, si un dépôt précède la fin du niveau 3, si une allocation entre dans le chargement, si le modèle d'identité change, ou si un octet v1 produit change. **R-ADAPT / GV-1 à GV-5** : aucune adaptation attendue ; toute modification d'assertion ou de littéral v1 est un arrêt. **G-S6** : `forge/src/script.rs` et les tests `scr_*` ne sont pas modifiés.
@@ -825,16 +895,17 @@ La garantie de V2 protège **la chaîne normale de production et de chargement**
 | RK-9 | Prémisse « octets immuables » (P5, R14) étendue à la table, lue plusieurs fois | inchangée ; à reconsidérer avec un accès projeté en mémoire modifiable |
 | RK-10 | `expect(dead_code)` : un oubli de retrait en V2-P fait échouer `clippy` | voulu |
 | RK-11 | Premiers modules publics d'Assets : surface d'API élargie par les `pub` internes aux deux modules | éléments internes `pub(crate)` ; revue de l'API publique en V2-L et V2-P |
-| RK-12 | O-1 : représentation des erreurs Forge | arbitrage avant V2-F |
+| RK-12 | O-1 : représentation des erreurs Forge | **clos** (option B, § 7.3) ; `non_exhaustive` impose un bras par défaut aux `match` externes sur `CompilePackageError` (aucun dans le dépôt lu) |
+| RK-14 | Forge sur cible 32 bits : layout et offsets en `usize`/`u64` | arithmétique vérifiée, `PackageTooLarge` ; `pl2`, `pl3` en longueurs synthétiques ; **aucune cible 32 bits vérifiée** (§ 7.3.4) |
 | RK-13 | Collision de signature `VPKG` | recherche négative, dossier de preuve consigné (§ 3.5, F-14) ; limite : fichiers compressés ou encodés non couverts ; P-1 adoptée |
 
-**Non démontré** : exécution de tout test, de Miri et de la MSRV ; codes d'erreur des doctests `compile_fail` ; comportement sur cible 32 bits ; performance du chargement ; correspondance q ↔ artefacts (F2) ; authenticité du paquet ; absence de `VPKG` dans les fichiers compressés ou encodés ; la recherche textuelle (F-14) n'est pas une vérification binaire exhaustive et n'a pas été exécutée par la session.
+**Non démontré** : exécution de tout test, de Miri et de la MSRV ; codes d'erreur des doctests `compile_fail` ; comportement sur cible 32 bits (Assets et Forge, y compris `compile_package`) ; performance du chargement ; correspondance q ↔ artefacts (F2) ; authenticité du paquet ; absence de `VPKG` dans les fichiers compressés ou encodés ; la recherche textuelle (F-14) n'est pas une vérification binaire exhaustive et n'a pas été exécutée par la session.
 
 ---
 
 ## 12. Effets prévus sur le corps du plan V2 (non appliqués)
 
-P-CONC étant franchie, le plan V2 pourra être mis à jour (aucune modification faite ici) : § 4.5 (règle de séparation des constantes : espaces de noms) ; § 4.8 (sujets désormais décidés) ; § 8 (B-1, B-4 : E3) ; § 9 (R-C1 à R-C13 résolus par cette note, sauf O-1) ; § 10.3 à 10.5 (fichiers) ; § 14 (décisions ouvertes : D-N4, B-1, B-4, noms, emplacement des tests ; ajout de O-1 ; A-1 et A-2 clos). La roadmap reste compatible : V2-L livre le lecteur v2 additif, V2-P l'enveloppe, le noyau partagé et le retour de q.
+P-CONC étant franchie, le plan V2 a été mis à jour pour son registre des décisions (§ 14) et son § 10.5 (r5.2, 20 novembre 2026) ; les autres rubriques ci-dessous restent à mettre à jour : § 4.5 (règle de séparation des constantes : espaces de noms) ; § 4.8 (sujets désormais décidés) ; § 8 (B-1, B-4 : E3) ; § 9 (R-C1 à R-C13 résolus par cette note, O-1 compris, clos en r5.1) ; § 10.3 à 10.5 (fichiers) ; § 14 (décisions ouvertes : D-N4, B-1, B-4, noms, emplacement des tests ; ajout de O-1, clos (§ 7.3) ; A-1 et A-2 clos). La roadmap reste compatible : V2-L livre le lecteur v2 additif, V2-P l'enveloppe, le noyau partagé et le retour de q.
 
 ---
 
@@ -849,7 +920,7 @@ P-CONC étant franchie, le plan V2 pourra être mis à jour (aucune modification
 | 3 | Classification des erreurs, avec parcours du lecteur et cas limites explicites ; A-1 (option X) et A-2 clos | § 4.5 |
 | 4 | Noyau commun : conditions de la refactorisation, trois `unreachable!`, preuve structurelle d'inatteignabilité | § 4.2, § 4.4, § 5 |
 | 5 | Signatures d'API, constantes et visibilités, durées de vie, erreurs | § 6 |
-| 6 | Production de la Forge sans modification de `compile_assets` ; nomenclature acceptée ; O-1 identifié | § 7 |
+| 6 | Production de la Forge sans modification de `compile_assets` ; nomenclature acceptée ; O-1 identifié puis clos (option B) | § 7 |
 | 7 | Tests et mutations couvrant VQ-1 à VQ-7 et VQ-9, avec correspondance explicite | § 10 |
 | 8 | Garanties 1 à 9, limites de provenance, risques, non démontré | § 9, § 11 |
 | 9 | Décisions adoptées distinguées des propositions et des points ouverts | § 1 |
@@ -859,16 +930,16 @@ P-CONC étant franchie, le plan V2 pourra être mis à jour (aucune modification
 
 **P-CONC : franchie** (19 novembre 2026).
 
-**Seul point ouvert :** **O-1**, représentation de l'erreur Forge ; portée limitée à **V2-F** ; ne bloque ni V2-L ni V2-P.
+**Point ouvert :** aucun. **O-1 clos** (19 novembre 2026, option B : `CompilePackageError`, § 7.3).
 
-**Clos (arbitrés)** : P-1 (`VPKG`, version `1`), P-2, A-1 (option X), A-2 (avec priorité), preuve du § 4.2, P-3, P-4, P-5 (nomenclature, contrat), P-7, documentation de `Version`, exclusion de l'option `unreachable!` pour O-1.
+**Clos (arbitrés)** : P-1 (`VPKG`, version `1`), P-2, A-1 (option X), A-2 (avec priorité), preuve du § 4.2, P-3, P-4, P-5 (nomenclature, contrat), P-7, documentation de `Version`, exclusion de l'option `unreachable!` pour O-1 ; **O-1 (option B ; option A écartée ; E3 non rouvert)**.
 
 ### 13.3 Suite prévue (chaque unité dans sa session dédiée, D-N6)
 
 1. **Clôture V2-C** : réalisée par cette révision (clôture documentaire).
 2. **V2-L** (session dédiée) : lecteur de manifeste v2 additif, helper commun, documentation de `Version`, constantes `manifest_v2`.
 3. **V2-P** (session dédiée) : enveloppe, extraction, noyau partagé, `load_package`, `PackageError`.
-4. **V2-F** (session dédiée) : voie de compilation Forge, après résolution de O-1.
+4. **V2-F** (session dédiée) : voie de compilation Forge ; O-1 clos, décision de référence : § 7.3.
 5. **V2-Z** (session dédiée) : régression globale et clôture.
 
 P-CONC est **franchie**. V2-L n'est pas démarrée dans la session de V2-C : son ouverture est préparée dans une nouvelle session, sur la base de cette note et du plan V2-0.

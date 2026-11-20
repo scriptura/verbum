@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-11-19 22:25:26
+**Généré le:** 2026-11-20 08:24:19
 
 ## Racine du Workspace
 
@@ -52,10 +52,12 @@
 │   │   │   │   ├── id.rs
 │   │   │   │   ├── lib.rs
 │   │   │   │   ├── map.rs
+│   │   │   │   ├── package.rs
 │   │   │   │   ├── script.rs
 │   │   │   │   ├── sprite.rs
 │   │   │   │   └── tileset.rs
 │   │   │   ├── tests
+│   │   │   │   ├── package.rs
 │   │   │   │   └── pipeline.rs
 │   │   │   ├── Cargo.toml
 │   │   │   └── README.md
@@ -169,7 +171,7 @@
 ├── Cargo.toml
 └── README.md
 
-37 directories, 126 files
+37 directories, 128 files
 ```
 
 ## Documentation du projet
