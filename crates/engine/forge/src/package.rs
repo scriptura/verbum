@@ -107,8 +107,9 @@ const CAPACITY_LIMIT: usize = isize::MAX.unsigned_abs();
 // L'en-tête de manifeste v1 est destructuré par motif (10 octets) dans `split_manifest`.
 const _: () = assert!(MANIFEST_HEADER_LEN == 10);
 
-/// Layout calculé d'un paquet, avant toute allocation du paquet.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// Layout calculé d'un paquet : valeur de taille fixe, sans collection. Les offsets `s_i`
+/// n'y figurent pas : ils sont recalculés pendant l'assemblage par [`write_offsets`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Layout {
     /// `n'` : nombre d'artefacts, identique au compteur du manifeste.
     count: u32,
@@ -116,18 +117,17 @@ struct Layout {
     table_end: usize,
     /// `s_0 = T + 18 + 16·n` : début du premier artefact (fin du paquet si `n' = 0`).
     first_artifact: usize,
-    /// `s_i` : début de chaque artefact, en `u64` tel qu'écrit.
-    offsets: Vec<u64>,
     /// Longueur totale du paquet.
     total: usize,
 }
 
-/// Layout du paquet : fonction pure, sans allocation du paquet.
+/// Layout du paquet : fonction pure, sans aucune allocation.
 ///
 /// `manifest_len` et `declared_count` décrivent le manifeste v1 produit par
 /// `compile_assets` ; `artifact_lens` donne la longueur de chaque artefact. Ordre des
 /// contrôles : P1 (`n'` en `u32`), P7 (compte, longueur du manifeste, artefact non
 /// vide), P2 (`T`), P3 (`s_0`), P6 et P4 (offsets, cumul), P5 (plafond `isize::MAX`).
+/// Les longueurs sont parcourues deux fois (P7, puis cumul), jamais collectées.
 fn package_layout(
     manifest_len: usize,
     declared_count: u32,
@@ -183,15 +183,10 @@ fn layout_within(
         .and_then(within)
         .ok_or(PackageTooLarge)?;
 
-    // P6 (offset écrit en `u64`) et P4 (cumul).
-    let mut offsets = Vec::with_capacity(n);
+    // P6 (offset écrit en `u64`) et P4 (cumul), par le même pas que l'assemblage.
     let mut cursor = first_artifact;
     for len in artifact_lens {
-        offsets.push(u64::try_from(cursor).map_err(|_| PackageTooLarge)?);
-        cursor = cursor
-            .checked_add(len)
-            .and_then(within)
-            .ok_or(PackageTooLarge)?;
+        cursor = next_offset(ceiling, cursor, len)?.1;
     }
 
     // P5.
@@ -203,9 +198,41 @@ fn layout_within(
         count,
         table_end,
         first_artifact,
-        offsets,
         total: cursor,
     })
+}
+
+/// Pas du cumul : à partir du début `cursor` d'un artefact de longueur `len`, rend l'offset
+/// à écrire (P6, `u64::try_from`) et le début de l'artefact suivant (P4, somme vérifiée
+/// bornée par `ceiling`). Partagé par la validation et l'assemblage.
+fn next_offset(
+    ceiling: usize,
+    cursor: usize,
+    len: usize,
+) -> Result<(u64, usize), CompilePackageError> {
+    let offset = u64::try_from(cursor).map_err(|_| CompilePackageError::PackageTooLarge)?;
+    let next = cursor
+        .checked_add(len)
+        .filter(|next| *next <= ceiling)
+        .ok_or(CompilePackageError::PackageTooLarge)?;
+    Ok((offset, next))
+}
+
+/// Écrit la table d'offsets `s_0 … s_{n'-1}` (`u64` little-endian) à la suite de `out`,
+/// directement, sans collection intermédiaire. Exécuté après la validation du layout ;
+/// les mêmes opérations vérifiées sont refaites, leur échec reste une erreur typée.
+fn write_offsets(
+    out: &mut Vec<u8>,
+    first_artifact: usize,
+    artifact_lens: impl Iterator<Item = usize>,
+) -> Result<(), CompilePackageError> {
+    let mut cursor = first_artifact;
+    for len in artifact_lens {
+        let (offset, next) = next_offset(usize::MAX, cursor, len)?;
+        out.extend_from_slice(&offset.to_le_bytes());
+        cursor = next;
+    }
+    Ok(())
 }
 
 /// Découpe le manifeste v1 : compteur (octets `6..10`) et entrées (octets à partir de
@@ -242,21 +269,18 @@ pub fn compile_package(
 
     let (declared_count, entries) = split_manifest(set.manifest())?;
     let artifacts = set.artifacts();
-    let layout = package_layout(
-        set.manifest().len(),
-        declared_count,
-        artifacts.iter().map(Vec::len),
-    )?;
+    let lens = artifacts.iter().map(Vec::len);
+    let layout = package_layout(set.manifest().len(), declared_count, lens.clone())?;
 
-    // Le layout est validé : l'allocation commence ici.
+    // Le layout est entièrement validé, plafond `isize::MAX` compris : première
+    // allocation du paquet, et première allocation de `compile_package` après
+    // `compile_assets`.
     let mut bytes = Vec::with_capacity(layout.total);
 
     bytes.extend_from_slice(&envelope::SIGNATURE);
     bytes.extend_from_slice(&envelope::VERSION.to_le_bytes());
     bytes.extend_from_slice(&layout.count.to_le_bytes());
-    for offset in &layout.offsets {
-        bytes.extend_from_slice(&offset.to_le_bytes());
-    }
+    write_offsets(&mut bytes, layout.first_artifact, lens)?;
     debug_assert_eq!(bytes.len(), layout.table_end);
 
     bytes.extend_from_slice(&manifest_v2::SIGNATURE);
@@ -288,30 +312,43 @@ mod tests {
         package_layout(manifest_len, count, lens.iter().copied())
     }
 
+    /// Table écrite par `write_offsets` pour `first` et `lens`, relue en `u64`.
+    fn offsets(first: usize, lens: &[usize]) -> Vec<u64> {
+        let mut out = Vec::new();
+        write_offsets(&mut out, first, lens.iter().copied()).expect("offsets représentables");
+        out.chunks_exact(8)
+            .map(|chunk| u64::from_le_bytes(chunk.try_into().expect("8 octets")))
+            .collect()
+    }
+
     #[test]
     fn pl1_exact_values_of_t_s0_and_offsets() {
         // Lot vide : T = 10, s_0 = 28 = fin du paquet.
+        let empty = layout(10, 0, &[]);
         assert_eq!(
-            layout(10, 0, &[]),
+            empty,
             Ok(Layout {
                 count: 0,
                 table_end: 10,
                 first_artifact: 28,
-                offsets: Vec::new(),
                 total: 28,
             })
         );
+        assert_eq!(offsets(28, &[]), Vec::<u64>::new());
+
         // Lot de référence : deux artefacts de 14 octets, manifeste v1 de 42 octets.
+        let reference = layout(42, 2, &[14, 14]);
         assert_eq!(
-            layout(42, 2, &[14, 14]),
+            reference,
             Ok(Layout {
                 count: 2,
                 table_end: 26,
                 first_artifact: 76,
-                offsets: vec![76, 90],
                 total: 104,
             })
         );
+        assert_eq!(offsets(76, &[14, 14]), vec![76, 90]);
+
         // Un artefact : T = 18, s_0 = 18 + 18 + 16 = 52.
         assert_eq!(
             layout(26, 1, &[5]),
@@ -319,14 +356,41 @@ mod tests {
                 count: 1,
                 table_end: 18,
                 first_artifact: 52,
-                offsets: vec![52],
                 total: 57,
             })
         );
+        assert_eq!(offsets(52, &[5]), vec![52]);
+
         // Longueurs inégales : T = 34, s_0 = 34 + 18 + 48 = 100, offsets cumulés.
         assert_eq!(
-            layout(58, 3, &[1, 20, 300]).map(|l| (l.offsets, l.total)),
-            Ok((vec![100, 101, 121], 421))
+            layout(58, 3, &[1, 20, 300]),
+            Ok(Layout {
+                count: 3,
+                table_end: 34,
+                first_artifact: 100,
+                total: 421,
+            })
+        );
+        assert_eq!(offsets(100, &[1, 20, 300]), vec![100, 101, 121]);
+    }
+
+    #[test]
+    fn pl1_write_offsets_appends_after_existing_bytes_and_reports_overflow() {
+        // La table s'ajoute à la suite du contenu existant, en little-endian.
+        let mut out = vec![0xEE];
+        write_offsets(&mut out, 0x0102, [3usize, 4].into_iter()).expect("représentable");
+        assert_eq!(
+            out,
+            [
+                0xEE, 0x02, 0x01, 0, 0, 0, 0, 0, 0, // 0x0102
+                0x05, 0x01, 0, 0, 0, 0, 0, 0, // 0x0105
+            ]
+        );
+        // Un cumul qui déborde reste une erreur typée, jamais une saturation.
+        let mut out = Vec::new();
+        assert_eq!(
+            write_offsets(&mut out, 1, [usize::MAX].into_iter()),
+            Err(PackageTooLarge)
         );
     }
 
@@ -360,7 +424,7 @@ mod tests {
         // n' = 1 : s_0 = 52. Total exactement `isize::MAX` accepté, +1 refusé.
         let accepted = layout(26, 1, &[CAPACITY_LIMIT - 52]).expect("seuil exact accepté");
         assert_eq!(accepted.total, CAPACITY_LIMIT);
-        assert_eq!(accepted.offsets, vec![52]);
+        assert_eq!(offsets(52, &[CAPACITY_LIMIT - 52]), vec![52]);
         assert_eq!(
             layout(26, 1, &[CAPACITY_LIMIT - 52 + 1]),
             Err(PackageTooLarge)
@@ -369,7 +433,7 @@ mod tests {
         // n' = 2 : s_0 = 76, premier artefact d'un octet.
         let accepted = layout(42, 2, &[1, CAPACITY_LIMIT - 77]).expect("seuil exact accepté");
         assert_eq!(accepted.total, CAPACITY_LIMIT);
-        assert_eq!(accepted.offsets, vec![76, 77]);
+        assert_eq!(offsets(76, &[1, CAPACITY_LIMIT - 77]), vec![76, 77]);
         assert_eq!(
             layout(42, 2, &[1, CAPACITY_LIMIT - 76]),
             Err(PackageTooLarge)
@@ -378,8 +442,8 @@ mod tests {
         // Le seuil est sans conséquence sur la valeur `isize::MAX` elle-même.
         assert_eq!(CAPACITY_LIMIT, usize::MAX >> 1);
 
-        // La validation n'alloue que `8·n'` octets d'offsets, jamais le paquet : ces
-        // appels rendent une erreur avec des longueurs de l'ordre de `isize::MAX`.
+        // `package_layout` n'alloue rien : ces appels rendent une erreur avec des
+        // longueurs de l'ordre de `isize::MAX`.
         assert_eq!(layout(26, 1, &[CAPACITY_LIMIT]), Err(PackageTooLarge));
     }
 
