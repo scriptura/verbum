@@ -1,6 +1,6 @@
 # Verbum — Dossier de validation V2-Z du chantier VMAN v2
 
-**Statut : dossier de validation et trace historique. Non normatif.** Produit le 21 novembre 2026, à partir des rapports Lot 1, Lot 2, complément `pf9`, Lot 3 et de l'inventaire des sorties de commandes. Ce document ne crée aucun invariant, ne rouvre aucune décision et ne modifie rétroactivement ni le plan V2-0 ni l'annexe V2-C. Après la clôture, le code validé reste la source de vérité opérationnelle ; ce dossier conserve l'état vérifié à la date de clôture et n'a pas vocation à être resynchronisé, sauf correction factuelle ou besoin explicite de traçabilité.
+**Statut : dossier de validation et trace historique. Non normatif.** **Version définitive** du 21 novembre 2026, établie à partir des rapports Lot 1, Lot 2, complément `pf9`, Lot 3 et de l'inventaire des sorties de commandes, puis mise à jour avec les confirmations et arbitrages finaux de l'utilisateur (§ 6.2, § 7.4 à 7.7, § 8). Ce document ne crée aucun invariant, ne rouvre aucune décision et ne modifie rétroactivement ni le plan V2-0 ni l'annexe V2-C. Après la clôture, le code validé reste la source de vérité opérationnelle ; ce dossier conserve l'état vérifié à la date de clôture et n'a pas vocation à être resynchronisé, sauf correction factuelle ou besoin explicite de traçabilité.
 
 Documents de référence (non reproduits ici) :
 - plan : `docs/implementation/03-verbum-shell-temporal-policy-vman-v2.md` (V2-0, r1) ;
@@ -10,7 +10,8 @@ Légende des niveaux de preuve, utilisée dans tout le document :
 
 | Marqueur | Sens |
 |---|---|
-| **[R]** | Preuve réelle sur le dépôt, exécutée par l'utilisateur |
+| **[R]** | Preuve réelle sur le dépôt : sortie de commande fournie par l'utilisateur |
+| **[C]** | Confirmation de l'utilisateur sur le dépôt réel ; sorties brutes non transmises à Claude |
 | **[W]** | Exécution par Claude sur un workspace reconstitué à partir des fichiers transmis |
 | **[S]** | Inspection statique (lecture du code transmis) |
 | **[D]** | Déduction ou raisonnement, sans exécution |
@@ -71,7 +72,7 @@ Chaîne **invariant → code → test**. Pour chaque invariant de l'annexe V2-C 
 ### 2.4 Limites des snapshots transmis
 
 - Le snapshot est la seule source technique des lots 1 à 3 ; aucun accès direct au dépôt réel.
-- **Aucune baseline antérieure à V2** n'a été transmise : « v1 inchangé » repose sur la lecture, les tests historiques présents et les résultats déclarés, non sur un diff.
+- **Aucune baseline antérieure à V2** n'a été transmise : « v1 inchangé » repose sur l'inspection du code, la conservation des tests historiques et leur exécution réelle confirmée par l'utilisateur, non sur un diff.
 - Absents ou non transmis selon les lots : `README.md` des crates ; `shell/src/{policy, progressor, driver, …}.rs`, `schedule`, `render`, `ecs` (sans objet pour le Lot 3).
 - Le Lot 1 disposait des tests Assets mais pas de `vm_1`, `t6_4`, `f2`, `f3`, `lt5`, LT-5n/5t ; ces fichiers ont été transmis ensuite (Lots 2 et 3).
 
@@ -79,7 +80,8 @@ Chaîne **invariant → code → test**. Pour chaque invariant de l'annexe V2-C 
 
 | Source des résultats | Marqueur | Détail |
 |---|---|---|
-| Dépôt réel, utilisateur | **[R]** | `cargo tree`, `rg`, recherche `VPKG`, contrôles Cargo/Miri/MSRV déclarés verts (§ 7) |
+| Dépôt réel, utilisateur | **[R]** | Sorties fournies : `cargo tree`, `rg`, recherche `VPKG` (§ 7.3) |
+| Dépôt réel, utilisateur | **[C]** | Confirmation : `pf9` intégré et testé ; build, test, clippy, rustfmt, Miri, MSRV 1.85 verts (§ 7.4) |
 | Workspace reconstitué, Claude | **[W]** | Copie isolée du crate Assets (Lot 1) ; workspace reconstruit pour `pf9` (cargo 1.97, `toml` 1.2.2 au lieu de 1.1.8 attendu ; `pipeline.rs` et `verbum-ecs` exclus) |
 | Lecture | **[S]** | Lots 2 et 3 |
 | Raisonnement | **[D]** | Mutations du Lot 2, argument 32 bits |
@@ -98,7 +100,7 @@ Les dates d'achèvement de V2-L, V2-P et V2-F ne figurent pas dans les sources f
 | **V2-P** | Enveloppe VPKG (`package.rs`), noyau partagé `load_core`, `load_package`, `PackageError` | `load` devenu enveloppe mince ; aucun niveau créé, supprimé ni réordonné |
 | **O-1** | Représentation des erreurs de taille côté Forge, clos le 19 novembre 2026 (r5.1) | **Option B** : `CompilePackageError { Forge, PackageTooLarge, InconsistentBatch }` ; `ForgeError` inchangé ; E3 non rouvert |
 | **V2-F** | Producteur `compile_package` / `CompiledPackage` (`forge/src/package.rs`) | `compile_assets` inchangé ; layout pur isolé ; q nul testé avant toute compilation |
-| **Corrections finales** | r5.1 et r5.2 de l'annexe (20 novembre 2026) : clôture de O-1, harmonisation documentaire, emplacement des tests V2-F arbitré (`forge/tests/package.rs`, `tests/pipeline.rs` intact), `pl1`–`pl4` maintenus dans V2-F | Les sources ne décrivent pas d'autre correction de code entre V2-F et V2-Z que l'ajout de `pf9` ; **à confirmer par l'utilisateur** s'il en existe |
+| **Corrections finales** | r5.1 et r5.2 de l'annexe (20 novembre 2026) : clôture de O-1, harmonisation documentaire, emplacement des tests V2-F arbitré (`forge/tests/package.rs`, `tests/pipeline.rs` intact), `pl1`–`pl4` maintenus dans V2-F | Les sources ne décrivent pas d'autre correction de code entre V2-F et V2-Z que l'ajout de `pf9` ; point non précisé par les confirmations finales ; aucune autre correction n'est portée à la connaissance de ce dossier |
 | **V2-Z** | Vérification en trois lots + complément `pf9` | Objet de ce dossier |
 
 Chaîne de production et de chargement, telle que définie par l'annexe : `AssetSource[] → Forge → VPKG → Assets → dépôt des ressources`.
@@ -182,15 +184,15 @@ Les noms des tests historiques cités existent dans le snapshot. `vm_1`, `t6_4`,
 
 | Réf. | Nature | Constat | Statut final |
 |---|---|---|---|
-| **E1** | Anomalie démontrée, non fonctionnelle | Lien rustdoc ``[`load`](crate::load)`` ambigu (fonction et module) dans la doc de `load_package` : `cargo doc` émet 2 avertissements **[W]** ; aucun effet sur build, test, clippy. `cargo doc` n'est pas dans les contrôles verts | Dette documentaire ; encore présent à la lecture du Lot 3 |
-| **C1** | Couverture | Les doctests `E0603` échouent aussi bien si l'élément est `pub(crate)` que si son module est privé ; pour `load_core`, le module `load` est privé. La publicité des constantes est établie par la compilation des consommateurs réels (Forge) | Limite documentée ; risque faible |
-| **C2** | Couverture | `pk8` ne compare que les `Sprite` déposés ; `pk9` : cas « liaisons » et « format de slot » en `is_err()` | Différentiel hétérogène comblé par `pf9` (§ 6) ; la faiblesse de `pk9` subsiste, risque faible (noyau unique) |
+| **E1** | Anomalie démontrée, non fonctionnelle | Lien rustdoc ``[`load`](crate::load)`` ambigu (fonction et module) dans la doc de `load_package` : `cargo doc` émet 2 avertissements **[W]** ; aucun effet sur build, test, clippy. `cargo doc` n'est pas dans les contrôles verts | Dette documentaire mineure **acceptée** (utilisateur) ; avertissement observé sur reconstitution, non confirmé sur le dépôt réel ; ne bloque pas la clôture |
+| **C1** | Couverture | Les doctests `E0603` échouent aussi bien si l'élément est `pub(crate)` que si son module est privé ; pour `load_core`, le module `load` est privé. La publicité des constantes est établie par la compilation des consommateurs réels (Forge) | **Accepté** (utilisateur) ; risque faible |
+| **C2** | Couverture | `pk8` ne compare que les `Sprite` déposés ; `pk9` : cas « liaisons » et « format de slot » en `is_err()` | **Accepté** (utilisateur) ; différentiel hétérogène comblé par `pf9` (§ 6) ; la faiblesse de `pk9` subsiste, risque faible (noyau unique) |
 | **C3** | Non vérifié | Cibles 32 bits : résultats attendus identiques par raisonnement | Voir § 7.6 |
-| **C4** | Non vérifié | Sentinelles Forge et Shell absentes du snapshot du Lot 1 | Présence établie aux Lots 2 et 3 ; exécution déclarée par l'utilisateur |
-| O1 | Observation | Documentation de `ManifestError::Truncated` et `TrailingBytes` sur `10 + 16 × n` alors qu'elles servent aussi à `18 + 16 × n` ; seule la doc de `Version` a été mise à jour (annexe § 6.4) | Dette documentaire |
+| **C4** | Non vérifié | Sentinelles Forge et Shell absentes du snapshot du Lot 1 | Présence établie aux Lots 2 et 3 ; exécution confirmée par l'utilisateur sur le dépôt réel **[C]** ; sentinelles Shell validées |
+| O1 | Observation | Documentation de `ManifestError::Truncated` et `TrailingBytes` sur `10 + 16 × n` alors qu'elles servent aussi à `18 + 16 × n` ; seule la doc de `Version` a été mise à jour (annexe § 6.4) | Dette documentaire mineure **acceptée** (utilisateur) ; formulation historique conservée |
 | O2 | Observation | `unwrap_or(u64::MAX)` dans `font.rs:83`, `map.rs:68`, `script.rs:150` ; quelques `as u64` / `as u32` sur constantes (dont `MANIFEST_ENTRY_LEN as u64` dans `from_region`). Aucun dans `package.rs` ni `manifest_v2.rs`. Antériorité non vérifiable (pas de baseline) | Consigné ; non traité |
 | O3 | Observation | Quatrième `unreachable!` dans `manifest.rs::decode` (garanti par `chunks_exact`), absent de la preuve du § 4.2 | Consigné |
-| O4 | Observation | Coquille dans la doc du module `package.rs` : « une section d'artefact est donc jamais vide » | Dette documentaire ; encore présente au Lot 3 |
+| O4 | Observation | Coquille dans la doc du module `package.rs` : « une section d'artefact est donc jamais vide » | Dette documentaire mineure **acceptée** (utilisateur) |
 | O5 | Observation | `manifest_v2::HEADER_LEN` et `ENTRY_LEN` ne servent qu'à l'assertion de compilation et à `mv9` ; conforme à P-2 | Clos par `pf9` (§ 6.2) pour `ENTRY_LEN` |
 | O6 | Observation | Doublons en O(n²), hérité de v1, borné par la taille du paquet | Consigné |
 
@@ -260,8 +262,8 @@ Conformité à l'annexe § 7.3 **[S]** :
 | Réf. | Lacune | Gravité | Statut final |
 |---|---|---|---|
 | **L1** | Pas de test Forge → paquet → `load_package` pour Tileset, Map, Font, Script, ni avec artefacts de longueurs inégales | Modérée | **Comblée par `pf9`** (§ 6) |
-| L2 | Mutation « allocation avant validation du layout » détectable par revue seulement ; `pl1`–`pl4` appellent `package_layout`, pas `compile_package` | Faible, inhérente | Limite acceptée ou à arbitrer |
-| L3 | Le doctest `verbum_forge::package::package_layout` échoue en E0603 même si la fonction devenait `pub` (module privé) : non discriminant, comme C1 | Faible | Limite documentée |
+| L2 | Mutation « allocation avant validation du layout » détectable par revue seulement ; `pl1`–`pl4` appellent `package_layout`, pas `compile_package` | Faible, inhérente | **Accepté** (utilisateur) |
+| L3 | Le doctest `verbum_forge::package::package_layout` échoue en E0603 même si la fonction devenait `pub` (module privé) : non discriminant, comme C1 | Faible | **Accepté** (utilisateur) |
 | L4 | P6 non testable sur cible ≤ 64 bits | Connu | Limite documentée |
 
 Observations non bloquantes : `layout_within` expose un paramètre `ceiling` utilisé seulement par les tests (production : `usize::MAX`) ; la doc de `ForgeError::ZeroValue` dit « le champ vaut zéro » alors que q est un paramètre (cosmétique) ; `map.rs::encode_map` contient `unwrap_or(u32::MAX)` (hérité, déjà signalé à l'annexe § 7.3.5, hors périmètre) ; le critère `cargo tree -i verbum-forge -e normal` n'était pas vérifiable au Lot 2 (levé au Lot 3, § 6.4).
@@ -282,22 +284,52 @@ Lot : tileset, carte, deux scripts, sprite, police (cinq formats, six artefacts)
 
 | Élément | Valeur (rapports `pf9` et Lot 3) |
 |---|---|
-| Longueurs par artefact | `HETERO_LENGTHS = [18, 34, 68, 14, 44, 38]`, toutes distinctes (une permutation d'offsets est détectable) |
-| Offsets | `HETERO_OFFSETS = [172, 190, 224, 292, 306, 350]` ; total 388 ; `T = 58` ; manifeste 114 octets |
-| Slots | `HETERO_SLOTS = [2, 5, 4, 0, 1, 3]` ; `artifact_index ≠ slot_index` asserté pour chaque entrée |
+| Longueurs (ordre de sérialisation, artifact_index 0 à 5) | `HETERO_LENGTHS = [18, 34, 68, 14, 44, 38]`, toutes distinctes (une permutation d'offsets est détectable) |
+| Offsets (idem) | `HETERO_OFFSETS = [172, 190, 224, 292, 306, 350]` ; total 388 ; `T = 58` ; manifeste 114 octets |
+| Slots (ordre des sources du rapport `pf9`) | `HETERO_SLOTS = [2, 5, 4, 0, 1, 3]` ; relation avec `artifact_index` : voir la clarification ci-dessous |
 | Calcul des offsets | Vérifié deux fois : valeurs littérales, puis recalcul à partir des longueurs réelles de `compile_assets` |
 | Octets du paquet | Signature, version, `n'`, table lus littéralement ; sections contiguës, sans padding ; chaque section égale à l'artefact de `compile_assets` |
 | Manifeste | q lu en little-endian, `n = n'`, entrées égales à celles de la v1 |
-| Résolution Map → Tileset | Identifiant du tileset dans la carte égal à l'id de l'entrée 0 ; `map.tileset() == SlotIndex(2)`, c'est-à-dire le slot du tileset, distinct de l'indice d'artefact et du slot de la carte (5) |
+| Résolution Map → Tileset | Identifiant du tileset dans la carte égal à l'id de l'entrée 0 ; `map.tileset() == SlotIndex(2)`, c'est-à-dire le slot du tileset, distinct de son indice source (0) et du slot de la carte (5) ; son `artifact_index` vaut aussi 2 d'après les valeurs publiées (clarification ci-dessous) |
 | Chaîne complète | `load_package` rend `Ok(Q)` avec 6 dépôts ; contenu vérifié pour chaque format (sprite 96×48 au slot 0, tileset au slot 2, carte 3×2 au slot 5, police au slot 3, scripts `[(4, intro), (1, outro)]`) |
 | Équivalence | `load` sur le même `CompiledSet` produit un `Typed` égal à celui de `load_package` (couvre aussi un Script sur `load_package`) |
-| Contrôle d'ordre | Le test échoue si l'ordre des artefacts est substitué à l'ordre des slots (manifeste, offsets ou résolution de la carte) |
+| Contrôle d'ordre | Selon le rapport `pf9`, le test échoue si l'ordre des artefacts est substitué à l'ordre des slots (manifeste, offsets ou résolution de la carte) : raisonnement **[D]**, sans mutation. Au vu de la clarification, la distinction `artifact_index` / `slot_index` n'est observable que sur les deux scripts ; celle entre ordre des sources et ordre de sérialisation l'est sur cinq entrées sur six |
 
 Points résolus par `pf9` : L1 (Lot 2), C2 pour le différentiel de dépôt (Lot 1), et l'observation O5 sur `manifest_v2::ENTRY_LEN`, désormais consommée depuis un crate externe (`manifest_v2::ENTRY_LEN * count`) ; les huit constantes publiques de `package::` et `manifest_v2::` sont ainsi exercées par un consommateur externe (Lot 3).
 
-**Point à confirmer (présentation).** La table du rapport `pf9` suit l'ordre des sources, alors que `HETERO_LENGTHS` et `HETERO_OFFSETS` suivent l'ordre des artefacts, et le résumé du Lot 3 mentionne un « indice d'artefact (0) » pour le tileset. Les sources fournies ne permettent pas de réconcilier ces présentations ; le code de `tests/package.rs` fait foi.
+**Clarification de présentation (arbitrage de l'utilisateur, 21 novembre 2026).** Trois notions distinctes : l'indice source (ordre du rapport `pf9`), l'`artifact_index` (ordre de sérialisation) et le `slot_index`. Le test `pf9` n'est pas modifié : il a été exécuté et validé sur le dépôt réel **[C]**.
 
-Exécution : voir § 7.2 (**[W]**, reconstitution). Mutations : non appliquées ; la détection des substitutions d'ordre est un raisonnement **[D]**.
+*Provenance des valeurs ci-dessous.* Le code de `tests/package.rs` et les entrées de manifeste produites par `compile_assets` n'étaient pas disponibles à Claude lors de cette mise à jour. Les valeurs sont **déduites [D]** des longueurs, offsets et slots publiés et de la correspondance fournie par l'utilisateur ; elles n'ont pas été relues dans le code. Les offsets triés (172 < 190 < 224 < 292 < 306 < 350) fixent l'ordre de sérialisation.
+
+Ordre du rapport `pf9` (indice source) :
+
+| Indice source | Artefact | Slot | Longueur | Offset | `artifact_index` déduit |
+|---:|---|---:|---:|---:|---:|
+| 0 | Tileset | 2 | 68 | 224 | 2 |
+| 1 | Map | 5 | 38 | 350 | 5 |
+| 2 | Script intro | 4 | 34 | 190 | 1 |
+| 3 | Sprite | 0 | 18 | 172 | 0 |
+| 4 | Script outro | 1 | 44 | 306 | 4 |
+| 5 | Font | 3 | 14 | 292 | 3 |
+
+Ordre de sérialisation (`artifact_index`) :
+
+| `artifact_index` | Artefact | Slot | Longueur | Offset |
+|---:|---|---:|---:|---:|
+| 0 | Sprite | 0 | 18 | 172 |
+| 1 | Script intro | 4 | 34 | 190 |
+| 2 | Tileset | 2 | 68 | 224 |
+| 3 | Font | 3 | 14 | 292 |
+| 4 | Script outro | 1 | 44 | 306 |
+| 5 | Map | 5 | 38 | 350 |
+
+Correspondance indice source → `artifact_index` : `[2, 5, 1, 0, 4, 3]`.
+
+*Correction des rapports précédents.* L'énoncé des rapports `pf9` et Lot 3 selon lequel `artifact_index ≠ slot_index` serait vrai, ou asserté, pour chaque entrée **n'est pas retenu**. D'après les valeurs publiées, `artifact_index = slot_index` pour le Tileset (2), la Map (5), le Sprite (0) et la Font (3) ; ils diffèrent seulement pour Script intro (1 contre 4) et Script outro (4 contre 1). De même, le Tileset a pour indice source 0, `artifact_index` 2 et `slot_index` 2 : le « indice d'artefact (0) » du résumé du Lot 3 correspond à l'indice source, non à l'`artifact_index`. Le contenu exact des assertions de `pf9` n'a pas été relu.
+
+*Conséquences, sans remise en cause du test.* Les trois notions restent distinctes, mais leurs valeurs numériques coïncident pour plusieurs entrées : seul Script intro a ses trois valeurs distinctes (source 2, artefact 1, slot 4). Pour le lien Map → Tileset, `pf9` distingue le slot (2) de l'indice source (0) mais ne discrimine pas, sur ce lien, slot et `artifact_index`. La distinction `artifact_index` / `slot_index` est observable sur les deux scripts de `pf9`, et sur le lot de référence de `pf1` / `pk1` (« a » : artefact 0, slot 1 ; « foobar » : artefact 1, slot 0). La relation entre l'ordre des sources et l'ordre de sérialisation dépend de `compile_assets`, dont le code n'a pas été relu ici ; elle ne doit pas être extrapolée au-delà de ce lot.
+
+Exécution : § 7.2 (**[W]**, reconstitution) ; intégration et test de `pf9` sur le dépôt réel, tous contrôles applicables verts : confirmation de l'utilisateur **[C]** (§ 7.4). Mutations : non appliquées ; la détection des substitutions d'ordre est un raisonnement **[D]**.
 
 ### 6.3 Lot 3 — intégration workspace
 
@@ -329,7 +361,7 @@ Les sorties `cargo tree` **[R]** concordent : Forge sans consommateur normal (se
 | LT-5n | `shell/src/lib.rs`, doctest `compile_fail` | `drop(map_bytes)` après dépôt par `load`, même littéral **[S]** |
 | LT-5t | `shell/src/lib.rs`, doctest jumeau valide | Identique sans `drop`, exécution attendue 7716 **[S]** |
 
-Présence et localisation établies par `rg` **[R]** ; contenu par lecture **[S]** ; passage reposant sur les contrôles réels déclarés. Le même mécanisme d'emprunt est couvert côté v2 par le doctest `compile_fail,E0597` de `load_package`.
+Présence et localisation établies par `rg` **[R]** ; contenu par lecture **[S]** ; passage confirmé par l'utilisateur sur le dépôt réel **[C]** ; sentinelles validées par l'arbitrage final de l'utilisateur. Le même mécanisme d'emprunt est couvert côté v2 par le doctest `compile_fail,E0597` de `load_package`.
 
 ### 6.7 Script, Shell et absence d'adoption V2
 
@@ -357,7 +389,7 @@ Un résultat n'a que la portée de son environnement. Les rapports distinguent l
 | 1 | `cargo doc` | idem | 2 avertissements `crate::load is both a function and a module` (E1) | idem ; non exécuté sur le dépôt réel |
 | 1 | 14 mutations manuelles (pas de commande unique) | Copie isolée | 13 détectées, 1 mutant équivalent | Mutations sur `package.rs`, `manifest_v2.rs`, `manifest.rs`, `load.rs` uniquement |
 | `pf9` | `cargo test -p verbum-forge --test package` | Workspace reconstruit (cargo 1.97, `toml` 1.2.2 au lieu de 1.1.8 ; `pipeline.rs` et `verbum-ecs` exclus) | 8 tests passés, 0 échec (`pf1`–`pf7`, `pf9`) | Fichier `tests/package.rs` seul |
-| `pf9` | clippy, rustfmt, Miri, MSRV 1.85, 32 bits, `pipeline.rs` | — | **Non exécutés** | — |
+| `pf9` | clippy, rustfmt, Miri, MSRV 1.85, 32 bits, `pipeline.rs` | — | **Non exécutés sur la reconstitution** (contrôles sur le dépôt réel : § 7.4 ; 32 bits : non testé) | — |
 
 Le Lot 2 n'a exécuté aucune commande. Le Lot 3 n'a exécuté aucune commande ; ses faits d'exécution viennent de l'utilisateur.
 
@@ -417,17 +449,18 @@ grep -r -n -a -b -o -E \
 ```
 Résultat : 15 occurrences, toutes documentaires dans la note V2-C ; aucune dans le code, les formats, les fixtures ou les binaires parcourus. Portée : fichiers compressés ou encodés non couverts ; recherche textuelle, non vérification binaire exhaustive. Elle précède l'adoption de P-1 et ne couvre pas l'état postérieur du dépôt.
 
-### 7.4 Contrôles réels déclarés verts après V2-F **[R, déclaré]**
+### 7.4 Contrôles sur le dépôt réel, confirmés par l'utilisateur **[C]**
 
-L'utilisateur a déclaré verts, sur le dépôt réel : build workspace, test workspace, Clippy workspace avec `-D warnings`, rustfmt, Miri, MSRV 1.85. Les rapports relaient cette déclaration ; **les sorties brutes ne figurent pas dans les sources fournies**.
+L'utilisateur confirme (21 novembre 2026) que `pf9` a été intégré et testé sur son dépôt réel, et que tous les contrôles applicables sont verts : `cargo build --workspace`, `cargo test --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --all -- --check`, Miri, MSRV Rust 1.85. Il s'agit d'une **confirmation de l'utilisateur** ; **Claude n'a pas consulté les sorties brutes**, qui ne lui ont pas été transmises.
 
-Formes **prévues** par l'annexe V2-C § 10.6 et le plan § 10.5-10.6 (non reproduites comme exécutées) :
+Les quatre premières commandes ci-dessous sont celles citées par l'utilisateur. Les suivantes (MSRV, Miri) sont les formes **prévues** par l'annexe V2-C § 10.6 et le plan § 10.5-10.6 : l'utilisateur en confirme le résultat sans citer la commande exacte, qui n'est donc pas présentée comme exécutée.
 
 ```
 cargo build --workspace
 cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all -- --check
+# --- formes prévues par l'annexe ; commande exacte non citée par l'utilisateur ---
 cargo +1.85.0 build --workspace
 cargo +1.85.0 test --workspace
 cargo +nightly miri test -p verbum-assets
@@ -436,21 +469,21 @@ cargo +nightly miri test -p verbum-forge -- --skip p3_1 --skip p3_2 --skip t6_1 
 
 Le Miri Forge est **partiel** par construction (exclusions connues de l'étape 5) ; il est à rapporter comme tel.
 
-**À confirmer : relance après l'intégration de `pf9`.** Le rapport Lot 3 écrit que les exécutions de `cargo test`, clippy, fmt, Miri et MSRV sont « confirmées » par l'utilisateur dans son dernier message, mais ce message ne fait pas partie des sources fournies, et l'inventaire ne contient que des sorties `cargo tree` et `rg`. Les sources montrent que `pf9` est présent dans le dépôt réel (`rg`, lignes 309 et 447) ; elles ne prouvent pas que l'ensemble des contrôles ci-dessus a été relancé **après** cette intégration. Ce point est à confirmer par l'utilisateur ; il n'est pas présumé acquis.
+**Contrôles postérieurs à `pf9` : confirmés.** Le point laissé ouvert dans la version précédente du dossier est levé par la confirmation de l'utilisateur ci-dessus. Elle est cohérente avec l'inventaire, où `pf9` est présent dans le dépôt réel (`rg`, lignes 309 et 447 de `tests/package.rs`). La portée reste celle d'une confirmation, non d'une sortie examinée par Claude.
 
-### 7.5 Éléments à confirmer par l'utilisateur sur le dépôt réel
+### 7.5 Points tranchés par l'utilisateur
 
-- Diff vide des fichiers v1 sensibles (octets, constantes, assertions, `vm_1`, `t6_4`, `f2`, `f3`, `lt5`, LT-5n/5t) entre le commit précédant V2-L et HEAD : **commande non fournie, résultat non fourni**.
-- Relance complète des contrôles du § 7.4 après `pf9` (voir ci-dessus).
-- `cargo doc` sur le dépôt réel (E1 non confirmé hors reconstitution).
-- Existence éventuelle de corrections de code entre V2-F et V2-Z autres que `pf9` (§ 3).
+- **Préservation v1 et baseline.** Aucun diff exhaustif entre le code actuel et une baseline antérieure à V2 n'a été établi dans V2-Z, et aucune nouvelle comparaison n'est demandée. La préservation v1 est étayée par l'inspection du code, la conservation des tests historiques et leur exécution réelle (§ 7.4). **Elle n'est pas démontrée par un diff.**
+- **Contrôles postérieurs à `pf9`** : confirmés par l'utilisateur (§ 7.4).
+- **`cargo doc`** : aucun contrôle sur le dépôt réel n'est demandé ; E1 reste observé sur la reconstitution seulement.
+- **Corrections de code entre V2-F et V2-Z** autres que `pf9` : non précisées (§ 3).
 
 ### 7.6 Limites de validation
 
 | Limite | Portée |
 |---|---|
 | **Cible 32 bits non testée** | Assets et Forge ; résultats attendus identiques au 64 bits par construction (arithmétique vérifiée) : argument de conception **[D]**, non validation (RK-5, RK-14, C3, L4) |
-| **Pas de comparaison automatisée avec une baseline antérieure à V2** | « v1 inchangé » repose sur la lecture, les tests historiques présents et les contrôles réels déclarés |
+| **Pas de comparaison automatisée avec une baseline antérieure à V2** | « v1 inchangé » repose sur l'inspection du code, la conservation des tests historiques et leur exécution réelle confirmée **[C]** ; aucun diff exhaustif avec une baseline antérieure n'a été établi dans V2-Z (limite de preuve conservée) |
 | **Recherche `VPKG`** | Fichiers compressés ou encodés non couverts ; recherche textuelle |
 | **Authenticité** | Aucun digest ni signature ; l'intégrité vérifiée est structurelle, non cryptographique (annexe § 11.1) ; la garantie protège la chaîne normale, non la fabrication volontaire d'un paquet structurellement valide |
 | **Correspondance q ↔ artefacts** | Non vérifiable : aucun contenu d'artefact ne dépend de q (F-10) ; relève de F2 |
@@ -459,9 +492,9 @@ Le Miri Forge est **partiel** par construction (exclusions connues de l'étape 5
 | **Performance, durées Miri** | Non mesurées |
 | **Workspace reconstitué** | Versions différentes du dépôt réel (cargo 1.97, `toml` 1.2.2) ; résultats **[W]** non transposables au dépôt |
 
-### 7.7 Réserves résiduelles acceptées ou à arbitrer
+### 7.7 Réserves résiduelles acceptées par l'utilisateur
 
-C1 et L3 (doctests de visibilité non discriminants, atténués par la compilation des consommateurs réels), L2 (mutation d'allocation détectable par revue seulement), C2 résiduel (`pk9` en `is_err()`). Le Lot 3 les présente comme non bloquants et à trancher par l'utilisateur (accepter ou renforcer) ; **aucun arbitrage n'est consigné dans les sources fournies** et ce dossier n'en prend pas.
+Arbitrages finaux de l'utilisateur (21 novembre 2026) : **C1, C2, L2 et L3 acceptés** (doctests de visibilité non discriminants, atténués par la compilation des consommateurs réels ; `pk9` en `is_err()` ; mutation d'allocation détectable par revue seulement) ; **sentinelles Shell validées** ; **VQ-8 reporté à F3b** ; absence de validation 32 bits conservée ; authenticité cryptographique non démontrée ; absence de baseline pré-V2 conservée comme limite de preuve. Aucun nouveau test, audit ou contrôle n'est demandé.
 
 ---
 
@@ -469,25 +502,25 @@ C1 et L3 (doctests de visibilité non discriminants, atténués par la compilati
 
 ### 8.1 Unités validées
 
-Les trois lots concluent à l'acceptabilité des unités **V2-L, V2-P, V2-F**, sans anomalie fonctionnelle démontrée. Le Lot 3 est favorable à la clôture technique de V2-Z, sous les réserves ci-dessous. La clôture formelle (porte P-E) relève de l'utilisateur.
+Les trois lots concluent à l'acceptabilité des unités **V2-L, V2-P, V2-F**, sans anomalie fonctionnelle démontrée. Le Lot 3 est favorable à la clôture technique de V2-Z, sous les réserves ci-dessous. Les réserves ayant été arbitrées par l'utilisateur (§ 7.7, § 8.3), V2-Z peut être formellement clôturée sur cette base (porte P-E) ; la décision de clôture appartient à l'utilisateur.
 
 ### 8.2 Invariants démontrés, avec leur niveau de preuve
 
-- **Compatibilité v1** : ordre de `Manifest::parse`, niveaux 1 à 4, tout-ou-rien, erreurs historiques, formats d'artefacts : couverture directe par les tests historiques d'Assets, exécutés sur reconstitution **[W]** et déclarés verts sur le dépôt réel **[R, déclaré]**. Absence de modification des octets v1 : appuyée par la lecture et la présence des sentinelles ; le diff reste à confirmer (§ 7.5).
+- **Compatibilité v1** : ordre de `Manifest::parse`, niveaux 1 à 4, tout-ou-rien, erreurs historiques, formats d'artefacts : couverture directe par les tests historiques d'Assets, exécutés sur reconstitution **[W]** et confirmés verts par l'utilisateur sur le dépôt réel **[C]**. Préservation v1 : étayée par l'inspection du code, la conservation des tests historiques et leur exécution réelle ; **aucun diff exhaustif avec une baseline antérieure n'a été établi** ; elle n'est donc pas démontrée par un diff (§ 7.5).
 - **Lecteur VMAN v2 et enveloppe VPKG** : ordre champ par champ, classification A-1/A-2, `n'` contre `n`, tout-ou-rien, absence d'allocation, emprunts : directe pour l'essentiel ; inatteignabilité du `unreachable!` d'`artifact_bytes` par lecture **[S]**.
 - **Producteur Forge** : contrat O-1, layout pur sans allocation, validation avant allocation, P1 à P7, opacité de `CompiledPackage` : lecture **[S]** et tests présents ; exécution de `pf9` sur reconstitution **[W]** ; mutations Forge par raisonnement **[D]**.
-- **Parcours complet** `compile_package → load_package` sur lot hétérogène (cinq formats, longueurs et offsets distincts, `artifact_index ≠ slot_index`, Map → Tileset, équivalence avec `load`) : `pf9` **[W]**.
+- **Parcours complet** `compile_package → load_package` sur lot hétérogène (cinq formats, longueurs et offsets distincts, `artifact_index` / `slot_index` distincts sur les deux scripts, Map → Tileset, équivalence avec `load`) : `pf9` **[W]**, exécuté et validé sur le dépôt réel **[C]**.
 - **Intégration** : graphe de dépendances sans cycle, Assets sans dépendance, Forge sans consommateur normal **[R]** ; Script et Shell sans symbole v2 **[R][S]**.
 
 ### 8.3 Dettes documentaires
 
-| Réf. | Dette | État relevé au Lot 3 |
+| Réf. | Dette | Statut final |
 |---|---|---|
-| **E1** | Lien rustdoc ambigu `crate::load` dans la doc de `load_package` (correction triviale : `load()` ou `fn@load`) | Présent |
-| **O1** | Doc de `ManifestError::Truncated` et `TrailingBytes` sur `10 + 16 × n` | Présente |
-| **O4** | Coquille « une section d'artefact est donc jamais vide » (`package.rs`) | Présente |
+| **E1** | Lien rustdoc ambigu `crate::load` dans la doc de `load_package` (correction triviale : `load()` ou `fn@load`) | Acceptée ; avertissement observé sur reconstitution, non confirmé sur le dépôt réel |
+| **O1** | Doc de `ManifestError::Truncated` et `TrailingBytes` sur `10 + 16 × n` | Acceptée ; formulation historique conservée |
+| **O4** | Coquille « une section d'artefact est donc jamais vide » (`package.rs`) | Acceptée |
 
-Ces trois points n'ont aucun effet sur le comportement, le build, les tests ni clippy. La décision de les corriger ou de les accepter appartient à l'utilisateur.
+Ces trois points n'ont aucun effet sur le comportement, le build, les tests ni clippy. L'utilisateur les accepte comme dette documentaire mineure (21 novembre 2026) : aucune correction et aucun nouveau contrôle `cargo doc` ne sont demandés, et ils ne bloquent pas la clôture de V2-Z.
 
 ### 8.4 Éléments reportés ou hors périmètre
 
@@ -498,12 +531,12 @@ Ces trois points n'ont aucun effet sur le comportement, le build, les tests ni c
 
 ### 8.5 Points non démontrés et anomalies
 
-**Anomalie démontrée : une seule, non fonctionnelle (E1, documentation).** Tout le reste ci-dessus (couverture indirecte, doctests non discriminants, 32 bits, baseline absente, recherche `VPKG`, authenticité, VQ-8, relance post-`pf9`) est une **limite de preuve**, non un défaut fonctionnel.
+**Anomalie démontrée : une seule, non fonctionnelle (E1, documentation).** Tout le reste ci-dessus (couverture indirecte, doctests non discriminants, 32 bits, baseline absente, recherche `VPKG`, authenticité, VQ-8) est une **limite de preuve**, non un défaut fonctionnel.
 
 ### 8.6 Portée de la conclusion
 
 Ce dossier atteste que, dans les sources fournies et avec les niveaux de preuve indiqués, aucune anomalie fonctionnelle n'a été relevée dans le chantier VMAN v2 et que les contrats de l'annexe V2-C sont respectés à la lecture et aux tests exécutés. Il n'atteste pas :
-- que l'ensemble des contrôles réels ait été relancé après `pf9` (à confirmer) ;
-- l'absence de modification des fichiers v1 par comparaison à une baseline (à confirmer) ;
+- l'absence de modification des fichiers v1 par comparaison à une baseline : aucun diff exhaustif n'a été établi dans V2-Z ;
+- l'examen, par Claude, des sorties brutes des contrôles réels : ils reposent sur la confirmation de l'utilisateur **[C]** ;
 - un comportement sur cible 32 bits ;
 - une propriété d'authenticité du paquet.
