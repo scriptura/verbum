@@ -1,6 +1,6 @@
 // crates/engine/forge/tests/package.rs
 
-//! Production de paquet `VPKG` par la Forge, en mémoire (V2-F : pf1 à pf7).
+//! Production de paquet `VPKG` par la Forge, en mémoire (V2-F : pf1 à pf7, V2-Z : pf9).
 //!
 //! pf8 (`compile_fail`) est porté par les doctests de `CompiledPackage`, un test
 //! d'intégration ne pouvant exprimer un échec de compilation.
@@ -11,7 +11,10 @@
 
 use std::num::NonZeroU64;
 
-use verbum_assets::{Asset, Format, PackageError, SlotIndex, Sprite, load, load_package};
+use verbum_assets::{
+    Asset, Font, Format, Glyph, Map, PackageError, Script, SlotIndex, Sprite, Tileset, load,
+    load_package, manifest_v2, package as envelope,
+};
 use verbum_forge::{
     AssetKind, AssetSource, CompilePackageError, ForgeError, compile_assets, compile_package,
 };
@@ -300,4 +303,302 @@ fn pf7_empty_batch_is_28_bytes_and_loads_without_deposit() {
     let (result, deposited) = deposits(&bytes, &[]);
     assert_eq!(result.map(NonZeroU64::get), Ok(Q));
     assert!(deposited.is_empty());
+}
+
+// ---------------------------------------------------------------------------------------
+// pf9 : lot hétérogène des cinq formats, `compile_package` → `load_package` (V2-Z)
+// ---------------------------------------------------------------------------------------
+
+const TILES_TOML: &str = "tile_width = 16\ntile_height = 8\ncolumns = 4\ncount = 12\n";
+
+/// Carte 3 × 2 référençant la clé « a » (le tileset).
+const MAP_TOML: &str = "tileset = \"a\"\nwidth = 3\nheight = 2\ncells = [0, 1, 2, 3, 4, 11]\n";
+
+/// Script de référence de l'étape 6 : sept pas, 68 octets.
+const SCRIPT_A_TOML: &str = "[[step]]\nop = \"set\"\nregister = 0\nvalue = 3\n\
+    [[step]]\nlabel = \"loop\"\nop = \"emit\"\nchannel = 1\nvalue = 10\n\
+    [[step]]\nop = \"wait\"\nticks = 3\n\
+    [[step]]\nop = \"add\"\nregister = 0\nvalue = -1\n\
+    [[step]]\nop = \"jnz\"\nregister = 0\ntarget = \"loop\"\n\
+    [[step]]\nop = \"emit\"\nchannel = 2\nvalue = 99\n\
+    [[step]]\nop = \"halt\"\n";
+
+/// Second script : quatre pas, 44 octets.
+const SCRIPT_B_TOML: &str = "[[step]]\nop = \"emit\"\nchannel = 3\nvalue = 7\n\
+    [[step]]\nop = \"wait\"\nticks = 1\n\
+    [[step]]\nop = \"emit\"\nchannel = 3\nvalue = 8\n\
+    [[step]]\nop = \"halt\"\n";
+
+/// Police de trois glyphes, 38 octets.
+const FONT_TOML: &str = "line_height = 2571\n\
+    [[glyph]]\ncodepoint = 65\nwidth = 5\nadvance = 6\n\
+    [[glyph]]\ncodepoint = 233\nwidth = 7\nadvance = 8\n\
+    [[glyph]]\ncodepoint = 128512\nwidth = 0\nadvance = 9\n";
+
+const FONT_GLYPHS: [Glyph; 3] = [
+    Glyph {
+        codepoint: 0x41,
+        width: 5,
+        advance: 6,
+    },
+    Glyph {
+        codepoint: 0xE9,
+        width: 7,
+        advance: 8,
+    },
+    Glyph {
+        codepoint: 0x1_F600,
+        width: 0,
+        advance: 9,
+    },
+];
+
+fn source(
+    kind: AssetKind,
+    key: &'static str,
+    toml: &'static str,
+    slot: u32,
+) -> AssetSource<'static> {
+    AssetSource {
+        kind,
+        key,
+        toml,
+        slot: SlotIndex::new(slot),
+    }
+}
+
+/// Lot hétérogène. Ordre des artefacts : tileset (18 octets, slot 2), carte (34, slot 5),
+/// script « intro » (68, slot 4), sprite (14, slot 0), script « outro » (44, slot 1),
+/// police (38, slot 3). Les six longueurs sont distinctes et `artifact_index ≠ slot_index`
+/// pour chaque entrée.
+fn hetero_sources() -> [AssetSource<'static>; 6] {
+    [
+        source(AssetKind::Tileset, "a", TILES_TOML, 2),
+        source(AssetKind::Map, "ground", MAP_TOML, 5),
+        source(AssetKind::Script, "intro", SCRIPT_A_TOML, 4),
+        source(AssetKind::Sprite, "hero", "width = 96\nheight = 48\n", 0),
+        source(AssetKind::Script, "outro", SCRIPT_B_TOML, 1),
+        source(AssetKind::Font, "ui", FONT_TOML, 3),
+    ]
+}
+
+/// Table des formats de slot (capacité 6) : 0 sprite, 1 script, 2 tileset, 3 police,
+/// 4 script, 5 carte.
+const HETERO_TABLE: [Format; 6] = [
+    Format::Sprite,
+    Format::Script,
+    Format::Tileset,
+    Format::Font,
+    Format::Script,
+    Format::Map,
+];
+
+/// Slot de chaque entrée, dans l'ordre des artefacts.
+const HETERO_SLOTS: [u32; 6] = [2, 5, 4, 0, 1, 3];
+
+/// Longueurs attendues des artefacts, écrites à la main, dans l'ordre des artefacts.
+const HETERO_LENGTHS: [usize; 6] = [18, 34, 68, 14, 44, 38];
+
+/// Offsets absolus attendus, écrits à la main : `T = 10 + 8·6 = 58`, manifeste
+/// `18 + 16·6 = 114`, `s_0 = 172`, puis cumul des longueurs ; fin du paquet à 388.
+const HETERO_OFFSETS: [u64; 6] = [172, 190, 224, 292, 306, 350];
+const HETERO_TOTAL: usize = 388;
+
+/// Dépôts typés : conserve chacune des cinq variantes avec le slot reçu. Un second dépôt
+/// d'une variante à emplacement unique est un échec du test ; les scripts (deux) sont
+/// conservés dans l'ordre de dépôt.
+#[derive(Debug, Default, PartialEq)]
+struct Typed<'a> {
+    calls: usize,
+    sprite: Option<(u32, Sprite)>,
+    tileset: Option<(u32, Tileset)>,
+    map: Option<(u32, Map<'a>)>,
+    font: Option<(u32, Font<'a>)>,
+    scripts: Vec<(u32, Script<'a>)>,
+}
+
+impl<'a> Typed<'a> {
+    fn record(&mut self, slot: SlotIndex, asset: Asset<'a>) {
+        self.calls += 1;
+        let slot = slot.get();
+        let replaced = match asset {
+            Asset::Sprite(value) => self.sprite.replace((slot, value)).is_some(),
+            Asset::Tileset(value) => self.tileset.replace((slot, value)).is_some(),
+            Asset::Map(value) => self.map.replace((slot, value)).is_some(),
+            Asset::Font(value) => self.font.replace((slot, value)).is_some(),
+            Asset::Script(value) => {
+                self.scripts.push((slot, value));
+                false
+            }
+        };
+        assert!(!replaced, "variante déposée deux fois (slot {slot})");
+    }
+}
+
+fn le32(bytes: &[u8], at: usize) -> u32 {
+    u32::from_le_bytes(bytes[at..at + 4].try_into().expect("4 octets"))
+}
+
+fn le64(bytes: &[u8], at: usize) -> u64 {
+    u64::from_le_bytes(bytes[at..at + 8].try_into().expect("8 octets"))
+}
+
+#[test]
+fn pf9_heterogeneous_batch_of_the_five_formats_round_trips_through_load_package() {
+    let sources = hetero_sources();
+    let capacity = HETERO_TABLE.len();
+
+    // Production : le paquet et, séparément, le jeu historique du même lot.
+    let compiled = compile_package(&sources, capacity, Q).expect("lot valide");
+    let bytes = compiled.as_bytes();
+    let set = compile_assets(&sources, capacity).expect("lot valide");
+
+    // Les longueurs des artefacts sont distinctes et conformes aux valeurs littérales.
+    let lens: Vec<usize> = set.artifacts().iter().map(Vec::len).collect();
+    assert_eq!(lens, HETERO_LENGTHS);
+    for (i, len) in lens.iter().enumerate() {
+        assert!(!lens[..i].contains(len), "longueur {len} dupliquée");
+    }
+
+    // --- Offsets : analyse littérale du paquet, indépendante du chargement. -------------
+    assert_eq!(&bytes[..4], envelope::SIGNATURE.as_slice());
+    assert_eq!(&bytes[4..6], envelope::VERSION.to_le_bytes().as_slice());
+    let count = usize::try_from(le32(bytes, 6)).expect("n'");
+    assert_eq!(count, HETERO_LENGTHS.len());
+
+    let table_end = envelope::HEADER_LEN + envelope::OFFSET_WIDTH * count;
+    let manifest_len = manifest_v2::HEADER_LEN + manifest_v2::ENTRY_LEN * count;
+    assert_eq!((table_end, manifest_len), (58, 114));
+
+    let offsets: Vec<u64> = (0..count)
+        .map(|i| le64(bytes, envelope::HEADER_LEN + envelope::OFFSET_WIDTH * i))
+        .collect();
+    // Valeurs écrites à la main, puis recalculées depuis les longueurs réelles.
+    assert_eq!(offsets, HETERO_OFFSETS);
+    let mut cursor = table_end + manifest_len;
+    for (i, len) in lens.iter().enumerate() {
+        assert_eq!(offsets[i], u64::try_from(cursor).expect("offset"), "s_{i}");
+        cursor += len;
+    }
+    assert_eq!(cursor, HETERO_TOTAL);
+    assert_eq!(bytes.len(), HETERO_TOTAL);
+    // Strictement croissants, contigus, le dernier artefact finissant avec le paquet.
+    for (i, artifact) in set.artifacts().iter().enumerate() {
+        let start = usize::try_from(offsets[i]).expect("offset");
+        let end = offsets
+            .get(i + 1)
+            .map_or(bytes.len(), |next| usize::try_from(*next).expect("offset"));
+        assert!(start < end, "section {i} vide");
+        assert_eq!(&bytes[start..end], artifact.as_slice(), "artefact {i}");
+    }
+
+    // --- Manifeste v2 : q, compteur, entrées ; ordre des artefacts ≠ ordre des slots. ---
+    let manifest = &bytes[table_end..table_end + manifest_len];
+    assert_eq!(&manifest[..4], manifest_v2::SIGNATURE.as_slice());
+    assert_eq!(
+        &manifest[4..6],
+        manifest_v2::VERSION.to_le_bytes().as_slice()
+    );
+    assert_eq!(le64(manifest, 6), Q);
+    assert_eq!(le32(manifest, 14), le32(bytes, 6), "n = n'");
+    assert_eq!(&manifest[18..], &set.manifest()[10..], "entrées de la v1");
+    for (k, &expected_slot) in HETERO_SLOTS.iter().enumerate().take(count) {
+        let at = manifest_v2::HEADER_LEN + manifest_v2::ENTRY_LEN * k;
+        let artifact_index = le32(manifest, at + 8);
+        let slot_index = le32(manifest, at + 12);
+        assert_eq!(artifact_index, u32::try_from(k).expect("indice"));
+        assert_eq!(slot_index, expected_slot, "slot de l'entrée {k}");
+        assert_ne!(artifact_index, slot_index, "entrée {k}");
+    }
+    // La carte (artefact 1) désigne le tileset par l'identifiant de l'entrée 0.
+    assert_eq!(
+        &set.artifacts()[1][10..18],
+        &manifest[18..26],
+        "identifiant du tileset dans la carte"
+    );
+
+    // --- Chargement du paquet. ----------------------------------------------------------
+    let mut packaged = Typed::default();
+    let result = load_package(bytes, &HETERO_TABLE, |slot, asset| {
+        packaged.record(slot, asset)
+    });
+    assert_eq!(result.map(NonZeroU64::get), Ok(Q));
+    assert_eq!(packaged.calls, 6);
+
+    // --- Chemin historique sur le même ensemble de sources. -----------------------------
+    let slices: Vec<&[u8]> = set.artifacts().iter().map(Vec::as_slice).collect();
+    let mut legacy = Typed::default();
+    load(set.manifest(), &slices, &HETERO_TABLE, |slot, asset| {
+        legacy.record(slot, asset)
+    })
+    .expect("chargement v1");
+    assert_eq!(legacy.calls, 6);
+
+    // Mêmes ressources, mêmes slots, pour les cinq variantes.
+    assert_eq!(packaged, legacy);
+
+    // --- Contenu déposé, valeurs écrites à la main. -------------------------------------
+    assert_eq!(
+        packaged.sprite,
+        Some((
+            0,
+            Sprite {
+                width: 96,
+                height: 48
+            }
+        ))
+    );
+    assert_eq!(
+        packaged.tileset,
+        Some((
+            2,
+            Tileset {
+                tile_width: 16,
+                tile_height: 8,
+                columns: 4,
+                count: 12
+            }
+        ))
+    );
+
+    let (map_slot, map) = packaged.map.expect("carte déposée");
+    assert_eq!(map_slot, 5);
+    assert_eq!((map.width(), map.height()), (3, 2));
+    let rows = [[0u16, 1, 2], [3, 4, 11]];
+    for (row, line) in rows.iter().enumerate() {
+        for (column, value) in line.iter().enumerate() {
+            assert_eq!(
+                map.tile(
+                    u16::try_from(column).expect("colonne"),
+                    u16::try_from(row).expect("ligne")
+                ),
+                Some(*value),
+                "case ({column}, {row})"
+            );
+        }
+    }
+    assert_eq!(map.tile(3, 0), None);
+
+    // Référence Map → Tileset : résolue vers le slot du tileset (2), ni l'indice
+    // d'artefact du tileset (0), ni le slot de la carte (5).
+    let (tileset_slot, _) = packaged.tileset.expect("tileset déposé");
+    assert_eq!(map.tileset(), SlotIndex::new(tileset_slot));
+    assert_eq!(map.tileset(), SlotIndex::new(2));
+    assert_ne!(map.tileset().get(), 0);
+    assert_ne!(map.tileset().get(), map_slot);
+
+    let (font_slot, font) = packaged.font.expect("police déposée");
+    assert_eq!(font_slot, 3);
+    assert_eq!((font.len(), font.line_height()), (3, 2571));
+    for (index, glyph) in (0u16..).zip(FONT_GLYPHS) {
+        assert_eq!(font.glyph(index), Some(glyph));
+    }
+    assert_eq!(font.glyph(3), None);
+
+    // Scripts : reçus dans l'ordre du manifeste (« intro » slot 4, « outro » slot 1),
+    // égaux à la relecture directe des artefacts correspondants.
+    let intro = Script::read(&set.artifacts()[2]).expect("script conforme");
+    let outro = Script::read(&set.artifacts()[4]).expect("script conforme");
+    assert_eq!(packaged.scripts, vec![(4, intro), (1, outro)]);
+    assert_eq!((intro.len(), outro.len()), (7, 4));
 }

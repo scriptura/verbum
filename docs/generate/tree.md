@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-11-20 08:24:19
+**Généré le:** 2026-11-21 14:53:58
 
 ## Racine du Workspace
 
@@ -232,6 +232,7 @@
 │   ├── 03-verbum-shell-temporal-policy-remaining-work.md
 │   ├── 03-verbum-shell-temporal-policy-roadmap.md
 │   ├── 03-verbum-shell-temporal-policy-vman-v2-annex-v2c.md
+│   ├── 03-verbum-shell-temporal-policy-vman-v2-validation.md
 │   ├── 03-verbum-shell-temporal-policy-vman-v2.md
 │   ├── 03-verbum-shell-temporal-policy.md
 │   ├── 03-verbum-shell.md
@@ -254,6 +255,6 @@
     ├── when-context-leaves-the-conversation-to-enter-the-corpus.md
     └── why-the-name-verbum.md
 
-9 directories, 67 files
+9 directories, 68 files
 ```
 
