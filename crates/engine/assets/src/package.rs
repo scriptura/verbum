@@ -123,7 +123,7 @@ impl<'a> Envelope<'a> {
         // manifeste (la fin du paquet si la table est vide).
         let mut previous = end_of_table;
         let mut first = package.len();
-        for (position, block) in table.chunks_exact(OFFSET_WIDTH).enumerate() {
+        for (position, block) in table.as_chunks::<OFFSET_WIDTH>().0.iter().enumerate() {
             let start = read_offset(block).ok_or(PackageError::Offsets)?;
             if start <= previous {
                 return Err(PackageError::Offsets);

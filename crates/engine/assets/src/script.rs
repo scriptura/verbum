@@ -166,7 +166,7 @@ impl<'a> Script<'a> {
         if deduced != declared {
             return Err(ReadError::PayloadLength);
         }
-        for record in records.chunks_exact(SCRIPT_INSTRUCTION_LEN) {
+        for record in records.as_chunks::<SCRIPT_INSTRUCTION_LEN>().0 {
             if decode_record(record, count).is_none() {
                 return Err(ReadError::Instruction);
             }

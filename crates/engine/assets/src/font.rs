@@ -333,7 +333,10 @@ mod tests {
         bytes[6..10].copy_from_slice(&(PAYLOAD as u32).to_le_bytes());
         bytes[10..12].copy_from_slice(&u16::MAX.to_le_bytes());
         bytes[12..14].copy_from_slice(&7u16.to_le_bytes());
-        for (index, record) in (0u32..).zip(bytes[14..].chunks_exact_mut(FONT_RECORD_LEN)) {
+        let (records, remainder) = bytes[14..].as_chunks_mut::<FONT_RECORD_LEN>();
+        assert!(remainder.is_empty(), "payload incomplet");
+
+        for (index, record) in (0u32..).zip(records.iter_mut()) {
             let width = 1 + (index % 5) as u16;
             record[..4].copy_from_slice(&(FIRST_CODEPOINT + STRIDE * index).to_le_bytes());
             record[4..6].copy_from_slice(&width.to_le_bytes());

@@ -208,7 +208,7 @@ pub struct Manifest<'a> {
 
 /// Itération sur les entrées d'un manifeste, dans l'ordre des octets.
 pub struct Entries<'a> {
-    chunks: core::slice::ChunksExact<'a, u8>,
+    chunks: core::slice::Iter<'a, [u8; MANIFEST_ENTRY_LEN]>,
 }
 
 impl<'a> Manifest<'a> {
@@ -276,7 +276,7 @@ impl<'a> Manifest<'a> {
     /// Entrées dans l'ordre des octets, sans allocation.
     pub fn entries(&self) -> Entries<'a> {
         Entries {
-            chunks: self.entries.chunks_exact(MANIFEST_ENTRY_LEN),
+            chunks: self.entries.as_chunks::<MANIFEST_ENTRY_LEN>().0.iter(),
         }
     }
 
@@ -349,7 +349,7 @@ impl Iterator for Entries<'_> {
     type Item = ManifestEntry;
 
     fn next(&mut self) -> Option<ManifestEntry> {
-        self.chunks.next().map(decode)
+        self.chunks.next().map(|chunk| decode(chunk))
     }
 }
 

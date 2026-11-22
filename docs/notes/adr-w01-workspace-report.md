@@ -45,7 +45,3 @@ Conclusion : la direction Application → Extension → Engine est respectée su
 - **`02-concepts.md`** : décider s'il faut y poser une note de désambiguïsation entre « strate » et « niveau de composition » (ADR-W01 la traite dans son Contexte).
 - **`ROADMAP.md` et plan d'étape 6** : cohérence avec le chemin `crates/extensions/script/` non vérifiée.
 - **Tests U4 / `games/demo`** : à réexaminer à la création de l'application de démonstration.
-
-## 6. Emplacement de cette note
-
-Proposition : `docs/implementation/adr-w01-workspace-report.md`. Ce dossier contient déjà un rapport (`06-verbum-scripts-report-u3.md`) ; cette note est de même nature (compte rendu de travail, non normatif). `docs/reflexivity/` est réservé à la méthode du corpus, `docs/handoffs/` aux passations d'implémentation.

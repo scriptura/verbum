@@ -316,8 +316,12 @@ mod tests {
     fn offsets(first: usize, lens: &[usize]) -> Vec<u64> {
         let mut out = Vec::new();
         write_offsets(&mut out, first, lens.iter().copied()).expect("offsets représentables");
-        out.chunks_exact(8)
-            .map(|chunk| u64::from_le_bytes(chunk.try_into().expect("8 octets")))
+        let (chunks, remainder) = out.as_chunks::<8>();
+        assert!(remainder.is_empty(), "offset incomplet");
+
+        chunks
+            .iter()
+            .map(|chunk| u64::from_le_bytes(*chunk))
             .collect()
     }
 

@@ -325,14 +325,10 @@ fn sr2_a_reconstruction_resumes_from_the_captured_bytes_only() {
         // `Beat` initial 100 : il n'influence aucune assertion ci-dessous.
         let (mut world, mut buffer, id) = reconstruct(set.manifest(), &artifacts, &captured, 100);
         let scheduler = Sched::new().expect("modèle valide");
-        for k in (t + 1)..=12 {
+        for (k, expected_encoding) in reference.encodings.iter().enumerate().take(13).skip(t + 1) {
             tick(&scheduler, &mut world, &mut buffer);
-            // (b) encodage égal à celui de la référence.
-            assert_eq!(
-                capture(&world, id),
-                reference.encodings[k],
-                "t = {t}, tick {k}"
-            );
+
+            assert_eq!(capture(&world, id), *expected_encoding, "t = {t}, tick {k}");
             // (c) transcript du suffixe égal au littéral.
             assert_eq!(
                 transcript(&world).expect("transcript présent"),

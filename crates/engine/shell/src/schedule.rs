@@ -41,7 +41,7 @@ pub(crate) fn due_capped(next: u64, q: NonZeroU64, t: u64, k: NonZeroU32) -> u32
     if t < next {
         return 0;
     }
-    let s = (t - next) / q.get();
+    let s = (t - next) / q;
     match u32::try_from(s) {
         // `s < k <= u32::MAX` : `s + 1` ne déborde pas.
         Ok(s) if s < k.get() => s + 1,
@@ -56,7 +56,7 @@ pub(crate) fn due_capped(next: u64, q: NonZeroU64, t: u64, k: NonZeroU32) -> u32
 /// `t_fin >= next` ; R > M ⇔ `t_fin >= next` **et** `(t_fin - next) / q >= M`.
 #[must_use]
 pub(crate) fn exceeds(next: u64, q: NonZeroU64, t_fin: u64, m: NonZeroU32) -> bool {
-    t_fin >= next && (t_fin - next) / q.get() >= u64::from(m.get())
+    t_fin >= next && (t_fin - next) / q >= u64::from(m.get())
 }
 
 /// Avancement après une itération comptée : `next + q`.
