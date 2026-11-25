@@ -1,6 +1,6 @@
 # Structure du Projet
 
-**Généré le:** 2026-11-22 07:46:19
+**Généré le:** 2026-11-25 23:01:05
 
 ## Racine du Workspace
 
@@ -66,10 +66,10 @@
 │   │   │   │   ├── accumulator.rs
 │   │   │   │   ├── contribution.rs
 │   │   │   │   ├── frame.rs
-│   │   │   │   ├── lib.rs
-│   │   │   │   └── representation.rs
+│   │   │   │   └── lib.rs
 │   │   │   ├── tests
-│   │   │   │   └── pipeline.rs
+│   │   │   │   ├── pipeline.rs
+│   │   │   │   └── representation.rs
 │   │   │   ├── Cargo.toml
 │   │   │   └── README.md
 │   │   ├── schedule
@@ -169,9 +169,10 @@
 │   └── tree.sh
 ├── Cargo.lock
 ├── Cargo.toml
-└── README.md
+├── README.md
+└── rust-toolchain.toml
 
-37 directories, 128 files
+37 directories, 129 files
 ```
 
 ## Documentation du projet
@@ -246,6 +247,7 @@
 │   └── 07-verbum-demo-0.md
 ├── notes
 │   ├── adr-w01-workspace-report.md
+│   ├── native-platform-architecture-investigation.md
 │   ├── page-axes-shell-boucle-presentation.md
 │   ├── page-axes-shell-s-temporal-policy.md
 │   └── technology-selection-note.md
@@ -256,6 +258,6 @@
     ├── when-context-leaves-the-conversation-to-enter-the-corpus.md
     └── why-the-name-verbum.md
 
-9 directories, 69 files
+9 directories, 70 files
 ```
 
