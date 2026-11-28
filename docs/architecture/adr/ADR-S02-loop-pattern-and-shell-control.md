@@ -5,6 +5,10 @@
 
 Historique : projet rédigé le 10 novembre 2026 (statut Proposé), révisé après audit externe le même jour, puis adopté. La décision adoptée concerne exclusivement le modèle de boucle et le pilotage du Shell. Restent explicitement délégués : la politique temporelle et le rattrapage (ADR-S04) ; la transmission et la répétition du Frame et le cycle de vie graphique (clarification d'ADR-R03 ou ADR-S05 éventuelle) ; le découpage des crates et l'intégration concrète (spécification ultérieure).
 
+**Annotation d'historique proposée le 26 novembre 2026**, en attente d'adoption explicite : la phrase d'historique ci-dessus décrit la situation à l'adoption. Depuis, l'addendum proposé d'ADR-R03 (point 3) précise la réception post-progression de la représentation de frame et la possibilité de présentations répétées. Le cycle de vie graphique, les canaux de contrôle de la présentation, le mécanisme déclenchant une présentation, le découpage des crates et l'intégration concrète demeurent délégués ou ouverts. Le texte d'historique adopté n'est pas réécrit.
+
+**Addendum proposé le 26 novembre 2026** (point 5 : « l'assembleur du Shell »), **en attente d'adoption explicite**. Des annotations de renvoi, également proposées le 26 novembre 2026, signalent au point 12, au point 8 et dans « Ce qui n'est pas tranché ici » ce que l'addendum proposé d'ADR-R03 (réception et présentation) résout, sous réserve de son adoption. Le texte adopté n'est pas modifié ; le statut « Adopté » demeure.
+
 Cette ADR ne modifie aucune ADR adoptée. Il instancie la délégation explicite d'ADR-S01 (« Ce qui n'est pas tranché ici » : choix entre boucle bloquante et boucle pilotée par callbacks de plateforme → ADR-S02). Il s'appuie sur `page-axes-shell-boucle-presentation.md` (non normative) pour le contexte des questions ouvertes, et sur le code de `verbum-shell` pour les comportements implémentés. Toute orientation de la page d'axes reprise ici est justifiée dans cette ADR ; aucune n'est reprise par autorité.
 
 ## Contexte
@@ -68,6 +72,8 @@ Substituer la source de temps du Shell (tests sans horloge murale) est une déci
 
 L'échéance est une donnée **sortante** du Shell vers l'adaptateur (point 6). Elle est distincte du mécanisme de réveil de la boucle de la Plateforme : ce mécanisme n'est qu'un moyen, pour l'adaptateur, d'être rappelé à temps.
 
+> **Addendum proposé (26 novembre 2026) — « l'assembleur du Shell ».** L'expression désigne le Shell dans son rôle architectural d'assemblage (ADR-S01, point 7), et non un acteur ou un crate distinct. Le code d'assemblage qui doit nommer des types spécifiques au jeu peut résider physiquement dans l'Application (ADR-W01, points 2 et 4). Cette localisation ne crée pas un second point de composition de la Plateforme : le Shell demeure responsable du raccordement et de l'orchestration de ses infrastructures.
+
 ### 6. Compte rendu de progression
 Chaque progression rend un compte rendu portant, sémantiquement :
 1. le nombre d'itérations exécutées par cette progression ;
@@ -100,6 +106,8 @@ Le choix du point d'accroche concret dans une bibliothèque de plateforme est un
 
 **Conséquence sur la présentation, signalée sans être résolue.** Dans la séquence habituelle d'une boucle de plateforme, le traitement des signaux de fenêtre, notamment une demande de redessin, précède le point où la progression est demandée. Une demande de redessin déjà traitée dans le lot courant peut donc précéder la progression du Shell et utiliser la représentation précédemment retenue. Si la progression produit ensuite un nouveau Frame, l'intégration de présentation devra demander un redessin ultérieur pour l'afficher. La circulation du Frame et le mécanisme de répétition restent hors du périmètre de S02 et dépendent de l'arbitrage R03/S05.
 
+> *[Annotation proposée le 26 novembre 2026, en attente d'adoption : l'addendum proposé d'ADR-R03 (point 3) distingue la réception d'une nouvelle représentation, qui suit la progression complète, de la présentation de l'état retenu, qui peut être répétée sans nouvelle réception. La circulation du Frame (réception post-progression) et la possibilité de répétition sont ainsi précisées. Le mécanisme qui déclenche une présentation reste hors du périmètre de S02 et n'est pas décidé.]*
+
 Un dépôt de signal ne déclenche pas à lui seul une itération. Qu'un signal puisse rendre une itération « due » relèverait d'ADR-S04.
 
 ### 9. Modèle de fils initial
@@ -130,8 +138,8 @@ Le pilote événementiel exige un Shell **à état** : cadencement, `Inbox`, inf
 - la décision sur le quantum du tick et sa provenance (lien avec la Forge), le nombre d'itérations par progression, le rattrapage, l'abandon ou la resynchronisation après retard, et l'affectation temporelle des lots d'entrées.
 
 **À ADR-R03 / ADR-S05 éventuelles** — points repérés, non décidés :
-- la progression exécute 0..N itérations ; l'invariant d'ADR-S01, point 5 (« 0..1 FrameRepresentation transmise au Backend » pour 0..N itérations) ne doit pas être rendu impossible à satisfaire. Le contrat de progression n'en préjuge pas ; si N peut excéder 1, le moyen d'identifier la dernière itération d'une progression devra être traité là-bas ;
-- transmission et répétition de la représentation de frame, cycle de vie du Backend, canaux de contrôle de la présentation, point ouvert d'ADR-000, point 3.
+- la progression exécute 0..N itérations ; l'invariant d'ADR-S01, point 5 (« 0..1 FrameRepresentation transmise au Backend » pour 0..N itérations) ne doit pas être rendu impossible à satisfaire. Le contrat de progression n'en préjuge pas ; si N peut excéder 1, le moyen d'identifier la dernière itération d'une progression devra être traité là-bas ; *[Annotation proposée le 26 novembre 2026, en attente d'adoption : résolu pour la réception de la représentation de frame par l'addendum proposé d'ADR-R03 (point 3) — la réception a lieu après la progression complète, au plus une fois ; le moyen d'identifier la dernière itération est sans objet pour cette réception. Les autres questions de cette liste ne sont pas concernées.]*
+- transmission et répétition de la représentation de frame, cycle de vie du Backend, canaux de contrôle de la présentation, point ouvert d'ADR-000, point 3. *[Annotation proposée le 26 novembre 2026, en attente d'adoption : la transmission (réception post-progression) et la possibilité de présentations répétées sont précisées par l'addendum proposé d'ADR-R03 ; le point ouvert d'ADR-000, point 3 (forme de l'interface de franchissement ; relation entre `renderer.compose()` et la composition interne au modèle) reste ouvert : l'addendum proposé d'ADR-000, point 3, se borne à distinguer la production de la représentation de frame de sa récupération et de son franchissement. Restent ouverts, et relèvent d'une éventuelle ADR-S05 : le cycle de vie du Backend et des infrastructures de Plateforme, les canaux de contrôle de la présentation, et le mécanisme qui déclenche une présentation.]*
 
 ### 13. Interdictions explicites
 - Aucune reproduction de la séquence interne d'une itération par l'adaptateur.
@@ -144,7 +152,7 @@ Le pilote événementiel exige un Shell **à état** : cadencement, `Inbox`, inf
 
 ## Ce qui n'est pas tranché ici
 - Quantum du tick, provenance, nombre d'itérations par progression, rattrapage, retard, affectation des lots (ADR-S04).
-- Transmission et répétition de la représentation de frame, cycle de vie du Backend, `PresentMode`, canaux de contrôle de la présentation (ADR-R03 / ADR-S05 éventuelle).
+- Transmission et répétition de la représentation de frame, cycle de vie du Backend, `PresentMode`, canaux de contrôle de la présentation (ADR-R03 / ADR-S05 éventuelle). *[Annotation proposée le 26 novembre 2026, en attente d'adoption : la réception post-progression et la possibilité de présentations répétées sont précisées par l'addendum proposé d'ADR-R03 ; le cycle de vie du Backend, `PresentMode` et les canaux de contrôle de la présentation restent non tranchés.]*
 - Découpage Cargo de l'adaptateur de fenêtrage et du Backend ; lieu physique du code d'assemblage (ADR-W01 s'applique) ; rôle du crate `verbum-shell` par rapport au rôle Shell.
 - Signatures, noms de méthodes, type du compte rendu, représentation de l'état du Shell, moyen concret de demander l'arrêt, réécriture ou non de `run_loop` au-dessus du cœur.
 - Seuils de bascule vers un modèle à fil dédié.
@@ -201,9 +209,10 @@ Le pilote événementiel exige un Shell **à état** : cadencement, `Inbox`, inf
 | Progression demandée après la distribution et le traitement du lot courant, avant l'entrée en attente de la boucle de plateforme ; jamais pendant | Invariant |
 | Point d'accroche concret de la demande de progression dans une bibliothèque de plateforme | Décision d'implémentation d'adaptateur (note de sélection technologique) |
 | Shell sur le fil de la boucle de la Plateforme comme modèle initial | Décision révisable (critère de bascule : difficulté technique démontrée) |
+| « L'assembleur du Shell » (point 5) désigne le Shell dans son rôle d'assemblage ; le code d'assemblage spécialisé par les types du jeu peut résider dans l'Application sans créer un second point de composition | Clarification de portée (instanciation d'ADR-S01, point 7, et d'ADR-W01, points 2 et 4) — addendum proposé le 26 novembre 2026, en attente d'adoption |
 | Signatures, type du compte rendu, représentation de l'état, source de temps substituable | Hors périmètre — implémentation |
 | Quantum, nombre d'itérations par progression, rattrapage, retard, affectation des lots | Hors périmètre — ADR-S04 |
-| Transmission du Frame, cycle de vie du Backend | Hors périmètre — ADR-R03 / ADR-S05 éventuelle |
+| Transmission du Frame, cycle de vie du Backend | Hors périmètre — ADR-R03 / ADR-S05 éventuelle ; *réception post-progression et présentations répétées précisées par l'addendum proposé d'ADR-R03 (26 novembre 2026, en attente d'adoption) ; cycle de vie du Backend non tranché* |
 
 ## Maturité, conditions d'adoption, conformité de l'implémentation
 Trois niveaux sont distingués.

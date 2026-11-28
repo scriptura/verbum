@@ -5,6 +5,8 @@ Adopté le 10 octobre 2026. Rédigée le 25 août 2026. Révision de cohérence 
 
 Points ouverts connus, non bloquants pour l'adoption : la forme de l'interface de franchissement de `world.execute()` et la relation entre `renderer.compose()` et la composition interne au modèle (point 3) restent à arbitrer avant l'intégration du Shell et du Renderer ; aucune alternative à Zig n'a été évaluée (Contexte).
 
+**Addendum proposé le 26 novembre 2026** (point 3), **en attente d'adoption explicite** : il ne ferme aucun des points ouverts ci-dessus : il distingue seulement, dans la question, la production de la représentation de frame et sa récupération / son franchissement de la frontière. La forme de l'interface de franchissement et la relation entre `renderer.compose()` et la composition interne au modèle restent ouvertes ; une tension textuelle entre ADR-S01, point 3, et ADR-R02, point 3, est soumise à arbitrage. Le point relatif à Zig n'est pas concerné et reste ouvert. Tant que l'addendum n'est pas adopté, les points ouverts énoncés ci-dessus demeurent, et le statut « Adopté » n'est pas modifié.
+
 ## Contexte
 Cette ADR est issue du draft `rust-vs-zig.md`. Elle est numérotée 000 parce qu'elle précède logiquement le corpus, mais elle a été rédigée après lui. Conformément au statut de `00-principes.md` (en cas de conflit apparent, c'est la nouvelle décision qui est reformulée), elle s'aligne sur les ADR existantes et n'en modifie aucune.
 
@@ -52,6 +54,15 @@ Cette ADR ne garantit pas le déterminisme de la simulation. Elle retire des sou
 - **Frontière de strate — point de passage : l'invocation de l'infrastructure `World` par le Shell** (ADR-S01, point 3). Les flux qui la traversent obéissent au principe de circulation (`02-concepts.md`) : données d'Acquisition en entrée ; données d'Extraction (`01-runtime-ecs.md`, section 5) en sortie. La forme exacte de cette interface n'est pas fixée par le corpus et n'est pas tranchée ici : en particulier, la représentation de frame peut être retournée par `world.execute()`, lue comme Ressource après son retour, ou produite par un appel distinct (`renderer.compose()`, ADR-S01 point 3, à rapprocher de la composition interne au modèle, ADR-R02). Le périmètre du noyau (point 1) reste défini par le seul graphe d'appel de `world.execute()` ; il ne dépend pas de cette question. Seul le périmètre de l'invariant d'allocation (point 1) en dépend : si la composition de la représentation de frame s'exécute hors de `world.execute()`, le code qui la réalise relève du hot path (`00-principes.md`, point 4) et est soumis à l'invariant, par contrat et revue, sans entrer dans le noyau. Cette ADR ne tranche pas. Cette question reste un point ouvert distinct, à arbitrer avant l'intégration du Shell et du Renderer ; elle n'est pas un obstacle à l'adoption de cette ADR. Cette ADR exige seulement que les données qui franchissent la frontière ne contiennent ni propriété partagée ni référence à un type de la Plateforme. Leur représentation concrète (layout, aplatissement) n'est pas prescrite et reste à l'implémentation (cf. ADR-R02 pour la représentation de frame). Cette exigence n'est que partiellement vérifiable par les types ; le résidu relève de la revue (cf. point 4).
 - **Frontière de connaissance.** Tout interdit de la forme « X ne peut pas nommer Y » (le noyau ne nomme pas le Shell ; le Backend ne nomme ni entité, ni composant, ni système — ADR-R03, point 1) est encodé dans le graphe de dépendances et la visibilité, de sorte qu'une violation ne compile pas. Les interdits qui relèvent d'un contrat (un système ne lit que ce que son interface déclarative expose — ADR-003 ; un seul propriétaire en écriture par donnée persistante) ne s'encodent pas par la seule visibilité ; leur vérification relève d'ADR-002 à ADR-004 et de l'outillage associé.
 
+> **Addendum proposé (26 novembre 2026) — précisions de vocabulaire, sans fermeture.**
+> Le présent addendum ne ferme ni la forme de l'interface de franchissement, ni la relation entre `renderer.compose()` et la composition interne au modèle. Il distingue seulement deux questions que le texte ci-dessus mêle :
+> - la **production** de la représentation de frame : qui la compose, et où. ADR-R02, point 3, confie la composition à un système unique, interne au modèle d'exécution ; ADR-S01, point 3, énumère `renderer.compose()` parmi les infrastructures invoquées par le Shell. Cette tension textuelle n'est pas levée ;
+> - la **récupération** de la représentation et son **franchissement** de la frontière vers le Backend.
+>
+> Les trois formes énumérées ci-dessus ne sont pas nécessairement des alternatives indépendantes de la première question : le choix entre « lue comme Ressource après son retour » et « produite par un appel distinct » dépend de la relation entre ADR-S01, point 3, et ADR-R02, point 3. Aucune des trois formes n'est donc retenue ni écartée, et la condition du présent point relative à une composition s'exécutant hors de `world.execute()` demeure applicable.
+> L'exigence du présent point sur les données qui franchissent la frontière (ni propriété partagée, ni référence à un type de la Plateforme) est inchangée. Le côté Backend de la frontière (réception et présentation) est traité par ADR-R03 (addendum proposé du point 3), indépendamment de la question de la production.
+> **Hors addendum.** Il ne statue pas sur l'application de l'invariant d'allocation à la lecture d'une Ressource ni à la remise au Backend : ce sujet relève de la spécification du Backend.
+
 ### 4. Quelles garanties sont offertes au reste du moteur ?
 - **Allocation.**
   - *Invariant exigé* : aucune allocation dynamique pendant l'exécution de `world.execute()`.
@@ -91,7 +102,7 @@ Précisions sur cette instanciation :
 - L'organisation en crates et leur nommage.
 - Le layout concret des structures partagées (`#[repr(C)]` ou autre), la bibliothèque de cast (`bytemuck` ou autre), le versionnement du layout entre Forge et runtime.
 - L'interface et l'implémentation de la capacité d'exécution abstraite par laquelle la Plateforme fournit du parallélisme intra-système au noyau.
-- La forme exacte de l'interface de franchissement de `world.execute()` (cf. point 3).
+- La forme exacte de l'interface de franchissement de `world.execute()` (cf. point 3) — *reste ouverte ; l'addendum proposé du point 3 (26 novembre 2026, en attente d'adoption) se borne à distinguer production et franchissement*.
 - Le mécanisme de spécialisation statique des Queries (monomorphisation ou génération de code) et l'outillage de vérification des contrats ADR-002/003.
 - La politique de résidence mémoire des fichiers mappés (un défaut de page peut allonger le temps de frame sans affecter le déterminisme logique).
 - Le lieu d'exécution de la génération procédurale : le corpus ne le fixe pas ; s'il s'agit d'un système atteignable depuis `world.execute()`, il est soumis à la garantie sans allocation.
@@ -114,7 +125,8 @@ Précisions sur cette instanciation :
 | `no_std` sans `alloc`, audit de dépendances, `pub(crate)`, traits scellés | Hors périmètre — implémentation |
 | `#[repr(C)]`, `extern "C"`, bibliothèque de cast, versionnement de layout | Hors périmètre — implémentation |
 | Interface de la capacité d'exécution, politique de résidence mémoire, lieu de la génération procédurale | Hors périmètre — implémentation |
-| Forme exacte de l'interface de franchissement de `world.execute()` | Hors périmètre — non fixée par le corpus |
+| Forme exacte de l'interface de franchissement de `world.execute()` | Hors périmètre — non fixée par le corpus ; **reste ouverte** (l'addendum proposé le 26 novembre 2026, en attente d'adoption, distingue seulement la production de la représentation de frame de sa récupération et de son franchissement) |
+| Relation entre `renderer.compose()` (ADR-S01, point 3) et la composition interne au modèle (ADR-R02, point 3) | Reste ouvert — tension textuelle soumise à arbitrage ; non tranchée par l'addendum proposé le 26 novembre 2026 |
 | Déterminisme numérique des flottants | Hors périmètre — non traité |
 
 ## Bilan — test à cinq questions

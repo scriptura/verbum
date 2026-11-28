@@ -7,6 +7,8 @@ Historique : projet rédigé le 11 novembre 2026 (statut Proposé), après adopt
 
 Restent explicitement délégués : la transmission et la répétition du Frame et le cycle de vie du Backend (ADR-R03 ou ADR-S05 éventuelle) ; le cycle de vie de la plateforme (suspension, reprise, éventuel contrôle de pause) ; toute modification de la Forge et du format des artefacts (étape 5 et cadre d'implémentation associé).
 
+**Annotation proposée le 26 novembre 2026** (renvoi croisé, point 12), **en attente d'adoption explicite** : l'addendum proposé d'ADR-R03 (réception et présentation) précise la transmission du Frame et la possibilité de présentations répétées ; la désignation de la dernière itération d'une progression est sans objet pour la réception du Frame. Le cycle de vie du Backend, le cycle de vie de la plateforme et le moment d'application des commandes audio restent délégués. Le texte adopté n'est pas modifié ; le statut « Adopté » demeure.
+
 ## Contexte
 ADR-S01 fait du Shell le propriétaire des sources de temps réel (point 5) et renvoie la politique de traduction temps réel → temps logique à une future ADR-S04. ADR-S02 définit une progression non bloquante qui exécute 0..N itérations, rend compte du nombre d'itérations, du besoin de réveil et de l'état terminal, et précise que l'adaptateur ne fournit ni politique temporelle ni instant décisionnel. Elle laisse ouverts le quantum, le nombre d'itérations par progression et le traitement du retard. ADR-S03 pose le déterminisme pour une même séquence de lots publiés et renvoie à S04 ce qui concerne la répartition des événements entre lots.
 
@@ -142,8 +144,8 @@ Le contenu du compte rendu est celui d'ADR-S02 point 6 (itérations exécutées,
 ### 12. Frontières, dépendances, pilotes
 - **Pilotes.** La politique est la même pour le pilote bloquant et le pilote événementiel d'ADR-S02. L'équivalence des pilotes d'ADR-S02 point 3 reste exigée pour une même séquence d'observations ; les lectures de l'heure du Shell en font partie. La forme de l'adaptation du pilote bloquant est laissée à l'implémentation.
 - **Source de temps.** Elle est substituable à l'assemblage (ADR-S02 point 5), jamais par un instant fourni à chaque progression. La substitution doit permettre de scripter séparément t_entrée et t_fin.
-- **ADR-R03 / ADR-S05 éventuelle.** La transmission d'une représentation de frame, son éventuelle répétition et le cycle de vie du Backend ne sont pas décidés ici. Cette ADR ne rend pas impossible « 0..N itérations pour 0..1 représentation transmise » (ADR-S01 point 5). Elle précise que, pour une progression de plusieurs itérations, le moyen de désigner la dernière itération relève de ces décisions.
-- **ADR-AU01.** Elle ne dit pas quand le Shell applique les commandes audio résolues. Pour une progression de plusieurs itérations, ce moment n'est pas déterminé par cette ADR ; il se traite avec l'extraction.
+- **ADR-R03 / ADR-S05 éventuelle.** La transmission d'une représentation de frame, son éventuelle répétition et le cycle de vie du Backend ne sont pas décidés ici. Cette ADR ne rend pas impossible « 0..N itérations pour 0..1 représentation transmise » (ADR-S01 point 5). Elle précise que, pour une progression de plusieurs itérations, le moyen de désigner la dernière itération relève de ces décisions. *[Annotation proposée le 26 novembre 2026, en attente d'adoption : l'addendum proposé d'ADR-R03 (point 3) précise que la réception de la représentation de frame a lieu après la progression complète, au plus une fois, et que le Backend peut présenter plusieurs fois un état déjà reçu. Le moyen de désigner la dernière itération est donc sans objet pour cette réception. Le cycle de vie du Backend reste délégué à ADR-R03 / ADR-S05 éventuelle.]*
+- **ADR-AU01.** Elle ne dit pas quand le Shell applique les commandes audio résolues. Pour une progression de plusieurs itérations, ce moment n'est pas déterminé par cette ADR ; il se traite avec l'extraction. *[Annotation proposée le 26 novembre 2026 : non concerné par l'addendum d'ADR-R03, qui ne porte que sur la représentation de frame ; ce point reste ouvert.]*
 - **ADR-N01.** Chaque instance reste locale et déterministe. L'alignement des ticks entre instances relève de la topologie et de la compensation de latence (ADR-N01 point 6), hors de cette ADR. Le quantum unique (point 2) est cohérent avec la nécessité d'une unité de temps logique commune entre instances.
 - **Forge / étape 5.** Voir point 2.
 - **Plateforme.** Aucun type de fenêtrage ni de graphique, aucune API de plateforme dans les contrats de la politique.
@@ -166,7 +168,7 @@ Le contenu du compte rendu est celui d'ADR-S02 point 6 (itérations exécutées,
 - Facteur d'échelle entre temps logique et temps réel.
 - Observabilité des abandons ; enregistrement de la suite des lots publiés.
 - Signal de suspension, reprise ou non-présentabilité ; contrôle de pause ; comportement de l'horloge monotone pendant la veille, par plateforme.
-- Transmission du Frame, désignation de la dernière itération d'une progression, cycle de vie du Backend ; moment d'application des commandes audio ; alignement des ticks entre instances.
+- Transmission du Frame, désignation de la dernière itération d'une progression, cycle de vie du Backend ; moment d'application des commandes audio ; alignement des ticks entre instances. *[Annotation proposée le 26 novembre 2026, en attente d'adoption : la transmission du Frame (réception post-progression) et la désignation de la dernière itération sont précisées, pour la représentation de frame, par l'addendum proposé d'ADR-R03. Restent non tranchés : le cycle de vie du Backend, le moment d'application des commandes audio, l'alignement des ticks entre instances.]*
 - Forme de l'adaptation du pilote bloquant à la politique.
 
 ## Alternatives examinées
@@ -229,7 +231,7 @@ Le contenu du compte rendu est celui d'ADR-S02 point 6 (itérations exécutées,
 | Politique indépendante de la cause du retard ; présentabilité sans effet propre sur la chronologie | Invariant |
 | Valeurs de K, M et q ; représentation de l'échéancier ; initialisation ; mécanisme de cohérence du quantum | Hors périmètre — composition et implémentation |
 | Format des artefacts et de `VMAN` ; Forge | Hors périmètre — étape 5 et cadre d'implémentation |
-| Transmission du Frame, cycle de vie du Backend, application des commandes audio, alignement multi-instances, contrôle de pause | Hors périmètre — autres décisions |
+| Transmission du Frame, cycle de vie du Backend, application des commandes audio, alignement multi-instances, contrôle de pause | Hors périmètre — autres décisions ; *transmission du Frame (réception post-progression) et désignation de la dernière itération précisées, pour la représentation de frame, par l'addendum proposé d'ADR-R03 (26 novembre 2026, en attente d'adoption) ; les autres éléments restent hors périmètre* |
 
 ## Maturité, conditions d'adoption, conformité de l'implémentation
 **1. Maturité du domaine.** Les six questions de la grammaire sont renseignables pour le périmètre de cette ADR : le domaine est suffisamment mûr. Les arbitrages sur K, M, la mesure du résiduel, R1, l'échéance restituée, les lots et la présentabilité sont rendus.
