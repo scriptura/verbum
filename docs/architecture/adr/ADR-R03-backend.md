@@ -3,7 +3,7 @@
 ## Statut
 Adopté. Date : 31 juillet 2026.
 
-**Addendum proposé le 26 novembre 2026** (point 3 : réception et présentation), **en attente d'adoption explicite**. Il ne se prononce ni sur la production de la représentation de frame, ni sur la relation entre ADR-S01 et ADR-R02, ni sur la forme de l'interface de franchissement d'ADR-000, point 3. Tant qu'il n'est pas adopté, le texte adopté ci-dessous fait seul foi ; le statut « Adopté » n'est pas modifié.
+**Addendum adopté le 28 novembre 2026** (proposé le 26 novembre 2026 ; point 3 : réception et présentation). Il ne se prononce ni sur la production de la représentation de frame, ni sur la relation entre ADR-S01 et ADR-R02, ni sur la forme de l'interface de franchissement d'ADR-000, point 3. Le statut « Adopté » n'est pas modifié.
 
 ## Contexte
 ADR-R01 et ADR-R02 ont établi que la représentation de frame est produite entièrement à l'intérieur du modèle ECS, par composition d'une Ressource transitoire, sans jamais nommer de backend, de GPU, ou d'API graphique. Cette ADR traite ce qui se passe une fois la représentation composée : comment elle traverse la frontière vers le backend, et ce qui, de l'autre côté de cette frontière, cesse d'exister.
@@ -36,7 +36,7 @@ Dans les deux cas, l'infrastructure terminale n'invente aucune logique : elle ex
 ### 3. Le backend ne participe à aucun contrat, aucune dépendance, aucune phase
 Contrairement à un système (ADR-003), le backend n'a pas d'interface déclarative inspectable par le modèle d'exécution (ADR-004) : il n'est jamais un nœud du graphe de dépendances construit à partir des contrats. Son point d'invocation est fixé par construction à la fin de la phase d'Extraction (`01-runtime-ecs.md`, section 5) — un point d'entrée unique, hors du système de contrats, pas un système de plus parmi d'autres.
 
-> **Addendum proposé (26 novembre 2026) — réception et présentation.**
+> **Addendum adopté (28 novembre 2026) — réception et présentation.**
 > Deux opérations sont distinguées, que l'expression « invocation » du présent point ne séparait pas :
 > - la **réception** est la remise au Backend d'une nouvelle représentation de frame, qui actualise l'état qu'il retient. C'est le point d'entrée unique du présent point ; il demeure hors du système de contrats ;
 > - la **présentation** est l'exécution graphique de l'état retenu.
@@ -70,8 +70,8 @@ Aucune information ne remonte du backend vers l'ECS pendant l'exécution d'une f
 | Le choix de la bibliothèque de rendu est hors périmètre architectural | Décision d'implémentation |
 | Aucune information ne remonte du backend vers l'ECS pendant l'exécution d'une frame | Invariant |
 | Optimisations de composition/transmission (batching, atlas, instancing, tri GPU) | Hors périmètre — politiques d'implémentation |
-| Réception (remise d'une nouvelle représentation ; « 0..1 » compte les réceptions ; localisée après la progression complète, hors de toute itération) distincte de la présentation (exécution de l'état retenu) | Clarification de portée (instanciation d'ADR-S01, point 5) — addendum proposé le 26 novembre 2026, en attente d'adoption |
-| Présentation répétée d'un état déjà reçu, sans nouvelle réception | Possibilité, non obligation ; aucune politique de cadence — addendum proposé le 26 novembre 2026, en attente d'adoption |
+| Réception (remise d'une nouvelle représentation ; « 0..1 » compte les réceptions ; localisée après la progression complète, hors de toute itération) distincte de la présentation (exécution de l'état retenu) | Clarification de portée (instanciation d'ADR-S01, point 5) — addendum adopté le 28 novembre 2026 |
+| Présentation répétée d'un état déjà reçu, sans nouvelle réception | Possibilité, non obligation ; aucune politique de cadence — addendum adopté le 28 novembre 2026 |
 
 ## Bilan de la trilogie Renderer
 Avec ADR-R01 à ADR-R03, le Renderer est architecturalement clos :
